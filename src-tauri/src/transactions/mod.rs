@@ -1,0 +1,286 @@
+use chrono::{DateTime, Utc};
+use once_cell::sync::Lazy;
+use rand::{
+    distr::{Alphanumeric, Uniform},
+    Rng,
+};
+use sea_orm::{
+    prelude::DateTimeUtc,
+    ActiveModelTrait,
+    ActiveValue::{Set, Unchanged},
+    ConnectionTrait, DbErr, EntityTrait,
+};
+use serde::Serialize;
+use strum::{Display, EnumString};
+use thiserror::Error;
+use tokio::sync::Mutex;
+
+use crate::accounts::Account;
+use crate::transactions_log::{db::Direction, TransactionLog};
+
+pub mod db;
+pub mod ui;
+
+#[derive(Debug, Error)]
+pub enum TransactionEngineError {
+    #[error("Database error: {0}")]
+    Database(#[from] DbErr),
+
+    #[error("Insufficient funds")]
+    InsufficientFunds,
+
+    #[error("Account not found: {0}")]
+    AccountNotFound(u32),
+
+    #[error("Transaction not found")]
+    TransactionNotFound,
+}
+
+static GLOBAL_LEDGER_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+
+#[derive(Display, EnumString, Debug, PartialEq, Serialize)]
+#[strum(serialize_all = "snake_case")]
+pub enum TransactionType {
+    Paybill,
+    BuyGoods,
+    SendMoney,
+    Airtime,
+    Reversal,
+    Withdraw,
+    Deposit,
+    Unknown(String),
+}
+
+#[derive(Display, EnumString, Debug, PartialEq, Serialize)]
+#[strum(serialize_all = "snake_case")]
+pub enum TransactionStatus {
+    Pending,
+    Failed,
+    Completed,
+    Reversed,
+    Unknown(String),
+}
+
+#[derive(Serialize)]
+pub struct Transaction {
+    pub id: String,
+    pub from: Option<u32>,
+    pub to: u32,
+    pub amount: i64,
+    pub fee: i64,
+    pub currency: String,
+    pub status: TransactionStatus,
+    pub reversal_of: Option<String>,
+    pub transaction_type: TransactionType,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+pub struct Ledger {}
+
+impl Ledger {
+    pub async fn transfer<C>(
+        conn: &C,
+        source: Option<u32>,
+        destination: u32,
+        amount: i64,
+        txn_type: &TransactionType,
+    ) -> Result<Transaction, TransactionEngineError>
+    where
+        C: ConnectionTrait,
+    {
+        let _guard = GLOBAL_LEDGER_LOCK.lock().await;
+
+        let mut source_account = if let Some(source) = source {
+            let source_account = Account::get_account(conn, source).await?;
+            if source_account.is_none() {
+                // This is an error, We were given an accout that does not exist
+                return Err(TransactionEngineError::AccountNotFound(source));
+            }
+
+            source_account
+        } else {
+            None
+        };
+
+        let destination_account = Account::get_account(conn, destination).await?;
+        if destination_account.is_none() {
+            return Err(TransactionEngineError::AccountNotFound(destination));
+        }
+
+        let mut destination_account = destination_account.unwrap();
+
+        let fee = crate::transaction_costs::get_fee(conn, txn_type, amount).await?;
+
+        // check if source has enough funds
+        if let Some(source) = &mut source_account {
+            if source.balance < amount + fee {
+                return Err(TransactionEngineError::InsufficientFunds);
+            }
+
+            source.balance -= amount + fee;
+            let acc = crate::accounts::db::ActiveModel {
+                id: Unchanged(source.id),
+                balance: Set(source.balance),
+                ..Default::default()
+            };
+
+            acc.update(conn).await?;
+        }
+
+        destination_account.balance += amount;
+        let acc = crate::accounts::db::ActiveModel {
+            id: Unchanged(destination_account.id),
+            balance: Set(destination_account.balance),
+            ..Default::default()
+        };
+        acc.update(conn).await?;
+
+        let txn = db::ActiveModel {
+            id: Set(Ledger::generate_receipt()),
+            to: Set(destination_account.id),
+            from: Set(source_account.as_ref().map(|f| f.id)),
+            amount: Set(amount),
+            fee: Set(fee),
+            currency: Set("KES".to_string()),
+            transaction_type: Set(txn_type.to_string()),
+            status: Set(TransactionStatus::Completed.to_string()),
+            created_at: Set(Utc::now().to_utc()),
+            ..Default::default()
+        };
+
+        let txn: Transaction = txn.insert(conn).await?.into();
+
+        if let Some(source) = &source_account {
+            TransactionLog::create(
+                conn,
+                txn.id.clone(),
+                source.id as i32,
+                Direction::Debit,
+                source.balance,
+            )
+            .await?;
+        }
+
+        TransactionLog::create(
+            conn,
+            txn.id.clone(),
+            destination_account.id as i32,
+            Direction::Credit,
+            destination_account.balance,
+        )
+        .await?;
+
+        drop(_guard);
+
+        Ok(txn)
+    }
+
+    pub async fn reverse<C>(conn: &C, id: &str) -> Result<Transaction, TransactionEngineError>
+    where
+        C: ConnectionTrait,
+    {
+        let _guard = GLOBAL_LEDGER_LOCK.lock().await;
+
+        let transaction = db::Entity::find_by_id(id).one(conn).await?;
+        if transaction.is_none() {
+            return Err(TransactionEngineError::TransactionNotFound);
+        }
+
+        let transaction = transaction.unwrap();
+        let source_id = transaction.from;
+        let dest_id = transaction.to;
+        let amount = transaction.amount;
+
+        // look through the accounts and restore balances
+        if let Some(dest) = crate::accounts::db::Entity::find_by_id(dest_id)
+            .one(conn)
+            .await?
+        {
+            if dest.balance < amount {
+                // we are trying to reverse but target has insufficient funds to do so
+                // TODO implement correct real world logic for this scenario
+                return Err(TransactionEngineError::InsufficientFunds);
+            }
+            let balance = dest.balance - amount;
+            let mut dest_model: crate::accounts::db::ActiveModel = dest.into();
+            dest_model.balance = Set(balance);
+            dest_model.update(conn).await?;
+
+            TransactionLog::create(
+                conn,
+                transaction.id.clone(),
+                dest_id as i32,
+                Direction::Debit,
+                balance,
+            )
+            .await?;
+        } else {
+            return Err(TransactionEngineError::AccountNotFound(dest_id));
+        }
+
+        // credit back the funds to source
+        if let Some(source_id) = source_id {
+            if let Some(source) = crate::accounts::db::Entity::find_by_id(source_id)
+                .one(conn)
+                .await?
+            {
+                let balance = source.balance + amount;
+                let mut source_model: crate::accounts::db::ActiveModel = source.into();
+                source_model.balance = Set(balance);
+                source_model.update(conn).await?;
+
+                TransactionLog::create(
+                    conn,
+                    transaction.id.clone(),
+                    source_id as i32,
+                    Direction::Credit,
+                    balance,
+                )
+                .await?;
+            } else {
+                return Err(TransactionEngineError::AccountNotFound(source_id));
+            }
+        }
+
+        let mut txn: db::ActiveModel = transaction.into();
+        txn.status = Set(TransactionStatus::Reversed.to_string());
+        txn.updated_at = Set(Some(DateTimeUtc::UNIX_EPOCH));
+        txn.update(conn).await?;
+
+        let txn = db::ActiveModel {
+            id: Set(Ledger::generate_receipt()),
+            to: Set(source_id.unwrap_or(dest_id)),
+            from: Set(Some(dest_id)),
+            amount: Set(amount),
+            currency: Set("KES".to_string()),
+            transaction_type: Set(TransactionType::Reversal.to_string()),
+            status: Set(TransactionStatus::Completed.to_string()),
+            ..Default::default()
+        };
+        let txn: Transaction = txn.insert(conn).await?.into();
+
+        drop(_guard);
+        Ok(txn)
+    }
+
+    pub fn generate_receipt() -> String {
+        // Ensure it starts with an uppercase letter
+        let first_char = rand::rng()
+            .sample_iter(&Uniform::new_inclusive(b'A', b'Z').unwrap())
+            .take(1)
+            .map(char::from)
+            .collect::<String>();
+
+        // Followed by 9 random alphanumeric characters
+        let rest: String = rand::rng()
+            .sample_iter(&Alphanumeric)
+            .filter(|c| c.is_ascii_alphanumeric())
+            .map(|c| c.to_ascii_uppercase())
+            .take(9)
+            .map(char::from)
+            .collect();
+
+        format!("{first_char}{rest}")
+    }
+}

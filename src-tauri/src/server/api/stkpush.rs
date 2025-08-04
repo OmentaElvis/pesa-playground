@@ -4,13 +4,16 @@ use chrono::{DateTime, Utc};
 use rand::{distr::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 
+use crate::server::MpesaError;
 use crate::{
-    api_keys::{AccessToken, ApiKey},
-    callbacks::{callback_start, CallbackLog, CreateCallbackLog},
-    project::Project,
-    server::{ApiError, ApiState},
-    transaction::{CreateTransactionRequest, TransactionRepository},
-    user::User,
+    accounts::{
+        paybill_accounts::PaybillAccount, till_accounts::TillAccount, user_profiles::User, Account,
+    },
+    api_keys::ApiKey,
+    business::Business,
+    callbacks::stk::init::StkpushInit,
+    projects::Project,
+    server::{access_token::AccessToken, ApiError, ApiState},
 };
 
 #[derive(Deserialize)]
@@ -59,10 +62,15 @@ fn generate_checkout_request_id() -> String {
 #[derive(Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct StkPushResponse {
-    pub merchant_request_i_d: String,
-    pub checkout_request_i_d: String,
-    pub response_code: String,
+    #[serde(rename = "MerchantRequestID")]
+    pub merchant_request_id: String,
+    #[serde(rename = "CheckoutRequestID")]
+    pub checkout_request_id: String,
+    #[serde(rename = "ResponseCode")]
+    pub response_code: i32,
+    #[serde(rename = "ResponseDescription")]
     pub response_description: String,
+    #[serde(rename = "CustomerMessage")]
     pub customer_message: String,
 }
 
@@ -78,28 +86,28 @@ pub async fn stkpush(
         match auth.to_str() {
             Err(_) => {
                 return Err(ApiError::new(
-                    crate::server::MpesaError::MissingAccessToken,
-                    invalid_access_token.to_string(),
+                    MpesaError::InvalidAccessToken,
+                    invalid_access_token,
                 ))
             }
             Ok(auth) => auth,
         }
     } else {
         return Err(ApiError::new(
-            crate::server::MpesaError::InvalidAccessToken,
-            invalid_access_token.to_string(),
+            MpesaError::InvalidAccessToken,
+            invalid_access_token,
         ));
     };
 
     if !auth.starts_with("Bearer ") {
         return Err(ApiError::new(
-            crate::server::MpesaError::MissingAccessToken,
-            invalid_access_token.to_string(),
+            MpesaError::InvalidAccessToken,
+            invalid_access_token,
         ));
     }
 
     let key = &auth[7..];
-    let access_token = AccessToken::read_by_token(&state.pool, key)
+    let access_token = AccessToken::read_by_token(&state.conn, key)
         .await
         .map_err(|error| {
             ApiError::new(
@@ -110,7 +118,7 @@ pub async fn stkpush(
 
     if access_token.is_none() {
         return Err(ApiError::new(
-            crate::server::MpesaError::InvalidAccessToken,
+            MpesaError::InvalidAccessToken,
             invalid_access_token,
         ));
     }
@@ -120,33 +128,12 @@ pub async fn stkpush(
 
     if now.gt(&access_token.expires_at) {
         return Err(ApiError::new(
-            crate::server::MpesaError::InvalidAccessToken,
-            invalid_access_token,
+            MpesaError::InvalidAccessToken,
+            "The access token has expired.",
         ));
     }
 
-    let project = Project::find_by_id(&state.pool, access_token.project_id)
-        .await
-        .map_err(|error| {
-            ApiError::new(
-                crate::server::MpesaError::InternalError,
-                format!(
-                    "An internal error occured while trying to get project {}: {}",
-                    access_token.project_id, error
-                ),
-            )
-        })?;
-
-    if project.is_none() {
-        return Err(ApiError::new(
-            crate::server::MpesaError::InternalError,
-            format!("Project with id {} not found", access_token.project_id),
-        ));
-    }
-
-    let project = project.unwrap();
-
-    let api_key = ApiKey::read_by_project_id(&state.pool, access_token.project_id)
+    let api_key = ApiKey::read_by_project_id(&state.conn, access_token.project_id)
         .await
         .map_err(|error| {
             ApiError::new(
@@ -157,23 +144,96 @@ pub async fn stkpush(
 
     if api_key.is_none() {
         return Err(ApiError::new(
-            crate::server::MpesaError::InvalidCredentials,
-            invalid_credentials,
+            MpesaError::InvalidCredentials,
+            "Invalid credentials",
         ));
     }
     let api_key = api_key.unwrap();
     let passkey = api_key.passkey;
-
-    let short_code = project.shortcode.clone().unwrap_or(req.business_short_code);
     let timestamp = req.timestamp;
+
+    let (account_id, business_id) = match req.transaction_type {
+        TransactionType::CustomerBuyGoodsOnline => {
+            let till = match TillAccount::get_by_till_number(
+                &state.conn,
+                req.party_b.parse().unwrap_or_default(),
+            )
+            .await
+            {
+                Ok(Some(till)) => till,
+                Ok(None) => {
+                    return Err(ApiError::new(
+                        MpesaError::InvalidShortcode,
+                        "Invalid Till Number",
+                    ))
+                }
+                Err(err) => {
+                    return Err(ApiError::new(MpesaError::InternalError, err.to_string()));
+                }
+            };
+            (till.account_id, till.business_id)
+        }
+        TransactionType::CustomerPayBillOnline => {
+            let paybill = match PaybillAccount::get_by_paybill_number(
+                &state.conn,
+                req.party_b.parse().unwrap_or_default(),
+            )
+            .await
+            {
+                Ok(Some(paybill)) => paybill,
+                Ok(None) => {
+                    return Err(ApiError::new(
+                        MpesaError::InvalidShortcode,
+                        "Invalid Paybill Number",
+                    ))
+                }
+                Err(err) => {
+                    return Err(ApiError::new(MpesaError::InternalError, err.to_string()));
+                }
+            };
+
+            (paybill.account_id, paybill.business_id)
+        }
+    };
+
+    let business = match Business::get_by_id(&state.conn, business_id).await {
+        Ok(Some(business)) => business,
+        Ok(None) => {
+            return Err(ApiError::new(
+                MpesaError::InvalidShortcode,
+                "Invalid business shortcode.",
+            ));
+        }
+        Err(err) => {
+            return Err(ApiError::new(MpesaError::InternalError, err.to_string()));
+        }
+    };
+
+    let entity_account = match Account::get_account(&state.conn, account_id).await {
+        Ok(Some(account)) => account,
+        Ok(None) => {
+            return Err(ApiError::new(
+                crate::server::MpesaError::InternalError,
+                format!("Failed to read acount {}", account_id),
+            ))
+        }
+        Err(err) => {
+            return Err(ApiError::new(
+                crate::server::MpesaError::InternalError,
+                err.to_string(),
+            ));
+        }
+    };
+
+    let short_code = business.short_code.clone();
 
     let password =
         general_purpose::STANDARD.encode(format!("{}{}{}", short_code, passkey, timestamp));
 
     if !password.eq(&req.password) {
         return Err(ApiError::new(
-            crate::server::MpesaError::InvalidCredentials,
-            invalid_credentials,
+            MpesaError::InvalidCredentials,
+            "Invalid password",
         ));
     }
 
@@ -187,85 +247,65 @@ pub async fn stkpush(
         )
     })?;
 
-    let user = User::get_user_by_phone(&state.pool, req.phone_number)
+    let user = match User::get_user_by_phone(&state.conn, &req.phone_number)
         .await
         .map_err(|err| {
             ApiError::new(
                 crate::server::MpesaError::InternalError,
                 format!("An error occured while trying to get user: {}", err),
             )
-        })?;
-
-    let (phone, id) = if let Some(user) = &user {
-        (Some(user.phone.to_string()), Some(user.id))
-    } else {
-        (None, None)
+        })? {
+        Some(user) => user,
+        None => {
+            return Err(ApiError::new(
+                MpesaError::InvalidPhoneNumber,
+                "Invalid phone number",
+            ));
+        }
     };
 
-    let merchant_id = generate_merchant_request_id();
-    let checkout_id = generate_checkout_request_id();
-
-    let transaction = CreateTransactionRequest {
-        project_id: access_token.project_id,
-        amount,
-        merchant_request_id: Some(merchant_id.clone()),
-        checkout_request_id: Some(checkout_id.clone()),
-        short_code: Some(short_code),
-        status: "pending".to_string(),
-        account_reference: None,
-        transaction_desc: None,
-        user_id: id.unwrap_or(0) as i64,
-        phone: phone.unwrap_or("NOT_FOUND".to_string()),
-    };
-
-    let transaction = TransactionRepository::create(&state.pool, transaction)
-        .await
-        .map_err(|err| {
-            ApiError::new(
+    let project = match Project::get_by_id(&state.conn, state.project_id).await {
+        Ok(Some(project)) => project,
+        Ok(None) => {
+            return Err(ApiError::new(
+                crate::server::MpesaError::InvalidCredentials,
+                invalid_credentials,
+            ));
+        }
+        Err(err) => {
+            return Err(ApiError::new(
                 crate::server::MpesaError::InternalError,
-                format!(
-                    "An internal error occured while trying to create transaction: {}",
-                    err
-                ),
-            )
-        })?;
-
-    let callback = CreateCallbackLog {
-        transaction_id: Some(transaction.id),
-        checkout_request_id: Some(checkout_id.clone()),
-        callback_url: req.call_back_u_r_l,
-        response_body: None,
-        status: "pending".to_string(),
-        error: None,
-        callback_type: "stkpush".to_string(),
-        payload: String::new(),
-        response_status: None,
+                err.to_string(),
+            ));
+        }
     };
 
-    let callback = CallbackLog::create(&state.pool, callback)
-        .await
-        .map_err(|err| {
-            ApiError::new(
-                crate::server::MpesaError::InternalError,
-                format!(
-                    "An internal error occured while trying to log callback: {}",
-                    err
-                ),
-            )
-        })?;
-
-    tokio::spawn(callback_start(
-        state.clone(),
-        transaction,
+    let amount = (amount * 100.0).round() as i64;
+    let init = StkpushInit::new(
+        req.call_back_u_r_l.to_string(),
         user,
-        callback,
+        entity_account,
+        amount,
+    );
+
+    let merchant_id = init.merchant_request_id.to_string();
+    let checkout_id = init.checkout_request_id.to_string();
+
+    tokio::spawn(init.start(
+        state.clone(),
         project,
+        match req.transaction_type {
+            TransactionType::CustomerPayBillOnline => crate::transactions::TransactionType::Paybill,
+            TransactionType::CustomerBuyGoodsOnline => {
+                crate::transactions::TransactionType::BuyGoods
+            }
+        },
     ));
 
     Ok(Json(StkPushResponse {
-        merchant_request_i_d: merchant_id,
-        checkout_request_i_d: checkout_id,
-        response_code: String::from("0"),
+        merchant_request_id: merchant_id,
+        checkout_request_id: checkout_id,
+        response_code: 0,
         response_description: String::from("The service request has been accepted successfully."),
         customer_message: String::from("Success"),
     }))

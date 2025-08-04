@@ -1,18 +1,22 @@
 use std::{collections::HashMap, sync::Arc};
 
+use sea_orm::DatabaseConnection;
 use serde_json::{json, Value};
 use server::start_project_server;
-use sqlx::SqlitePool;
 use tauri::{AppHandle, Manager, State};
 use tokio::sync::{oneshot, Mutex};
 
+mod accounts;
 mod api_keys;
 mod api_logs;
+mod business;
 mod callbacks;
 mod db;
-mod project;
+mod projects;
 mod server;
-mod transaction;
+mod transaction_costs;
+mod transactions;
+mod transactions_log;
 mod user;
 
 pub struct RunningSandbox {
@@ -23,7 +27,7 @@ pub struct RunningSandbox {
 
 pub struct SandboxManager {
     pub handle: AppHandle,
-    pub pool: SqlitePool,
+    pub conn: DatabaseConnection,
     pub running: Arc<Mutex<HashMap<i64, RunningSandbox>>>,
 }
 
@@ -43,9 +47,9 @@ async fn start_sandbox(
     }
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
     let handle = tokio::spawn(start_project_server(
-        project_id,
+        project_id.try_into().unwrap(),
         port,
-        state.pool.clone(),
+        state.conn.clone(),
         shutdown_rx,
         state.handle.clone(),
     ));
@@ -130,8 +134,12 @@ pub fn run() {
                     .await
                     .expect("Failed to initialize database");
 
+                if let Err(err) = database.init().await {
+                    eprintln!("Database error: {:?}", err);
+                }
+
                 app.manage(SandboxManager {
-                    pool: database.pool.clone(),
+                    conn: database.conn.clone(),
                     running: Arc::new(Mutex::new(HashMap::new())),
                     handle: app.handle().clone(),
                 });
@@ -144,45 +152,64 @@ pub fn run() {
             start_sandbox,
             stop_sandbox,
             sandbox_status,
-            project::create_project,
-            project::get_project,
-            project::get_projects,
-            project::update_project,
-            project::delete_project,
+            projects::ui::create_project,
+            projects::ui::get_project,
+            projects::ui::get_projects,
+            projects::ui::update_project,
+            projects::ui::delete_project,
+            projects::ui::get_projects_by_business_id,
+            // businesses
+            business::ui::create_business,
+            business::ui::get_business,
+            business::ui::get_businesses,
+            business::ui::update_business,
+            business::ui::delete_business,
+            // accounts
+            accounts::paybill_accounts::ui::create_paybill_account,
+            accounts::paybill_accounts::ui::get_paybill_account,
+            accounts::paybill_accounts::ui::get_paybill_accounts,
+            accounts::paybill_accounts::ui::get_paybill_accounts_by_business_id,
+            accounts::paybill_accounts::ui::update_paybill_account,
+            accounts::paybill_accounts::ui::delete_paybill_account,
+            accounts::till_accounts::ui::create_till_account,
+            accounts::till_accounts::ui::get_till_account,
+            accounts::till_accounts::ui::get_till_accounts,
+            accounts::till_accounts::ui::get_till_accounts_by_business_id,
+            accounts::till_accounts::ui::update_till_account,
+            accounts::till_accounts::ui::delete_till_account,
             // users
-            user::get_users,
-            user::create_user,
-            user::remove_user,
-            user::get_user,
-            user::update_user,
-            user::generate_user,
+            accounts::user_profiles::ui::get_users,
+            accounts::user_profiles::ui::create_user,
+            accounts::user_profiles::ui::remove_user,
+            accounts::user_profiles::ui::get_user,
+            accounts::user_profiles::ui::update_user,
+            accounts::user_profiles::ui::generate_user,
+            accounts::user_profiles::ui::generate_users,
             // transactions
-            transaction::create_transaction,
-            transaction::get_transaction,
-            transaction::delete_transaction,
-            transaction::list_transactions,
-            transaction::count_transactions,
-            transaction::get_transaction_by_checkout_request,
-            transaction::get_user_transactions,
-            transaction::get_project_transactions,
-            transaction::get_recent_transactions,
-            transaction::get_transaction_stats,
-            transaction::update_transaction,
+            transactions::ui::get_transaction,
+            transactions::ui::list_transactions,
+            transactions::ui::count_transactions,
+            transactions::ui::get_transaction_by_checkout_request,
+            transactions::ui::get_user_transactions,
+            transactions::ui::get_recent_transactions,
+            transactions::ui::get_transaction_stats,
+            transactions_log::ui::get_transaction_log,
+            transactions_log::ui::get_full_transaction_log,
+            transactions_log::ui::list_full_transaction_logs,
             // logs
-            api_logs::create_api_log,
-            api_logs::get_api_log,
-            api_logs::update_api_log,
-            api_logs::delete_api_log,
-            api_logs::list_api_logs,
-            api_logs::count_api_logs,
-            api_logs::get_project_api_logs,
-            api_logs::get_api_logs_by_method,
-            api_logs::get_error_api_logs,
-            api_logs::get_recent_api_logs,
-            api_logs::cleanup_old_api_logs,
-            api_logs::get_api_log_stats,
+            api_logs::ui::get_api_log,
+            api_logs::ui::update_api_log,
+            api_logs::ui::delete_api_log,
+            api_logs::ui::count_api_logs,
+            api_logs::ui::get_project_api_logs,
+            api_logs::ui::get_api_logs_by_method,
             // Callbacks
-            callbacks::resolve_stk_prompt
+            callbacks::stk::ui::resolve_stk_prompt,
+            // Transaction Costs
+            transaction_costs::ui::create_transaction_cost,
+            transaction_costs::ui::list_transaction_costs,
+            transaction_costs::ui::update_transaction_cost,
+            transaction_costs::ui::delete_transaction_cost,
         ]);
 
     app.run(tauri::generate_context!())

@@ -14,7 +14,9 @@
 	import StkPushDialog from '$lib/components/StkPushDialog.svelte';
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { onDestroy, onMount } from "svelte";
-    import { resolveStkPrompt } from "$lib/api";
+  import { resolveStkPrompt } from "$lib/api";
+  import { toast, Toaster } from "svelte-sonner";
+
   
 	const appWindow = getCurrentWindow();
 	let { children } = $props();
@@ -36,7 +38,7 @@
 	let stkPushOpened : boolean = $state(false);
 
 	let barClass =  $derived(`
-    fixed top-0 transition-colors duration-500 left-0 pr-4 select-none items-center flex w-full h-[36px] shadow-lg
+    fixed top-0 transition-colors duration-500 left-0 pr-4 select-none items-center flex w-full h-[36px] shadow-lg z-1000
     ${status === "on" ? 'bg-green-800 text-white' : 'bg-white dark:bg-gray-800'}
   `);
 
@@ -102,8 +104,9 @@
 	  </Button>
 	</div>
 	<AppSidebar variant="sidebar" />
-	<div class="mt-[36px] w-full">
+	<div class="mt-[36px] h-[calc(100vh-36px)] w-full overflow-y-auto">
 		{@render children()}
 	</div>
 </Sidebar.Provider>
 <StkPushDialog bind:open={stkPushOpened} dialogData={stkPush} on:action={stkPushAction} />
+<Toaster position="top-right" richColors offset="40px" />

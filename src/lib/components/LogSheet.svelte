@@ -78,7 +78,7 @@
 <Sheet bind:open>
   <SheetContent class="max-w-[800px] mt-[36px] p-8 pb-16 w-full overflow-y-auto">
     <SheetHeader>
-      <SheetTitle class="flex items-center gap-2 text-left">
+      <SheetTitle class="flex gap-2 text-left flex-col">
         <Badge variant="outline" class={getMethodColor(log.method)}>
           {log.method}
         </Badge>

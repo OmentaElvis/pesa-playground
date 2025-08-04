@@ -14,6 +14,7 @@
     X,
     Smartphone,
   } from 'lucide-svelte';
+  import { formatAmount, formatPhoneNumber } from '$lib/utils';
 
   export let dialogData: any = null;
   export let open = false;
@@ -81,19 +82,6 @@
     open = false;
   }
 
-  function formatPhoneNumber(phone: string) {
-    if (!phone) return '';
-    // Format as +254 759 289 552
-    return phone.replace(/(\d{3})(\d{3})(\d{3})(\d{3})/, '+$1 $2 $3 $4');
-  }
-
-  function formatAmount(amount: number) {
-    return new Intl.NumberFormat('en-KE', {
-      style: 'currency',
-      currency: 'KES',
-      minimumFractionDigits: 0
-    }).format(amount);
-  }
 
   $: user = dialogData?.user;
   $: callback = dialogData?.callback;

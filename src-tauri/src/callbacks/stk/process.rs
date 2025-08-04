@@ -1,0 +1,255 @@
+use std::time::Duration;
+
+use chrono::Utc;
+use serde_json::json;
+use tauri::Emitter;
+use tokio::sync::oneshot;
+
+use crate::{
+    accounts::Account,
+    callbacks::{response::return_body, CallbackLog},
+    projects::Project,
+    server::ApiState,
+    transactions::{Ledger, TransactionEngineError},
+};
+
+use super::{init::StkpushInit, StkCodes, UserResponse, STK_RESPONSE_REGISTRY};
+
+pub async fn callback_execute(
+    state: &ApiState,
+    init: &StkpushInit,
+    callback: &CallbackLog,
+    project: Project,
+    transaction_type: crate::transactions::TransactionType,
+) -> anyhow::Result<(StkCodes, Option<String>)> {
+    let checkout_id = callback.checkout_request_id.clone().unwrap();
+    let merchant_id = callback.merchant_request_id.clone().unwrap();
+    let user = &init.user;
+    let mut receipt = Ledger::generate_receipt();
+
+    match project.simulation_mode.as_str() {
+        "always-success" => {
+            return_body(
+                state,
+                StkCodes::Success,
+                callback.callback_url.to_string(),
+                merchant_id,
+                checkout_id,
+                Some(json!({
+                    "Amount": init.amount,
+                    "MpesaReceiptNumber": receipt,
+                    "TransactionDate": Utc::now().format("%Y%m%d%H%M%S").to_string(),
+                    "PhoneNumber": user.phone,
+                })),
+            )
+            .await;
+
+            return Ok((StkCodes::Success, Some(receipt)));
+        }
+        "always-fail" => {
+            let status = StkCodes::random_failure();
+            return_body(
+                state,
+                status.clone(),
+                callback.callback_url.to_string(),
+                merchant_id,
+                checkout_id,
+                None,
+            )
+            .await;
+            return Ok((status, None));
+        }
+        "random" => {
+            let status = StkCodes::random();
+            return_body(
+                state,
+                status.clone(),
+                callback.callback_url.to_string(),
+                merchant_id,
+                checkout_id,
+                match status {
+                    StkCodes::Success => Some(json!({
+                        "Amount": init.amount,
+                        "MpesaReceiptNumber": receipt,
+                        "TransactionDate": Utc::now().format("%Y%m%d%H%M%S").to_string(),
+                        "PhoneNumber": user.phone.to_string(),
+                    })),
+                    _ => None,
+                },
+            )
+            .await;
+            return Ok((
+                status.clone(),
+                match status {
+                    StkCodes::Success => Some(receipt),
+                    _ => None,
+                },
+            ));
+        }
+        // next section is realistic
+        "realistic" => {}
+        _ => {}
+    }
+
+    let account = match Account::get_account(&state.conn, user.account_id).await {
+        Ok(Some(account)) => account,
+        Ok(None) => {
+            return_body(
+                state,
+                StkCodes::DSTimeout,
+                callback.callback_url.to_string(),
+                merchant_id,
+                checkout_id,
+                None,
+            )
+            .await;
+            return Ok((StkCodes::DSTimeout, None));
+        }
+        Err(_) => {
+            return_body(
+                state,
+                StkCodes::SystemError,
+                callback.callback_url.to_string(),
+                merchant_id,
+                checkout_id,
+                None,
+            )
+            .await;
+            return Ok((StkCodes::SystemError, None));
+        }
+    };
+
+    if account.disabled {
+        return_body(
+            state,
+            StkCodes::DSTimeout,
+            callback.callback_url.to_string(),
+            merchant_id,
+            checkout_id,
+            None,
+        )
+        .await;
+        return Ok((StkCodes::DSTimeout, None));
+    }
+
+    let mut reg = STK_RESPONSE_REGISTRY.lock().await;
+    if reg.contains_key(&checkout_id) {
+        // another task is handling the user, stop moving too fast
+        return_body(
+            state,
+            StkCodes::UnableToObtainSubscriberLock,
+            callback.callback_url.to_string(),
+            merchant_id,
+            checkout_id,
+            None,
+        )
+        .await;
+        return Ok((StkCodes::UnableToObtainSubscriberLock, None));
+    }
+
+    let (tx, rx) = oneshot::channel();
+    reg.insert(checkout_id.clone(), tx);
+
+    if state
+        .handle
+        .emit(
+            "stk_push",
+            json!({
+                "checkout_id": checkout_id,
+                "project": project,
+                "user": user,
+                "callback": callback,
+            }),
+        )
+        .is_err()
+    {
+        return_body(
+            state,
+            StkCodes::ErrorSendingPushRequest,
+            callback.callback_url.to_string(),
+            merchant_id,
+            checkout_id,
+            None,
+        )
+        .await;
+        return Ok((StkCodes::ErrorSendingPushRequest, None));
+    }
+
+    drop(reg);
+
+    let status = match tokio::time::timeout(Duration::from_secs(30), rx).await {
+        Ok(Ok(value)) => match value {
+            UserResponse::Accepted { pin } => {
+                if pin.eq(&user.pin) {
+                    match Ledger::transfer(
+                        &state.conn,
+                        Some(account.id),
+                        init.user.account_id,
+                        init.amount,
+                        &transaction_type,
+                    )
+                    .await
+                    {
+                        Ok(transaction) => {
+                            receipt = transaction.id;
+                            println!(
+                                "Sent {} from {} to {} ",
+                                transaction.amount,
+                                transaction.from.unwrap_or_default(),
+                                transaction.to
+                            );
+                            StkCodes::Success
+                        }
+                        Err(err) => match err {
+                            TransactionEngineError::InsufficientFunds => {
+                                StkCodes::InsufficientBalance
+                            }
+                            TransactionEngineError::Database(err) => {
+                                println!("{}", err);
+                                StkCodes::SystemError
+                            }
+                            TransactionEngineError::AccountNotFound(_) => StkCodes::DSTimeout,
+                            _ => StkCodes::SystemError,
+                        },
+                    }
+                } else {
+                    StkCodes::InitiatorInformationInvalid
+                }
+            }
+            UserResponse::Offline => StkCodes::DSTimeout,
+            UserResponse::Timeout => StkCodes::NoResponseFromUser,
+            UserResponse::Cancelled => StkCodes::RequestCancelledByUser,
+            UserResponse::Failed(_) => StkCodes::ErrorSendingPushRequest1037,
+        },
+        Ok(Err(_)) => StkCodes::SystemError,
+        Err(_) => StkCodes::NoResponseFromUser,
+    };
+    let mut reg = STK_RESPONSE_REGISTRY.lock().await;
+    reg.remove(&checkout_id);
+    drop(reg);
+
+    return_body(
+        state,
+        status.clone(),
+        callback.callback_url.to_string(),
+        merchant_id,
+        checkout_id,
+        match status {
+            StkCodes::Success => Some(json!({
+                "Amount": init.amount,
+                "MpesaReceiptNumber": receipt,
+                "TransactionDate": Utc::now().format("%Y%m%d%H%M%S").to_string(),
+                "PhoneNumber": user.phone,
+            })),
+            _ => None,
+        },
+    )
+    .await;
+    Ok((
+        status.clone(),
+        match status {
+            StkCodes::Success => Some(receipt),
+            _ => None,
+        },
+    ))
+}

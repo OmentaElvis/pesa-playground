@@ -3,10 +3,11 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use sqlx::SqlitePool;
+use sea_orm::DatabaseConnection;
 use tauri::AppHandle;
 use tokio::sync::oneshot;
 
+pub mod access_token;
 pub mod api;
 pub mod log;
 
@@ -167,21 +168,21 @@ impl MpesaError {
 
 #[derive(Clone)]
 pub struct ApiState {
-    pub pool: SqlitePool,
-    pub project_id: i64,
+    pub conn: DatabaseConnection,
+    pub project_id: u32,
     pub handle: AppHandle,
 }
 
 pub async fn start_project_server(
-    project_id: i64,
+    project_id: u32,
     port: u16,
-    pool: SqlitePool,
+    conn: DatabaseConnection,
     shutdown_rx: oneshot::Receiver<()>,
     handle: AppHandle,
 ) -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
     let state = ApiState {
-        pool,
+        conn,
         project_id,
         handle,
     };

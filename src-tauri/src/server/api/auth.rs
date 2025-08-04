@@ -1,3 +1,5 @@
+use crate::api_keys::db as api_keys_db;
+use crate::server::access_token::db as access_token_db;
 use axum::{
     extract::{Query, State},
     http::HeaderMap,
@@ -6,15 +8,13 @@ use axum::{
 use base64::{engine::general_purpose, Engine};
 use chrono::{Duration, Utc};
 use rand::{distr::Alphanumeric, Rng};
-use sea_query::{Expr, SqliteQueryBuilder};
+use sea_orm::ActiveModelTrait;
+use sea_orm::ColumnTrait;
+use sea_orm::QueryFilter;
+use sea_orm::{EntityTrait, Set};
 use serde::{Deserialize, Serialize};
-use sqlx::Executor;
-use sqlx::Row;
 
-use crate::{
-    api_keys::{AccessTokens, ApiKeys},
-    server::{ApiError, ApiState},
-};
+use crate::server::{ApiError, ApiState};
 
 #[derive(Deserialize, Debug)]
 pub struct OAuthQuery {
@@ -122,24 +122,27 @@ pub async fn oauth(
         )
     })?;
 
-    let sql = {
-        sea_query::Query::select()
-            .column(ApiKeys::ProjectId)
-            .from(ApiKeys::Table)
-            .and_where(Expr::col(ApiKeys::ConsumerKey).eq(key))
-            .and_where(Expr::col(ApiKeys::ConsumerSecret).eq(secret))
-            .to_string(SqliteQueryBuilder)
-    };
+    let api_key = api_keys_db::Entity::find()
+        .filter(api_keys_db::Column::ConsumerKey.eq(key))
+        .filter(api_keys_db::Column::ConsumerSecret.eq(secret))
+        .one(&state.conn)
+        .await
+        .map_err(|e| {
+            println!("{}", e);
+            ApiError::new(
+                crate::server::MpesaError::InvalidAuthenticationPassed,
+                auth_error.to_string(),
+            )
+        })?;
 
-    let row = state.pool.fetch_one(sql.as_str()).await.map_err(|e| {
-        println!("{}", e);
+    let api_key = api_key.ok_or_else(|| {
         ApiError::new(
             crate::server::MpesaError::InvalidAuthenticationPassed,
             auth_error.to_string(),
         )
     })?;
 
-    let project_id: i64 = row.get(0);
+    let project_id: u32 = api_key.project_id;
     if project_id != state.project_id {
         return Err(ApiError::new(
             crate::server::MpesaError::InvalidAuthenticationPassed,
@@ -148,24 +151,14 @@ pub async fn oauth(
     }
 
     let access_token = generate_access_token();
-    let sql = {
-        sea_query::Query::insert()
-            .into_table(AccessTokens::Table)
-            .columns([
-                AccessTokens::ProjectId,
-                AccessTokens::Token,
-                AccessTokens::ExpiresAt,
-            ])
-            .values([
-                project_id.into(),
-                access_token.to_string().into(),
-                (Utc::now() + Duration::hours(1)).timestamp().into(),
-            ])
-            .unwrap()
-            .to_string(SqliteQueryBuilder)
+    let new_access_token = access_token_db::ActiveModel {
+        project_id: Set(project_id),
+        token: Set(access_token.to_string()),
+        expires_at: Set(Utc::now() + Duration::hours(1)),
+        ..Default::default()
     };
 
-    if let Err(err) = state.pool.execute(sql.as_str()).await {
+    if let Err(err) = new_access_token.insert(&state.conn).await {
         println!("{}", err);
     }
 

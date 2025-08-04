@@ -1,12 +1,7 @@
-
 <script lang="ts">
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import { type ComponentProps } from "svelte";
-
-  import {
-    LayoutDashboard,
-    Folder,
-  } from "lucide-svelte";
+  import { Users, Settings, Folder, LayoutDashboard, Briefcase } from "lucide-svelte";
 
   let sidebar = Sidebar.useSidebar();
   sidebar.setOpen(false);
@@ -43,6 +38,36 @@
                 <a {...props} href="/projects">
                   <Folder class="size-4" />
                   <span>Projects</span>
+                </a>
+              {/snippet}
+            </Sidebar.MenuButton>
+          </Sidebar.MenuItem>
+          <Sidebar.MenuItem>
+            <Sidebar.MenuButton>
+              {#snippet child({ props })}
+                <a {...props} href="/users">
+                    <Users size={20} />
+                    <span>Users</span>
+                </a>
+              {/snippet}
+            </Sidebar.MenuButton>
+          </Sidebar.MenuItem>
+          <Sidebar.MenuItem>
+            <Sidebar.MenuButton>
+              {#snippet child({ props })}
+                <a {...props} href="/businesses">
+                    <Briefcase size={20} />
+                    <span>Businesses</span>
+                </a>
+              {/snippet}
+            </Sidebar.MenuButton>
+          </Sidebar.MenuItem>
+          <Sidebar.MenuItem>
+            <Sidebar.MenuButton>
+              {#snippet child({ props })}
+                <a {...props} href="/settings" >
+                    <Settings size={20} />
+                    <span>Settings</span>
                 </a>
               {/snippet}
             </Sidebar.MenuButton>

@@ -11,7 +11,8 @@ use std::collections::HashMap;
 use tauri::Emitter;
 use tokio::time::Instant;
 
-use crate::api_logs::{self, CreateApiLogRequest};
+use crate::api_logs::db::ActiveModel as CreateApiLogs;
+use sea_orm::{ActiveModelTrait, ActiveValue::Set};
 
 use rand::{rng, Rng};
 
@@ -84,33 +85,31 @@ pub async fn logging_middleware(
     let status_code = response.status();
     let (response, response_body) = extract_response_body(response).await;
 
-    api_logs::ApiLogRepository::create(
-        &state.pool,
-        CreateApiLogRequest {
-            project_id: state.project_id,
-            method: method.to_string(),
-            path,
-            status_code: status_code.as_u16(),
-            request_body: Some(
-                json!({
-                    "headers": headers_map,
-                    "body": request_body,
-                })
-                .to_string(),
-            ),
-            response_body: Some(
-                json!({
-                    "headers": response_headers_map,
-                    "body": response_body
-                })
-                .to_string(),
-            ),
-            duration: duration.as_millis(),
-            error_desc,
-        },
-    )
-    .await
-    .map_err(|err| {
+    let create_api_log = CreateApiLogs {
+        project_id: Set(state.project_id),
+        method: Set(method.to_string()),
+        path: Set(path),
+        status_code: Set(status_code.as_u16()),
+        request_body: Set(Some(
+            json!({
+                "headers": headers_map,
+                "body": request_body,
+            })
+            .to_string(),
+        )),
+        response_body: Set(Some(
+            json!({
+                "headers": response_headers_map,
+                "body": response_body
+            })
+            .to_string(),
+        )),
+        duration: Set(duration.as_millis() as u64),
+        error_desc: Set(error_desc),
+        ..Default::default()
+    };
+
+    create_api_log.insert(&state.conn).await.map_err(|err| {
         println!("{}", err);
 
         StatusCode::INTERNAL_SERVER_ERROR

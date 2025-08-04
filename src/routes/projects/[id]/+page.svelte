@@ -63,10 +63,11 @@
 
   let id = $derived(page.params.id);
   let project: Promise<ProjectDetails> = $derived(getProject(Number(id)));
-  let users: Promise<UserType[]> = $derived(getUsers(Number(id)));
+  let users: Promise<UserType[]> = $derived(getUsers());
   let apiLogs: Promise<ApiLog[]> = $derived(
     getProjectApiLogs({ project_id: Number(id), limit: 20 }),
   );
+  let transactionsCount = $state(0);
 
   let creatingUser = $state(false);
 
@@ -152,6 +153,9 @@
 
   const debouncedRefreshLogs = debounce(async () => {
     refreshLogs();
+    transactionsCount = await countTransactions({
+      project_id: Number(id),
+    });
   }, 300);
 
   let unlisten: UnlistenFn;
@@ -168,6 +172,12 @@
   onDestroy(() => {
     if (unlisten) unlisten();
   });
+
+  onMount(async () => {
+    transactionsCount = await countTransactions({
+      project_id: Number(id),
+    });
+  })
 </script>
 
 <main class="container mx-auto p-6 space-y-6">
@@ -225,7 +235,9 @@
             <Activity class="text-muted-foreground" />
             <div>
               <p class="text-sm text-muted-foreground">Total Transactions</p>
-              <p class="text-2xl font-bold">{0}</p>
+              <p class="text-2xl font-bold">
+                {transactionsCount}
+              </p>
             </div>
           </div>
           <div class="flex items-center gap-2">
