@@ -2,9 +2,20 @@ use super::db::ActiveModel;
 use super::{db::Entity as ApiLogs, UpdateApiLogRequest};
 use sea_orm::ActiveValue::Set;
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, QuerySelect};
+use serde::Deserialize;
 use tauri::State;
 
 use crate::{api_logs::ApiLog, db::Database};
+
+#[derive(Deserialize)]
+pub struct ApiLogFilter {
+    project_id: Option<u32>,
+    method: Option<String>,
+    path: Option<String>,
+    status_code: Option<u16>,
+    limit: Option<u64>,
+    offset: Option<u64>,
+}
 
 #[tauri::command]
 pub async fn get_api_log(
@@ -90,39 +101,34 @@ pub async fn delete_api_log(state: State<'_, Database>, log_id: String) -> Resul
     Ok(res.rows_affected > 0)
 }
 
-// #[tauri::command]
+#[tauri::command]
 pub async fn list_api_logs(
     state: State<'_, Database>,
-    project_id: Option<u32>,
-    method: Option<String>,
-    path: Option<String>,
-    status_code: Option<u16>,
-    limit: Option<u64>,
-    offset: Option<u64>,
+    filter: ApiLogFilter,
 ) -> Result<Vec<ApiLog>, String> {
     let mut q = ApiLogs::find();
 
-    if let Some(project) = project_id {
+    if let Some(project) = filter.project_id {
         q = q.filter(super::db::Column::ProjectId.eq(project));
     }
 
-    if let Some(method) = method {
+    if let Some(method) = filter.method {
         q = q.filter(super::db::Column::Path.eq(method));
     }
 
-    if let Some(path) = path {
+    if let Some(path) = filter.path {
         q = q.filter(super::db::Column::Path.eq(path));
     }
 
-    if let Some(status) = status_code {
+    if let Some(status) = filter.status_code {
         q = q.filter(super::db::Column::StatusCode.eq(status));
     }
 
-    if let Some(limit) = limit {
+    if let Some(limit) = filter.limit {
         q = q.limit(Some(limit));
     }
 
-    if let Some(offset) = offset {
+    if let Some(offset) = filter.offset {
         q = q.offset(Some(offset));
     }
 
@@ -182,22 +188,20 @@ pub async fn count_api_logs(
 #[tauri::command]
 pub async fn get_project_api_logs(
     state: State<'_, Database>,
-    project_id: i64,
-    method: Option<String>,
-    limit: Option<u64>,
-    offset: Option<u64>,
+    project_id: u32,
+    filter: ApiLogFilter,
 ) -> Result<Vec<ApiLog>, String> {
     let mut q = ApiLogs::find().filter(super::db::Column::ProjectId.eq(project_id));
 
-    if let Some(method) = method {
+    if let Some(method) = filter.method {
         q = q.filter(super::db::Column::Path.eq(method));
     }
 
-    if let Some(limit) = limit {
+    if let Some(limit) = filter.limit {
         q = q.limit(Some(limit));
     }
 
-    if let Some(offset) = offset {
+    if let Some(offset) = filter.offset {
         q = q.offset(Some(offset));
     }
 
@@ -225,7 +229,7 @@ pub async fn get_project_api_logs(
 #[tauri::command]
 pub async fn get_api_logs_by_method(
     state: State<'_, Database>,
-    project_id: i64,
+    project_id: u32,
     method: String,
     limit: Option<u64>,
 ) -> Result<Vec<ApiLog>, String> {

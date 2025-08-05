@@ -1,7 +1,9 @@
+use chrono::Utc;
 use sea_orm::ActiveValue::Set;
-use sea_orm::{ActiveModelTrait, EntityTrait, ColumnTrait};
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, TransactionTrait};
 use tauri::State;
 
+use crate::api_keys;
 use crate::{api_keys::ApiKey, db::Database};
 
 use super::db;
@@ -11,24 +13,61 @@ use super::{CreateProject, Project, ProjectDetails, ProjectSummary, UpdateProjec
 pub async fn create_project(
     state: State<'_, Database>,
     input: CreateProject,
-) -> Result<Project, String> {
-    let db = &state.conn;
+) -> Result<ProjectDetails, String> {
+    let txn = state
+        .conn
+        .begin()
+        .await
+        .map_err(|err| format!("Failed to start transaction: {}", err))?;
+
     let create = db::ActiveModel {
         business_id: Set(input.business_id),
         name: Set(input.name),
         callback_url: Set(input.callback_url),
         prefix: Set(input.prefix),
-        simulation_mode: Set(input.simulation_mode),
+        simulation_mode: Set(input.simulation_mode.to_string()),
         stk_delay: Set(input.stk_delay),
+        created_at: Set(Utc::now().to_utc()),
         ..Default::default()
     };
 
     let project = &create
-        .insert(db)
+        .insert(&txn)
         .await
         .map_err(|err| format!("Failed to create project: {}", err))?;
 
-    Ok(project.into())
+    let key = ApiKey::generate(project.id);
+    let create_apikey = api_keys::db::ActiveModel {
+        project_id: Set(key.project_id),
+        consumer_key: Set(key.consumer_key),
+        consumer_secret: Set(key.consumer_secret),
+        passkey: Set(key.passkey),
+        created_at: Set(Utc::now().to_utc()),
+        ..Default::default()
+    };
+
+    let key = create_apikey
+        .insert(&txn)
+        .await
+        .map_err(|err| format!("Failed to create api keys: {}", err))?;
+
+    txn.commit()
+        .await
+        .map_err(|err| format!("Failed to commit db transaction: {}", err))?;
+
+    Ok(ProjectDetails {
+        id: project.id,
+        name: project.name.clone(),
+        callback_url: project.callback_url.clone(),
+        simulation_mode: input.simulation_mode,
+        stk_delay: project.stk_delay,
+        prefix: project.prefix.clone(),
+        created_at: project.created_at,
+        consumer_key: key.consumer_key,
+        consumer_secret: key.consumer_secret,
+        passkey: key.passkey,
+        business_id: project.business_id,
+    })
 }
 
 #[tauri::command]
@@ -59,11 +98,15 @@ pub async fn get_project(state: State<'_, Database>, id: u32) -> Result<ProjectD
         callback_url: project.callback_url,
         stk_delay: project.stk_delay,
         created_at: project.created_at,
-        simulation_mode: project.simulation_mode,
+        simulation_mode: project
+            .simulation_mode
+            .parse()
+            .unwrap_or(super::SimulationMode::Realistic),
         prefix: project.prefix,
         consumer_key: api_key.consumer_key,
         consumer_secret: api_key.consumer_secret,
         passkey: api_key.passkey,
+        business_id: project.business_id,
     })
 }
 
@@ -95,8 +138,8 @@ pub async fn get_projects_by_business_id(
     state: State<'_, Database>,
     business_id: u32,
 ) -> Result<Vec<ProjectSummary>, String> {
-    use sea_orm::QueryFilter;
     use crate::projects::db::Column;
+    use sea_orm::QueryFilter;
 
     let db = &state.conn;
 
@@ -104,7 +147,12 @@ pub async fn get_projects_by_business_id(
         .filter(Column::BusinessId.eq(business_id))
         .all(db)
         .await
-        .map_err(|err| format!("Failed to fetch projects for business {}: {}", business_id, err))?;
+        .map_err(|err| {
+            format!(
+                "Failed to fetch projects for business {}: {}",
+                business_id, err
+            )
+        })?;
 
     let projects: Vec<ProjectSummary> = projects
         .iter()
@@ -141,7 +189,7 @@ pub async fn update_project(
         active_model.callback_url = Set(Some(callback_url));
     }
     if let Some(simulation_mode) = input.simulation_mode {
-        active_model.simulation_mode = Set(simulation_mode);
+        active_model.simulation_mode = Set(simulation_mode.to_string());
     }
     if let Some(stk_delay) = input.stk_delay {
         active_model.stk_delay = Set(stk_delay);
@@ -159,7 +207,10 @@ pub async fn update_project(
         id: updated_project.id,
         name: updated_project.name,
         callback_url: updated_project.callback_url,
-        simulation_mode: updated_project.simulation_mode,
+        simulation_mode: updated_project
+            .simulation_mode
+            .parse()
+            .unwrap_or(super::SimulationMode::Realistic),
         stk_delay: updated_project.stk_delay,
         prefix: updated_project.prefix,
         created_at: updated_project.created_at,

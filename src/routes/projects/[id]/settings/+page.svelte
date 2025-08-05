@@ -11,17 +11,15 @@
   import * as Select from "$lib/components/ui/select/index";
   import { Slider } from "$lib/components/ui/slider";
   import {
-    Shuffle,
     Globe,
     Code,
     Timer,
-    Users,
     Tag,
     CheckCircle,
     LoaderCircle,
     ArrowLeft,
   } from "lucide-svelte";
-  import { getProject, updateProject } from "$lib/api";
+  import { getProject, SimulationMode, updateProject } from "$lib/api";
   import type { ProjectDetails, UpdateProjectData } from "$lib/api";
   import { onMount } from "svelte";
   import { page } from "$app/state";
@@ -35,12 +33,12 @@
     consumer_secret: "",
     name: "",
     passkey: "",
-    simulation_mode: "",
+    simulation_mode: SimulationMode.Realistic,
     stk_delay: 0,
     callback_url: "",
     created_at: "",
     prefix: "",
-    shortcode: "",
+    business_id: 0,
   });
 
   // svelte-ignore state_referenced_locally
@@ -61,13 +59,8 @@
     }
   });
 
-  function generateShortcode() {
-    const code = Math.floor(100000 + Math.random() * 900000);
-    data.shortcode = code.toString();
-  }
-
   async function handleSave() {
-    if (!data.name?.trim() || !data.shortcode) {
+    if (!data.name?.trim()) {
       error = "Project name and shortcode are required";
       return;
     }
@@ -81,9 +74,6 @@
       
       if (data.name !== originalData.name) {
         updatePayload.name = data.name;
-      }
-      if (data.shortcode !== originalData.shortcode) {
-        updatePayload.shortcode = data.shortcode;
       }
       if (data.callback_url !== originalData.callback_url) {
         updatePayload.callback_url = data.callback_url;
@@ -120,7 +110,6 @@
   // Check if form has unsaved changes
   let hasChanges = $derived(
     data.name !== originalData?.name ||
-    data.shortcode !== originalData?.shortcode ||
     data.callback_url !== originalData?.callback_url ||
     data.simulation_mode !== originalData?.simulation_mode ||
     data.stk_delay !== originalData?.stk_delay ||
@@ -129,7 +118,7 @@
 
   // Form validation
   let isValid = $derived(
-    data.name?.trim() && data.shortcode?.trim()
+    data.name?.trim()
   );
 </script>
 
@@ -185,30 +174,6 @@
             />
             <p class="text-xs text-muted-foreground">
               A friendly name for your project
-            </p>
-          </div>
-
-          <!-- Shortcode -->
-          <div class="space-y-2">
-            <Label for="shortcode" class="text-sm font-medium">Shortcode</Label>
-            <div class="flex gap-2">
-              <Input
-                id="shortcode"
-                bind:value={data.shortcode}
-                placeholder="174379"
-                class="flex-1"
-              />
-              <Button
-                variant="outline"
-                size="icon"
-                onclick={generateShortcode}
-                title="Generate random shortcode"
-              >
-                <Shuffle class="h-4 w-4" />
-              </Button>
-            </div>
-            <p class="text-xs text-muted-foreground">
-              6-digit business shortcode for payments
             </p>
           </div>
 

@@ -27,8 +27,8 @@ pub async fn callback_execute(
     let user = &init.user;
     let mut receipt = Ledger::generate_receipt();
 
-    match project.simulation_mode.as_str() {
-        "always-success" => {
+    match project.simulation_mode {
+        crate::projects::SimulationMode::AlwaysSuccess => {
             return_body(
                 state,
                 StkCodes::Success,
@@ -46,7 +46,7 @@ pub async fn callback_execute(
 
             return Ok((StkCodes::Success, Some(receipt)));
         }
-        "always-fail" => {
+        crate::projects::SimulationMode::AlwaysFail => {
             let status = StkCodes::random_failure();
             return_body(
                 state,
@@ -59,7 +59,7 @@ pub async fn callback_execute(
             .await;
             return Ok((status, None));
         }
-        "random" => {
+        crate::projects::SimulationMode::Random => {
             let status = StkCodes::random();
             return_body(
                 state,
@@ -87,8 +87,7 @@ pub async fn callback_execute(
             ));
         }
         // next section is realistic
-        "realistic" => {}
-        _ => {}
+        crate::projects::SimulationMode::Realistic => {}
     }
 
     let account = match Account::get_account(&state.conn, user.account_id).await {

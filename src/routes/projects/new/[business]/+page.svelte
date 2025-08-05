@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
@@ -11,31 +11,25 @@
   import * as Select from "$lib/components/ui/select/index";
   import { Slider } from "$lib/components/ui/slider";
   import {
-    Shuffle,
     Globe,
     Code,
     Timer,
-    Users,
     Tag,
     CheckCircle,
     LoaderCircle,
   } from "lucide-svelte";
   import { goto } from "$app/navigation";
-  import { createProject } from "$lib/api";
+  import { createProject, SimulationMode } from "$lib/api";
+  import { page } from '$app/state'
+    import { toast } from "svelte-sonner";
 
-  let projectName = "";
-  let shortcode = "";
-  let callbackUrl = "http://localhost:5001/callback";
-  let simulationMode = "always-success";
-  let stkDelay = 3;
-  let initialUsers = 5;
-  let customPrefix = "test_";
-  let creating = false;
-
-  function generateShortcode() {
-    const code = Math.floor(100000 + Math.random() * 900000);
-    shortcode = code.toString();
-  }
+  let projectName = $state("");
+  let callbackUrl = $state("http://localhost:5001/callback");
+  let simulationMode: SimulationMode = $state(SimulationMode.Realistic);
+  let stkDelay = $state(3);
+  let customPrefix = $state("test_");
+  let creating = $state(false);
+  let businessId = $derived(page.params.business);
 
   async function handleCreate() {
     try {
@@ -43,15 +37,14 @@
       let res = await createProject({
         callback_url: callbackUrl,
         name: projectName,
-        shortcode: shortcode,
         simulation_mode: simulationMode,
         stk_delay: stkDelay,
-        initial_users: initialUsers,
         prefix: customPrefix,
+        business_id: Number(businessId)
       });
-      await goto(`/projects/${res.project_id}`, {replaceState: true});
+      await goto(`/projects/${res.id}`, {replaceState: true});
     } catch (err) {
-      console.log("Creating project:", err);
+      toast(`Creating project: ${err}`);
     } finally {
       creating = false;
     }
@@ -100,30 +93,6 @@
           </p>
         </div>
 
-        <!-- Shortcode -->
-        <div class="space-y-2">
-          <Label for="shortcode" class="text-sm font-medium">Shortcode</Label>
-          <div class="flex gap-2">
-            <Input
-              id="shortcode"
-              bind:value={shortcode}
-              placeholder="174379"
-              class="flex-1"
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              onclick={generateShortcode}
-              title="Generate random shortcode"
-            >
-              <Shuffle class="h-4 w-4" />
-            </Button>
-          </div>
-          <p class="text-xs text-muted-foreground">
-            6-digit business shortcode for payments
-          </p>
-        </div>
-
         <!-- Callback URL -->
         <div class="space-y-2">
           <Label
@@ -159,10 +128,10 @@
               {simulationMode}
             </Select.SelectTrigger>
             <Select.Content>
-              <Select.SelectItem value="always-success"
+              <Select.SelectItem value="always_success"
                 >Always Success</Select.SelectItem
               >
-              <Select.SelectItem value="always-fail"
+              <Select.SelectItem value="always_fail"
                 >Always Fail</Select.SelectItem
               >
               <Select.SelectItem value="random"
@@ -204,28 +173,6 @@
           </p>
         </div>
 
-        <!-- Initial Users -->
-        <div class="space-y-2">
-          <Label
-            for="initial-users"
-            class="text-sm font-medium flex items-center gap-1"
-          >
-            <Users class="h-4 w-4" />
-            Initial Test Users
-          </Label>
-          <Input
-            id="initial-users"
-            type="number"
-            bind:value={initialUsers}
-            min="1"
-            max="50"
-            class="w-full"
-          />
-          <p class="text-xs text-muted-foreground">
-            Number of fake users to generate for testing
-          </p>
-        </div>
-
         <!-- Custom Prefix -->
         <div class="space-y-2">
           <Label
@@ -254,7 +201,7 @@
       {#if !creating}
         <Button
           onclick={handleCreate}
-          disabled={!projectName.trim() || !shortcode.trim()}
+          disabled={!projectName.trim()}
           class="min-w-32"
         >
           Create Project

@@ -203,6 +203,7 @@ pub fn run() {
             api_logs::ui::count_api_logs,
             api_logs::ui::get_project_api_logs,
             api_logs::ui::get_api_logs_by_method,
+            api_logs::ui::list_api_logs,
             // Callbacks
             callbacks::stk::ui::resolve_stk_prompt,
             // Transaction Costs

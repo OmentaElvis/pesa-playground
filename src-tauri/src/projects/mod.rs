@@ -3,6 +3,7 @@ use chrono::{DateTime, Utc};
 use sea_orm::prelude::DateTimeUtc;
 use sea_orm::{ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
+use strum::{Display, EnumString};
 
 pub mod db;
 pub mod ui;
@@ -12,10 +13,18 @@ pub struct Project {
     pub id: u32,
     pub name: String,
     pub callback_url: Option<String>,
-    pub simulation_mode: String,
+    pub simulation_mode: SimulationMode,
     pub stk_delay: u32,
     pub prefix: Option<String>,
     pub created_at: DateTimeUtc,
+}
+
+#[derive(Display, EnumString, Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub enum SimulationMode {
+    AlwaysSuccess,
+    AlwaysFail,
+    Random,
+    Realistic,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -23,18 +32,16 @@ pub struct CreateProject {
     pub business_id: u32,
     pub name: String,
     pub callback_url: Option<String>,
-    pub simulation_mode: String,
+    pub simulation_mode: SimulationMode,
     pub stk_delay: u32,
     pub prefix: Option<String>,
-    pub initial_users: Option<u32>,
-    pub account_id: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct UpdateProject {
     pub name: Option<String>,
     pub callback_url: Option<String>,
-    pub simulation_mode: Option<String>,
+    pub simulation_mode: Option<SimulationMode>,
     pub stk_delay: Option<u32>,
     pub prefix: Option<String>,
 }
@@ -51,7 +58,8 @@ pub struct ProjectDetails {
     pub id: u32,
     pub name: String,
     pub callback_url: Option<String>,
-    pub simulation_mode: String,
+    pub simulation_mode: SimulationMode,
+    pub business_id: u32,
     pub stk_delay: u32,
     pub prefix: Option<String>,
     pub created_at: DateTime<Utc>,
@@ -71,7 +79,7 @@ pub struct ProjectSummary {
 #[derive(Debug, Clone, Default)]
 pub struct ProjectFilter {
     pub name: Option<String>,
-    pub simulation_mode: Option<String>,
+    pub simulation_mode: Option<SimulationMode>,
     pub has_callback_url: Option<bool>,
     pub created_after: Option<i64>,
     pub created_before: Option<i64>,
@@ -106,7 +114,10 @@ impl From<&db::Model> for Project {
             id: value.id,
             name: value.name.to_string(),
             callback_url: value.callback_url.clone(),
-            simulation_mode: value.simulation_mode.clone(),
+            simulation_mode: value
+                .simulation_mode
+                .parse()
+                .unwrap_or(SimulationMode::Realistic),
             stk_delay: value.stk_delay,
             prefix: value.prefix.clone(),
             created_at: value.created_at,

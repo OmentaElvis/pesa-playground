@@ -1,9 +1,14 @@
 <script lang="ts">
   import { Button } from "$lib/components/ui/button";
-  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "$lib/components/ui/card";
+  import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+  } from "$lib/components/ui/card";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
-  import { Separator } from "$lib/components/ui/separator";
   import { createBusiness, getBusinesses } from "$lib/api";
   import { onMount } from "svelte";
   import { PlusCircle } from "lucide-svelte";
@@ -37,56 +42,76 @@
   });
 </script>
 
-<div class="space-y-6">
-  <div>
-    <h3 class="text-lg font-medium">Overview</h3>
-    <p class="text-sm text-muted-foreground">
-      A list of all your businesses.
+<div class="space-y-6 p-10 pb-16 md:block">
+  <div class="space-y-0.5">
+    <h2 class="text-2xl font-bold tracking-tight">Businesses</h2>
+    <p class="text-muted-foreground">
+      Manage your businesses, accounts, and projects.
     </p>
-  </div>
-  <Separator />
+    <div class="space-y-6">
+      <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Dialog.Root bind:open={showCreateBusinessDialog}>
+          <Dialog.Trigger>
+            <Button
+              variant="outline"
+              class="w-full h-full min-h-[180px] flex flex-col items-center justify-center"
+            >
+              <PlusCircle class="h-8 w-8 text-muted-foreground" />
+              <span class="mt-2 text-sm text-muted-foreground"
+                >Create New Business</span
+              >
+            </Button>
+          </Dialog.Trigger>
+          <Dialog.Content class="sm:max-w-[425px]">
+            <Dialog.Header>
+              <Dialog.Title>Create New Business</Dialog.Title>
+              <Dialog.Description>
+                Add a new business to your system.
+              </Dialog.Description>
+            </Dialog.Header>
+            <div class="grid gap-4 py-4">
+              <div class="grid grid-cols-4 items-center gap-4">
+                <Label for="name" class="text-right">Business Name</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="Business Name"
+                  bind:value={newBusinessName}
+                  class="col-span-3"
+                />
+              </div>
+              <div class="grid grid-cols-4 items-center gap-4">
+                <Label for="shortCode" class="text-right">Short Code</Label>
+                <Input
+                  id="shortCode"
+                  type="text"
+                  placeholder="Short Code"
+                  bind:value={newBusinessShortCode}
+                  class="col-span-3"
+                />
+              </div>
+            </div>
+            <Dialog.Footer>
+              <Button onclick={handleCreateBusiness}>Create Business</Button>
+            </Dialog.Footer>
+          </Dialog.Content>
+        </Dialog.Root>
+        {#each businesses as business}
+          <Card>
+            <CardHeader>
+              <CardTitle>{business.name}</CardTitle>
+              <CardDescription>{business.short_code}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                onclick={() => goto(`/businesses/${business.id}`)}
+                class="mt-4">View Details</Button
+              >
+            </CardContent>
+          </Card>
+        {/each}
 
-  <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-    {#each businesses as business}
-      <Card>
-        <CardHeader>
-          <CardTitle>{business.name}</CardTitle>
-          <CardDescription>{business.short_code}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button onclick={() => goto(`/businesses/${business.id}`)} class="mt-4">View Details</Button>
-        </CardContent>
-      </Card>
-    {/each}
-
-    <Dialog.Root bind:open={showCreateBusinessDialog}>
-      <Dialog.Trigger>
-        <Button variant="outline" class="w-full h-full min-h-[180px] flex flex-col items-center justify-center">
-          <PlusCircle class="h-8 w-8 text-muted-foreground" />
-          <span class="mt-2 text-sm text-muted-foreground">Create New Business</span>
-        </Button>
-      </Dialog.Trigger>
-      <Dialog.Content class="sm:max-w-[425px]">
-        <Dialog.Header>
-          <Dialog.Title>Create New Business</Dialog.Title>
-          <Dialog.Description>
-            Add a new business to your system.
-          </Dialog.Description>
-        </Dialog.Header>
-        <div class="grid gap-4 py-4">
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label for="name" class="text-right">Business Name</Label>
-            <Input id="name" type="text" placeholder="Business Name" bind:value={newBusinessName} class="col-span-3" />
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label for="shortCode" class="text-right">Short Code</Label>
-            <Input id="shortCode" type="text" placeholder="Short Code" bind:value={newBusinessShortCode} class="col-span-3" />
-          </div>
-        </div>
-        <Dialog.Footer>
-          <Button onclick={handleCreateBusiness}>Create Business</Button>
-        </Dialog.Footer>
-      </Dialog.Content>
-    </Dialog.Root>
+      </div>
+    </div>
   </div>
 </div>

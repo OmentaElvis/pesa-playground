@@ -200,6 +200,14 @@ export async function createAccount(account_type: string, initial_balance: numbe
   return await invoke("create_account", { accountType: account_type, initialBalance: initial_balance });
 }
 
+
+export enum SimulationMode {
+  AlwaysSuccess = "AlwaysSuccess",
+  AlwaysFail = "AlwaysFail",
+  Realistic = "Realistic",
+  Random = "Random",
+}
+
 /**
  * Represents the data structure for creating a new project.
  * Corresponds to `ProjectData` in Rust.
@@ -208,7 +216,7 @@ export interface ProjectData {
   business_id: number;
   name: string;
   callback_url?: string;
-  simulation_mode: boolean;
+  simulation_mode: SimulationMode;
   stk_delay: number;
   prefix?: string;
 }
@@ -222,7 +230,7 @@ export interface UpdateProjectData {
   business_id?: number;
   name?: string;
   callback_url?: string;
-  simulation_mode?: boolean;
+  simulation_mode?: SimulationMode;
   stk_delay?: number;
   prefix?: string;
 }
@@ -232,7 +240,7 @@ export interface Project {
   business_id: number;
   name: string;
   callback_url?: string;
-  simulation_mode: boolean;
+  simulation_mode: SimulationMode;
   stk_delay: number;
   prefix?: string;
   created_at: string;
@@ -247,7 +255,7 @@ export interface ProjectDetails {
   business_id: number;
   name: string;
   callback_url?: string;
-  simulation_mode: boolean;
+  simulation_mode: SimulationMode;
   stk_delay: number;
   prefix?: string;
   created_at: string;
@@ -264,7 +272,7 @@ export interface ProjectSummary {
   id: number;
   business_id: number;
   name: string;
-  simulation_mode: boolean;
+  simulation_mode: SimulationMode;
   created_at: string;
 }
 
@@ -572,8 +580,8 @@ export async function countApiLogs(filter: ApiLogFilter = {}): Promise<number> {
   return await invoke("count_api_logs", { filter });
 }
 
-export async function getProjectApiLogs(filter: ApiLogFilter = {}): Promise<ApiLog[]> {
-  return await invoke("get_project_api_logs", { filter });
+export async function getProjectApiLogs(projectId: number, filter: ApiLogFilter = {}): Promise<ApiLog[]> {
+  return await invoke("get_project_api_logs", { projectId, filter });
 }
 
 export async function getApiLogsByMethod(filter: ApiLogFilter = {}): Promise<ApiLog[]> {
