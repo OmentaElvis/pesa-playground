@@ -164,7 +164,7 @@
                     {new Intl.NumberFormat("en-US", {
                       style: "currency",
                       currency: "KES",
-                    }).format(account.balance)}
+                    }).format(account.balance / 100)}
                   </p>
                 </div>
               </div>
