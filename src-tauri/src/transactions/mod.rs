@@ -32,6 +32,9 @@ pub enum TransactionEngineError {
     #[error("Account not found: {0}")]
     AccountNotFound(u32),
 
+    #[error("You cant send money to yourself")]
+    SelfTransact,
+
     #[error("Transaction not found")]
     TransactionNotFound,
 }
@@ -114,6 +117,10 @@ impl Ledger {
 
         // check if source has enough funds
         if let Some(source) = &mut source_account {
+            if source.id == destination_account.id {
+                return Err(TransactionEngineError::SelfTransact);
+            }
+
             if source.balance < amount + fee {
                 return Err(TransactionEngineError::InsufficientFunds);
             }
