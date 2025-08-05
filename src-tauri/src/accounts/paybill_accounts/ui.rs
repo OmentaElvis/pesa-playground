@@ -54,7 +54,7 @@ pub async fn create_paybill_account(
         &txn,
         None,
         paybill_model.account_id,
-        input.initial_balance,
+        input.initial_balance * 100,
         &crate::transactions::TransactionType::Deposit,
     )
     .await

@@ -52,7 +52,7 @@ pub async fn create_till_account(
         &txn,
         None,
         till_model.account_id,
-        input.initial_balance,
+        input.initial_balance * 100,
         &crate::transactions::TransactionType::Deposit,
     )
     .await
