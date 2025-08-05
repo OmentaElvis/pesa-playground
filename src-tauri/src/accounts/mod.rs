@@ -1,6 +1,9 @@
 use chrono::{DateTime, Utc};
 use db::Column;
-use sea_orm::{ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter, ActiveValue::Set, ActiveModelTrait};
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, ConnectionTrait, DbErr, EntityTrait,
+    QueryFilter,
+};
 use strum::{Display, EnumString};
 
 pub mod db;

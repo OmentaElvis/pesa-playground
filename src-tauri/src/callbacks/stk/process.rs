@@ -6,11 +6,12 @@ use tauri::Emitter;
 use tokio::sync::oneshot;
 
 use crate::{
-    accounts::Account,
+    accounts::{user_profiles::ui::UserDetails, Account},
     callbacks::{response::return_body, CallbackLog},
     projects::Project,
     server::ApiState,
     transactions::{Ledger, TransactionEngineError},
+    transactions_log::get_account_name,
 };
 
 use super::{init::StkpushInit, StkCodes, UserResponse, STK_RESPONSE_REGISTRY};
@@ -148,7 +149,7 @@ pub async fn callback_execute(
 
     let (tx, rx) = oneshot::channel();
     reg.insert(checkout_id.clone(), tx);
-
+    let business_name = get_account_name(&state.conn, init.business.id).await?;
     if state
         .handle
         .emit(
@@ -156,7 +157,14 @@ pub async fn callback_execute(
             json!({
                 "checkout_id": checkout_id,
                 "project": project,
-                "user": user,
+                "user": UserDetails {
+                    id: account.id,
+                    name: user.name.clone(),
+                    pin: user.pin.clone(),
+                    phone: user.phone.clone(),
+                    balance: account.balance as f64 / 100.0,
+                },
+                "business_name": business_name,
                 "callback": callback,
             }),
         )

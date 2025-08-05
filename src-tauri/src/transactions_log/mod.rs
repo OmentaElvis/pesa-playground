@@ -134,7 +134,7 @@ impl TransactionLog {
     }
 }
 
-async fn get_account_name<C>(db: &C, account_id: u32) -> Result<String, DbErr>
+pub async fn get_account_name<C>(db: &C, account_id: u32) -> Result<String, DbErr>
 where
     C: ConnectionTrait,
 {

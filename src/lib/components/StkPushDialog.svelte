@@ -122,8 +122,8 @@
           <p class="font-semibold text-green-600">{formatAmount(user?.balance)}</p>
         </div>
         <div class="space-y-2">
-          <Label class="text-sm font-medium text-muted-foreground">Account Status</Label>
-          <Badge variant="default" class="capitalize">{user?.status}</Badge>
+          <Label class="text-sm font-medium text-muted-foreground">Sending to</Label>
+          <Badge variant="default" class="capitalize">{dialogData.business_name}</Badge>
         </div>
       </div>
 
