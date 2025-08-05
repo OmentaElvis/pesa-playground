@@ -183,7 +183,7 @@ pub async fn callback_execute(
                     match Ledger::transfer(
                         &state.conn,
                         Some(account.id),
-                        init.user.account_id,
+                        init.business.id,
                         init.amount,
                         &transaction_type,
                     )
