@@ -13,7 +13,7 @@ pub struct Model {
     pub response_body: Option<String>,
     pub created_at: DateTimeUtc,
     pub error_desc: Option<String>,
-    pub duration: u64,
+    pub duration: u32,
 }
 
 #[derive(Clone, Debug, EnumIter)]

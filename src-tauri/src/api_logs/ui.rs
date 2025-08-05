@@ -27,17 +27,7 @@ pub async fn get_api_log(
         .await
         .map_err(|err| format!("Failed to get API log: {}", err))?;
 
-    Ok(log.map(|log| ApiLog {
-        id: log.id,
-        method: log.method,
-        path: log.path,
-        project_id: log.project_id,
-        status_code: log.status_code,
-        request_body: log.request_body,
-        response_body: log.response_body,
-        error_desc: log.error_desc,
-        created_at: log.created_at,
-    }))
+    Ok(log.map(|log| log.into()))
 }
 
 #[tauri::command]
@@ -78,17 +68,7 @@ pub async fn update_api_log(
         .await
         .map_err(|err| format!("Failed to update logs: {}", err))?;
 
-    Ok(Some(ApiLog {
-        id: model.id,
-        method: model.method,
-        path: model.path,
-        project_id: model.project_id,
-        status_code: model.status_code,
-        request_body: model.request_body,
-        response_body: model.response_body,
-        error_desc: model.error_desc,
-        created_at: model.created_at,
-    }))
+    Ok(Some(model.into()))
 }
 
 #[tauri::command]
@@ -137,20 +117,7 @@ pub async fn list_api_logs(
         .await
         .map_err(|err| format!("Failed to get logs: {}", err))?;
 
-    Ok(logs
-        .into_iter()
-        .map(|log| ApiLog {
-            id: log.id,
-            method: log.method,
-            path: log.path,
-            project_id: log.project_id,
-            status_code: log.status_code,
-            request_body: log.request_body,
-            response_body: log.response_body,
-            error_desc: log.error_desc,
-            created_at: log.created_at,
-        })
-        .collect())
+    Ok(logs.into_iter().map(|log| log.into()).collect())
 }
 
 #[tauri::command]
@@ -210,20 +177,7 @@ pub async fn get_project_api_logs(
         .await
         .map_err(|err| format!("Failed to get logs: {}", err))?;
 
-    Ok(logs
-        .into_iter()
-        .map(|log| ApiLog {
-            id: log.id,
-            method: log.method,
-            path: log.path,
-            project_id: log.project_id,
-            status_code: log.status_code,
-            request_body: log.request_body,
-            response_body: log.response_body,
-            error_desc: log.error_desc,
-            created_at: log.created_at,
-        })
-        .collect())
+    Ok(logs.into_iter().map(|log| log.into()).collect())
 }
 
 #[tauri::command]
@@ -246,18 +200,5 @@ pub async fn get_api_logs_by_method(
         .await
         .map_err(|err| format!("Failed to get logs: {}", err))?;
 
-    Ok(logs
-        .into_iter()
-        .map(|log| ApiLog {
-            id: log.id,
-            method: log.method,
-            path: log.path,
-            project_id: log.project_id,
-            status_code: log.status_code,
-            request_body: log.request_body,
-            response_body: log.response_body,
-            error_desc: log.error_desc,
-            created_at: log.created_at,
-        })
-        .collect())
+    Ok(logs.into_iter().map(|log| log.into()).collect())
 }

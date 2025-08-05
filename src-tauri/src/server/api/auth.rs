@@ -155,7 +155,7 @@ pub async fn oauth(
         project_id: Set(project_id),
         token: Set(access_token.to_string()),
         expires_at: Set(Utc::now() + Duration::hours(1)),
-        ..Default::default()
+        created_at: Set(Utc::now().to_utc()),
     };
 
     if let Err(err) = new_access_token.insert(&state.conn).await {

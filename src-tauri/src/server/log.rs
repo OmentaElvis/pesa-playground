@@ -11,8 +11,7 @@ use std::collections::HashMap;
 use tauri::Emitter;
 use tokio::time::Instant;
 
-use crate::api_logs::db::ActiveModel as CreateApiLogs;
-use sea_orm::{ActiveModelTrait, ActiveValue::Set};
+use crate::api_logs::ApiLog;
 
 use rand::{rng, Rng};
 
@@ -85,31 +84,31 @@ pub async fn logging_middleware(
     let status_code = response.status();
     let (response, response_body) = extract_response_body(response).await;
 
-    let create_api_log = CreateApiLogs {
-        project_id: Set(state.project_id),
-        method: Set(method.to_string()),
-        path: Set(path),
-        status_code: Set(status_code.as_u16()),
-        request_body: Set(Some(
+    let mut builder = ApiLog::builder()
+        .project_id(state.project_id)
+        .path(path)
+        .status_code(status_code.as_u16())
+        .method(method.as_str())
+        .duration(duration.as_millis() as u32)
+        .request_body(
             json!({
                 "headers": headers_map,
                 "body": request_body,
             })
             .to_string(),
-        )),
-        response_body: Set(Some(
+        )
+        .response_body(
             json!({
                 "headers": response_headers_map,
                 "body": response_body
             })
             .to_string(),
-        )),
-        duration: Set(duration.as_millis() as u64),
-        error_desc: Set(error_desc),
-        ..Default::default()
-    };
+        );
 
-    create_api_log.insert(&state.conn).await.map_err(|err| {
+    if let Some(error) = error_desc {
+        builder = builder.error_desc(error);
+    }
+    builder.save(&state.conn).await.map_err(|err| {
         println!("{}", err);
 
         StatusCode::INTERNAL_SERVER_ERROR

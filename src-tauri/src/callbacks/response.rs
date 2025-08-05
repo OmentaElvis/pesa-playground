@@ -2,12 +2,11 @@ use std::time::Duration;
 
 use rand::Rng;
 use reqwest::Client;
-use sea_orm::{ActiveModelTrait, ActiveValue::Set};
 use serde_json::{json, Value};
 use tauri::Emitter;
 use tokio::time::{sleep, Instant};
 
-use crate::{api_logs::db::ActiveModel as CreateApiLogs, server::ApiState};
+use crate::{api_logs::ApiLog, server::ApiState};
 
 use super::stk::StkCodes;
 
@@ -75,98 +74,94 @@ pub async fn return_body(
 
                 if status_code.is_success() {
                     println!("[CALLBACK] Delivered successfully on attempt {attempt}");
-                    let create_api_log = CreateApiLogs {
-                        id: Set(uuid::Uuid::new_v4().to_string()),
-                        project_id: Set(state.project_id),
-                        method: Set("POST".to_string()),
-                        path: Set(url.clone()),
-                        status_code: Set(status_code.as_u16()),
-                        request_body: Set(Some(
-                            json!({
+                    if let Err(err) = ApiLog::builder()
+                        .project_id(state.project_id)
+                        .method("POST")
+                        .path(url.clone())
+                        .status_code(status_code.as_u16())
+                        .request_body(
+                            json! ({
                                 "headers": {
                                     "content-type": "application/json"
                                 },
                                 "body": body_json
                             })
                             .to_string(),
-                        )),
-                        response_body: Set(Some(
+                        )
+                        .response_body(
                             json!({
                                 "headers": response_headers_map,
                                 "body": response_body
                             })
                             .to_string(),
-                        )),
-                        duration: Set(duration.as_millis() as u64),
-                        error_desc: Set(None),
-                        ..Default::default()
-                    };
+                        )
+                        .duration(duration.as_millis() as u32)
+                        .save(db)
+                        .await
+                    {
+                        eprintln!("Api log save error: {}", err);
+                    }
 
-                    let _ = create_api_log.insert(db).await;
                     let _ = state.handle.emit("new-api-log", state.project_id);
                     return;
                 } else {
-                    let create_api_log = CreateApiLogs {
-                        id: Set(uuid::Uuid::new_v4().to_string()),
-                        project_id: Set(state.project_id),
-                        method: Set("POST".to_string()),
-                        path: Set(url.clone()),
-                        status_code: Set(status_code.as_u16()),
-                        request_body: Set(Some(
-                            json!({
+                    if let Err(err) = ApiLog::builder()
+                        .project_id(state.project_id)
+                        .method("POST")
+                        .path(url.clone())
+                        .status_code(status_code.as_u16())
+                        .request_body(
+                            json! ({
                                 "headers": {
                                     "content-type": "application/json"
                                 },
                                 "body": body_json
                             })
                             .to_string(),
-                        )),
-                        response_body: Set(Some(
+                        )
+                        .response_body(
                             json!({
                                 "headers": response_headers_map,
                                 "body": response_body
                             })
                             .to_string(),
-                        )),
-                        duration: Set(duration.as_millis() as u64),
-                        error_desc: Set(Some(format!(
-                            "Non-2xx callback response (attempt {attempt})"
-                        ))),
-                        ..Default::default()
-                    };
+                        )
+                        .duration(duration.as_millis() as u32)
+                        .error_desc(format!("Non-2xx callback response (attempt {attempt})"))
+                        .save(db)
+                        .await
+                    {
+                        eprintln!("Api log save error: {}", err);
+                    }
 
-                    create_api_log.insert(db).await;
                     let _ = state.handle.emit("new-api-log", state.project_id);
                 }
             }
 
             Err(err) => {
                 eprintln!("[CALLBACK] Attempt {attempt} failed: {err}");
-
-                let create_api_log = CreateApiLogs {
-                    id: Set(uuid::Uuid::new_v4().to_string()),
-                    project_id: Set(state.project_id),
-                    method: Set("POST".to_string()),
-                    path: Set(url.clone()),
-                    status_code: Set(0),
-                    request_body: Set(Some(
-                        json!({
+                if let Err(err) = ApiLog::builder()
+                    .project_id(state.project_id)
+                    .method("POST")
+                    .path(url.clone())
+                    .status_code(0)
+                    .request_body(
+                        json! ({
                             "headers": {
                                 "content-type": "application/json"
                             },
                             "body": body_json
                         })
                         .to_string(),
-                    )),
-                    response_body: Set(None),
-                    duration: Set(duration.as_millis() as u64),
-                    error_desc: Set(Some(format!(
-                        "Callback request failed (attempt {attempt}): {err}"
-                    ))),
-                    ..Default::default()
-                };
+                    )
+                    .duration(duration.as_millis() as u32)
+                    .error_desc(format!("Non-2xx callback response (attempt {attempt})"))
+                    .save(db)
+                    .await
+                {
+                    eprintln!("Api log save error: {}", err);
+                }
 
-                create_api_log.insert(db).await;
                 let _ = state.handle.emit("new-api-log", state.project_id);
             }
         }
