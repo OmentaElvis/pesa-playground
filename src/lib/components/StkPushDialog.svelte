@@ -15,8 +15,17 @@
     Smartphone,
   } from 'lucide-svelte';
   import { formatAmount, formatPhoneNumber } from '$lib/utils';
+    import type { Project, UserDetails } from '$lib/api';
 
-  export let dialogData: any = null;
+  interface StkPushData {
+    checkout_id: string,
+    project: Project,
+    user: UserDetails,
+    business_name: string,
+    amount: number
+  }
+
+  export let dialogData: StkPushData;
   export let open = false;
 
   const dispatch = createEventDispatcher();
@@ -84,7 +93,6 @@
 
 
   $: user = dialogData?.user;
-  $: callback = dialogData?.callback;
 </script>
 
 <Dialog bind:open>
@@ -94,10 +102,10 @@
         <div>
           <div class="flex gap-2">
             <Smartphone class="h-5 w-5 text-primary" />
-            STK Push
+            STK Push: Pay <span class="text-orange-500 text-md"> {formatAmount(dialogData?.amount)} </span>
           </div>
           <div class="bg-muted px-2">
-            <code class="text-xs font-mono font-light">{callback?.checkout_request_id}</code>
+            <code class="text-xs font-mono font-light">{dialogData?.checkout_id}</code>
           </div>
         </div>
       </DialogTitle>
@@ -123,7 +131,7 @@
         </div>
         <div class="space-y-2">
           <Label class="text-sm font-medium text-muted-foreground">Sending to</Label>
-          <Badge variant="default" class="capitalize">{dialogData.business_name}</Badge>
+          <Badge variant="default" class="capitalize">{dialogData?.business_name}</Badge>
         </div>
       </div>
 

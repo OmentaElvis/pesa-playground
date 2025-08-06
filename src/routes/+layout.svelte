@@ -13,7 +13,7 @@
 	import AppSidebar from '$lib/components/AppSidebar.svelte';
 	import StkPushDialog from '$lib/components/StkPushDialog.svelte';
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-  import { onDestroy, onMount } from "svelte";
+  import { onDestroy } from "svelte";
   import { resolveStkPrompt } from "$lib/api";
   import { toast, Toaster } from "svelte-sonner";
 
