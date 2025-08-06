@@ -42,3 +42,27 @@ pub async fn list_full_transaction_logs(
         .await
         .map_err(|e| format!("Failed to list full transaction logs: {}", e))
 }
+
+#[tauri::command]
+pub async fn list_accounts_full_transaction_logs(
+    state: State<'_, Database>,
+    accounts: Vec<u32>,
+    limit: Option<u64>,
+    offset: Option<u64>,
+) -> Result<Vec<FullTransactionLog>, String> {
+    let db = &state.conn;
+    TransactionLog::list_account_logs(db, accounts, limit.unwrap_or(50), offset.unwrap_or(0))
+        .await
+        .map_err(|e| format!("Failed to list full transaction logs: {}", e))
+}
+
+#[tauri::command]
+pub async fn count_transaction_logs(
+    state: State<'_, Database>,
+    accounts: Vec<u32>,
+) -> Result<u64, String> {
+    let db = &state.conn;
+    TransactionLog::count_transaction_logs(db, accounts)
+        .await
+        .map_err(|e| format!("Failed to list full transaction logs: {}", e))
+}

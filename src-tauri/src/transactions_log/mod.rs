@@ -2,10 +2,10 @@ pub mod db;
 pub mod ui;
 
 use sea_orm::prelude::DateTimeUtc;
-use sea_orm::QuerySelect;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter, Set,
 };
+use sea_orm::{PaginatorTrait, QuerySelect};
 use serde::Serialize;
 
 use self::db::{ActiveModel, Direction};
@@ -32,6 +32,7 @@ pub struct FullTransactionLog {
     pub new_balance: i64,
     pub status: String,
     pub fee: i64,
+    pub direction: Direction,
 }
 
 impl From<db::Model> for TransactionLog {
@@ -100,6 +101,7 @@ impl TransactionLog {
                     new_balance: log.new_balance,
                     status: transaction.status,
                     fee: transaction.fee,
+                    direction: log.direction,
                 }));
             }
         }
@@ -131,6 +133,42 @@ impl TransactionLog {
         }
 
         Ok(full_logs)
+    }
+
+    pub async fn list_account_logs<C: ConnectionTrait>(
+        db: &C,
+        accounts: Vec<u32>,
+        limit: u64,
+        offset: u64,
+    ) -> Result<Vec<FullTransactionLog>, DbErr> {
+        let logs = db::Entity::find()
+            .filter(db::Column::AccountId.is_in(accounts))
+            .limit(limit)
+            .offset(offset)
+            .all(db)
+            .await?;
+
+        let mut full_logs = Vec::new();
+
+        for log in logs {
+            if let Some(full_log) = Self::get_full_log(db, log.id).await? {
+                full_logs.push(full_log);
+            }
+        }
+
+        Ok(full_logs)
+    }
+
+    pub async fn count_transaction_logs<C: ConnectionTrait>(
+        db: &C,
+        accounts: Vec<u32>,
+    ) -> Result<u64, DbErr> {
+        let count = db::Entity::find()
+            .filter(db::Column::AccountId.is_in(accounts))
+            .count(db)
+            .await?;
+
+        Ok(count)
     }
 }
 

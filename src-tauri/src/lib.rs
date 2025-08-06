@@ -196,6 +196,8 @@ pub fn run() {
             transactions_log::ui::get_transaction_log,
             transactions_log::ui::get_full_transaction_log,
             transactions_log::ui::list_full_transaction_logs,
+            transactions_log::ui::list_accounts_full_transaction_logs,
+            transactions_log::ui::count_transaction_logs,
             // logs
             api_logs::ui::get_api_log,
             api_logs::ui::update_api_log,

@@ -521,10 +521,19 @@ export interface FullTransactionLog {
     new_balance: number;
     status: string;
     fee: number;
+    direction: string;
 }
 
 export async function listFullTransactionLogs(account_id: number, limit?: number, offset?: number): Promise<FullTransactionLog[]> {
     return await invoke("list_full_transaction_logs", { accountId: account_id, limit, offset });
+}
+
+export async function listAccountsFullTransactionLogs(accounts: number[], limit?: number, offset?: number): Promise<FullTransactionLog[]> {
+    return await invoke("list_accounts_full_transaction_logs", { accounts, limit, offset });
+}
+
+export async function countTransactionLogs(accounts: number[]): Promise<FullTransactionLog[]> {
+    return await invoke("count_transaction_logs", { accounts });
 }
 
 // Main ApiLog interface

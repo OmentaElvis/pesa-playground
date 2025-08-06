@@ -7,12 +7,12 @@
     CardHeader,
     CardTitle,
   } from "$lib/components/ui/card";
-  import { deleteProject, SimulationMode, type ProjectDetails } from "$lib/api";
-  import { Clock, Plus, Settings, Trash2, Users } from "lucide-svelte";
+  import { deleteProject, SimulationMode, type ProjectSummary } from "$lib/api";
+  import { Plus, Settings, Trash2, Users } from "lucide-svelte";
   import { Badge } from "$lib/components/ui/badge/index.js";
 
 
-  export let projects: ProjectDetails[] = [];
+  export let projects: ProjectSummary[] = [];
   export let businessId: number;
 
   function getSimulationModeColor(mode: SimulationMode) {

@@ -12,19 +12,33 @@
     getPaybillAccountsByBusinessId,
     getTillAccountsByBusinessId,
     getProjectsByBusinessId,
+    type FullTransactionLog,
+    listAccountsFullTransactionLogs,
+    type PaybillAccountDetails,
+    type TillAccountDetails,
+    type ProjectSummary,
+    type BusinessDetails,
+    formatTransactionAmount,
   } from "$lib/api";
   import { goto } from "$app/navigation";
-  import { ChevronsLeftRightEllipsis, Pencil, Save, Trash, WalletMinimal } from "lucide-svelte";
+  import { ArrowRightLeft, ChevronsLeftRightEllipsis, DollarSign, MoveDownLeft, MoveUpRight, Pencil, Save, Trash, WalletMinimal } from "lucide-svelte";
   import PaybillAccounts from "$lib/components/businesses/PaybillAccounts.svelte";
   import TillAccounts from "$lib/components/businesses/TillAccounts.svelte";
   import Projects from "$lib/components/businesses/Projects.svelte";
-    import { Label } from "$lib/components/ui/label";
-    import { Input } from "$lib/components/ui/input";
+  import { Label } from "$lib/components/ui/label";
+  import { Input } from "$lib/components/ui/input";
+  import * as Table from "$lib/components/ui/table/index.js";
+  import { formatDate } from "$lib/utils";
 
-  let business: any = null;
-  let paybillAccounts: any[] = [];
-  let tillAccounts: any[] = [];
-  let projects: any[] = [];
+  let business: BusinessDetails | null = null;
+  let paybillAccounts: PaybillAccountDetails[] = [];
+  let tillAccounts: TillAccountDetails[] = [];
+  let projects: ProjectSummary[] = [];
+
+  interface Transaction extends FullTransactionLog {
+    account_type: "Till" | "Paybill",
+  }
+  let transactions: Transaction[] = [];
 
   let businessId: number;
 
@@ -38,6 +52,25 @@
       paybillAccounts = await getPaybillAccountsByBusinessId(businessId);
       tillAccounts = await getTillAccountsByBusinessId(businessId);
       projects = await getProjectsByBusinessId(businessId);
+    }
+  }
+
+  async function loadTransactions() {
+    if (businessId) {
+      let paybillTransactions: Transaction[] = (await listAccountsFullTransactionLogs(paybillAccounts.map((acc) => acc.account_id))).map((txn) => {
+        return {
+          account_type: "Paybill",
+          ...txn
+        }
+      });
+      
+      let tillTransactions: Transaction[] = (await listAccountsFullTransactionLogs(tillAccounts.map(acc => acc.account_id))).map((txn) => {
+        return {
+          account_type: "Till",
+          ...txn
+        }
+      });
+      transactions = paybillTransactions.concat(tillTransactions);
     }
   }
 
@@ -57,8 +90,9 @@
     }
   }
 
-  onMount(() => {
-    loadBusinessDetails();
+  onMount(async () => {
+    await loadBusinessDetails();
+    await loadTransactions();
   });
 </script>
 
@@ -112,6 +146,7 @@
       <Tabs.List>
         <Tabs.Trigger value="account"><WalletMinimal /> Accounts</Tabs.Trigger>
         <Tabs.Trigger value="projects"><ChevronsLeftRightEllipsis /> Projects</Tabs.Trigger>
+        <Tabs.Trigger value="transactions"><DollarSign /> Transactions</Tabs.Trigger>
       </Tabs.List>
       <Tabs.Content value="account">
         <h3 class="text-lg font-medium mt-6">Associated Accounts</h3>
@@ -122,8 +157,40 @@
       </Tabs.Content>
       <Tabs.Content value="projects">
         <h3 class="text-lg font-medium mt-6">Associated Projects</h3>
-        <Separator />
         <Projects {projects} {businessId} on:refresh={loadBusinessDetails} />
+      </Tabs.Content>
+      <Tabs.Content value="transactions">
+        <h3 class="text-lg font-medium mt-6">Transactions</h3>
+        <Table.Root>
+          <Table.Header>
+            <Table.Row>
+              <Table.Head><ArrowRightLeft class="text-foreground/50"/></Table.Head>
+              <Table.Head>Amount</Table.Head>
+              <Table.Head class="font-bold">Txn Id</Table.Head>
+              <Table.Head class="font-bold">From</Table.Head>
+              <Table.Head class="font-bold">To</Table.Head>
+              <Table.Head class="font-bold">Date</Table.Head>
+            </Table.Row>
+          </Table.Header>
+          <Table.Body>
+            {#each transactions as transaction}
+              <Table.Row>
+                <Table.Cell>
+                  {#if transaction.direction == "Credit"}
+                    <MoveDownLeft class="text-green-700" />
+                  {:else}
+                    <MoveUpRight class="text-red-500" />
+                  {/if}
+                </Table.Cell>
+                <Table.Cell><b>{formatTransactionAmount(transaction.transaction_amount)}</b></Table.Cell>
+                <Table.Cell><pre>{transaction.transaction_id}</pre></Table.Cell>
+                <Table.Cell>{transaction.from_name}</Table.Cell>
+                <Table.Cell>{transaction.to_name}</Table.Cell>
+                <Table.Cell>{formatDate(transaction.transaction_date)}</Table.Cell>
+              </Table.Row>
+            {/each}
+          </Table.Body>
+        </Table.Root>
       </Tabs.Content>
     </Tabs.Root>
   {:else}
