@@ -13,6 +13,8 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@dicebear/collection": "^9.2.3",
+    "@dicebear/core": "^9.2.3",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
     "lucide-svelte": "^0.525.0",

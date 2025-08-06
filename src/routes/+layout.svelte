@@ -15,8 +15,7 @@
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { onDestroy } from "svelte";
   import { resolveStkPrompt } from "$lib/api";
-  import { toast, Toaster } from "svelte-sonner";
-
+  import { Toaster } from "svelte-sonner";
   
 	const appWindow = getCurrentWindow();
 	let { children } = $props();

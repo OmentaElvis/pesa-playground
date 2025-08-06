@@ -29,7 +29,6 @@
     XCircle,
     Globe,
     AlertCircle,
-    User,
     Phone,
     CreditCard,
     RefreshCw,
@@ -59,6 +58,8 @@
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { onDestroy, onMount } from "svelte";
   import { toast } from "svelte-sonner";
+  import DiceBearAvatar from "$lib/components/ui/avatar/DiceBearAvatar.svelte";
+  import { getInitials } from "$lib/utils";
 
   // Mock project data
   let id = $derived(page.params.id);
@@ -548,7 +549,7 @@
                       <div
                         class="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center"
                       >
-                        <User class="h-5 w-5 text-primary" />
+                        <DiceBearAvatar seed={`${user.id}-${user.name}`} fallback={getInitials(user.name)} />
                       </div>
                       <div>
                         <h4 class="font-medium"><a href="/users/{user.id}" class="hover:underline">{user.name}</a></h4>

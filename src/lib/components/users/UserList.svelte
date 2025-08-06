@@ -3,7 +3,7 @@
   import { formatAmount, getInitials } from "$lib/utils";
   import { getUsers, type UserDetails } from '$lib/api';
   import { onDestroy, onMount } from "svelte";
-  import * as Avatar from "$lib/components/ui/avatar/index.js";
+  import DiceBearAvatar from '$lib/components/ui/avatar/DiceBearAvatar.svelte';
   import { ScrollArea } from "$lib/components/ui/scroll-area/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
   import { toast } from "svelte-sonner";
@@ -72,12 +72,10 @@
         class="w-full block p-4 text-left border-b duration-200"
         href="/users/{user.id}"
       >
-        <div class="flex gap-3">
-          <Avatar.Root class="">
-            <Avatar.Fallback>
-              {getInitials(user.name as string)}
-            </Avatar.Fallback>
-          </Avatar.Root>
+        <div class="flex gap-3 items-center">
+          <div class="w-16 h-16">
+            <DiceBearAvatar seed={`${user.id}-${user.name}`} fallback={getInitials(user.name)} />
+          </div>
           <div class="flex-1 min-w-0">
             <div class="flex items-center justify-between">
               <h3 class="font-medium truncate">{user.name}</h3>

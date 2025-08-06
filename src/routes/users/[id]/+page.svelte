@@ -4,10 +4,10 @@
   import TransactionList from "$lib/components/users/TransactionList.svelte";
   import { page } from "$app/state";
   import { getUser, listFullTransactionLogs, type FullTransactionLog, type UserDetails } from "$lib/api";
-  import * as Avatar from "$lib/components/ui/avatar/index.js";
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
   import { Button } from "$lib/components/ui/button";
   import SimToolkit from "$lib/components/users/SimToolkit.svelte";
+  import DiceBearAvatar from "$lib/components/ui/avatar/DiceBearAvatar.svelte";
 
   
   let id = $derived(page.params.id);
@@ -30,11 +30,9 @@
       <div class="border-b border-gray-200 p-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3 flex-1">
-            <Avatar.Root>
-              <Avatar.Fallback>
-                {getInitials(user.name as string)}
-              </Avatar.Fallback>
-            </Avatar.Root>
+            <div class="w-12 h-12">
+              <DiceBearAvatar seed={`${user.id}-${user.name}`} fallback={getInitials(user.name)} />
+            </div>
             <div>
               <h1 class="text-xl font-semibold">{user.name}</h1>
               <div class="flex items-center gap-4 text-sm">
