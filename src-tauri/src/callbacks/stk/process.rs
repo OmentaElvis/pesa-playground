@@ -37,7 +37,7 @@ pub async fn callback_execute(
                 merchant_id,
                 checkout_id,
                 Some(json!({
-                    "Amount": init.amount,
+                    "Amount": init.amount as f64 / 100.0,
                     "MpesaReceiptNumber": receipt,
                     "TransactionDate": Utc::now().format("%Y%m%d%H%M%S").to_string(),
                     "PhoneNumber": user.phone,
@@ -70,7 +70,7 @@ pub async fn callback_execute(
                 checkout_id,
                 match status {
                     StkCodes::Success => Some(json!({
-                        "Amount": init.amount,
+                        "Amount": init.amount as f64 / 100.0,
                         "MpesaReceiptNumber": receipt,
                         "TransactionDate": Utc::now().format("%Y%m%d%H%M%S").to_string(),
                         "PhoneNumber": user.phone.to_string(),
@@ -166,6 +166,7 @@ pub async fn callback_execute(
                 },
                 "business_name": business_name,
                 "callback": callback,
+                "amount": init.amount as f64 / 100.0
             }),
         )
         .is_err()
@@ -199,12 +200,6 @@ pub async fn callback_execute(
                     {
                         Ok(transaction) => {
                             receipt = transaction.id;
-                            println!(
-                                "Sent {} from {} to {} ",
-                                transaction.amount,
-                                transaction.from.unwrap_or_default(),
-                                transaction.to
-                            );
                             StkCodes::Success
                         }
                         Err(err) => match err {
@@ -243,7 +238,7 @@ pub async fn callback_execute(
         checkout_id,
         match status {
             StkCodes::Success => Some(json!({
-                "Amount": init.amount,
+                "Amount": init.amount as f64 / 100.0,
                 "MpesaReceiptNumber": receipt,
                 "TransactionDate": Utc::now().format("%Y%m%d%H%M%S").to_string(),
                 "PhoneNumber": user.phone,
