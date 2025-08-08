@@ -29,6 +29,8 @@ pub struct FullTransactionLog {
     pub transaction_type: String,
     pub from_name: String,
     pub to_name: String,
+    pub from_id: Option<u32>,
+    pub to_id: u32,
     pub new_balance: i64,
     pub status: String,
     pub fee: i64,
@@ -86,7 +88,7 @@ impl TransactionLog {
                 let from_name = if let Some(from_id) = transaction.from {
                     get_account_name(db, from_id).await?
                 } else {
-                    "Unknown".to_string()
+                    "System".to_string()
                 };
 
                 let to_name = get_account_name(db, transaction.to).await?;
@@ -98,6 +100,8 @@ impl TransactionLog {
                     transaction_type: transaction.transaction_type,
                     from_name,
                     to_name,
+                    from_id: transaction.from,
+                    to_id: transaction.to,
                     new_balance: log.new_balance,
                     status: transaction.status,
                     fee: transaction.fee,

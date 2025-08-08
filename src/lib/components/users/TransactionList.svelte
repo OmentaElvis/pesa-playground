@@ -9,9 +9,9 @@
 
   function getTransactionIcon(transaction: FullTransactionLog) {
     if (transaction.status === TransactionStatus.Completed) {
-      if (transaction.transaction_type === TransactionType.SendMoney || transaction.transaction_type === TransactionType.Withdraw) {
+      if (transaction.direction == "Debit") {
         return ArrowUpRight;
-      } else if (transaction.transaction_type === TransactionType.Deposit || transaction.transaction_type === TransactionType.Paybill || transaction.transaction_type === TransactionType.BuyGoods) {
+      } else if (transaction.direction = "Credit") {
         return ArrowDownLeft;
       }
     }
@@ -19,12 +19,11 @@
   }
 
   function getTransactionColor(transaction: FullTransactionLog) {
-    switch (transaction.status) {
-      case TransactionStatus.Completed:
+    switch (transaction.direction) {
+      case "Credit":
         return "text-green-600";
-      case TransactionStatus.Failed:
+      case "Debit":
         return "text-red-600";
-      case TransactionStatus.Pending:
       default:
         return "text-blue-600";
     }
@@ -44,18 +43,33 @@
 
     switch (transaction.transaction_type) {
       case TransactionType.SendMoney:
-        return `${transaction.transaction_id} Confirmed. ${amount} sent to ${transaction.to_name} on ${date} at ${time}. New M-PESA balance is ${new_balance}. Transaction cost, ${cost} `;
+        return `<b>${transaction.transaction_id}</b> Confirmed. <b>${amount}</b> sent to <button onclick={viewDetails}><b>${transaction.to_name}</b></button> on ${date} at ${time}. New M-PESA balance is ${new_balance}. Transaction cost, ${cost} `;
       case TransactionType.Deposit:
-        return `${transaction.transaction_id} Confirmed. ${amount} received from ${transaction.from_name || 'M-PESA'} on ${date} at ${time}. New M-PESA balance is ${new_balance}.`;
+        return `<b>${transaction.transaction_id}</b> Confirmed. Deposit <b>${amount}</b> on ${date} at ${time}. New M-PESA balance is ${new_balance}.`;
       case TransactionType.Paybill:
-        return `${transaction.transaction_id} Confirmed. ${amount} paid to Pay Bill ${transaction.to_name} for account ${transaction.from_name || 'N/A'} on ${date} at ${time}. New M-PESA balance is ${new_balance}. Transaction cost, ${cost} `;
+        return `<b>${transaction.transaction_id}</b> Confirmed. <b>${amount}</b> paid to Pay Bill <button onclick={viewDetails}><b>${transaction.to_name}</b></button> for account ${transaction.from_name || 'N/A'} on ${date} at ${time}. New M-PESA balance is ${new_balance}. Transaction cost, ${cost} `;
       case TransactionType.BuyGoods:
-        return `${transaction.transaction_id} Confirmed. ${amount} paid to Buy Goods ${transaction.to_name} on ${date} at ${time}. New M-PESA balance is ${new_balance}. Transaction cost, ${cost} `;
+        return `<b>${transaction.transaction_id}</b> Confirmed. <b>${amount}</b> paid to Buy Goods <button onclick={viewDetails}><b>${transaction.to_name}</b></button> on ${date} at ${time}. New M-PESA balance is ${new_balance}. Transaction cost, ${cost} `;
       case TransactionType.Withdraw:
-        return `${transaction.transaction_id} Confirmed. ${amount} withdrawn from ${transaction.from_name || 'Agent'} on ${date} at ${time}. New M-PESA balance is ${new_balance}. Transaction cost, ${cost} `;
+        return `<b>${transaction.transaction_id}</b> Confirmed. <b>${amount}</b> withdrawn at ${transaction.from_name || 'Agent'} on ${date} at ${time}. New M-PESA balance is ${new_balance}. Transaction cost, ${cost} `;
       default:
-        return `${transaction.transaction_id} Confirmed. ${amount} transaction on ${date} at ${time}. Transaction ID: ${transactionId}. Transaction cost, ${cost}`;
+        return `${transaction.transaction_id} Confirmed. <b>${amount}</b> transaction on ${date} at ${time}. Transaction ID: ${transactionId}. Transaction cost, ${cost}`;
     }
+  }
+
+  function formatValues(transaction: FullTransactionLog) {
+    const amount = formatTransactionAmount(transaction.transaction_amount);
+    const new_balance = formatTransactionAmount(transaction.new_balance);
+    const date = formatTransactionDate(transaction.transaction_date);
+    const time = new Date(transaction.transaction_date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const transactionId = transaction.transaction_id;
+    const cost = formatTransactionAmount(transaction.fee);
+
+    return {amount, new_balance, date, time, transactionId, cost}
+  }
+
+  function viewDetails(id: number) {
+    alert(id)
   }
 
   function isSentTransaction(transaction: FullTransactionLog): boolean {
@@ -80,7 +94,25 @@
               <span class="text-xs text-gray-500">{formatTransactionDate(transaction.transaction_date)}</span>
             </div>
             <p class="text-sm leading-relaxed">
-              {getMpesaMessage(transaction)}
+              {#if transaction.transaction_type == TransactionType.SendMoney}
+                {@const {date, time, amount, cost, new_balance, transactionId} = formatValues(transaction)}
+                <b>{transactionId}</b> Confirmed. <b>{amount}</b> sent to <button onclick={() =>viewDetails(transaction.to_id)}><b>{transaction.to_name}</b></button> on {date} at {time}. New M-PESA balance is {new_balance}. Transaction cost, {cost}
+              {:else if transaction.transaction_type ==  TransactionType.Deposit}
+                {@const {date, time, amount, new_balance, transactionId} = formatValues(transaction)}
+                <b>{transactionId}</b> Confirmed. Deposit <b>{amount}</b> on {date} at {time}. New M-PESA balance is  {new_balance}.
+              {:else if transaction.transaction_type == TransactionType.Paybill }
+                {@const {date, time, amount, cost, new_balance, transactionId} = formatValues(transaction)}
+                <b>{transactionId}</b> Confirmed. <b>{amount}</b> paid to Pay Bill <button onclick={() => viewDetails(transaction.to_id)}><b>{transaction.to_name}</b></button> for account {transaction.from_name || 'N/A'} on {date} at {time}. New M-PESA balance is {new_balance}. Transaction cost, {cost}
+              {:else if transaction.transaction_type == TransactionType.BuyGoods}
+                {@const {date, time, amount, cost, new_balance, transactionId} = formatValues(transaction)}
+                <b>{transactionId}</b> Confirmed. <b>{amount}</b> paid to Buy Goods <button onclick={() => viewDetails(transaction.to_id)}><b>{transaction.to_name}</b></button> on {date} at {time}. New M-PESA balance is {new_balance}. Transaction cost, {cost}
+              {:else if transaction.transaction_type == TransactionType.Withdraw}
+                {@const {date, time, amount, cost, new_balance, transactionId} = formatValues(transaction)}
+                <b>{transactionId}</b> Confirmed. <b>{amount}</b> withdrawn at {transaction.from_name || 'Agent'} on {date} at {time}. New M-PESA balance is {new_balance}. Transaction cost, {cost}
+              {:else}
+                {@const {date, time, amount, cost, transactionId} = formatValues(transaction)}
+                <b>{transactionId}</b> Confirmed. <b>{amount}</b> transaction on {date} at {time}. Transaction ID: {transaction.transaction_id}. Transaction cost, {cost}
+              {/if}
             </p>
             <div class="text-right text-xs font-medium mt-1">
               {formatTransactionAmount(transaction.transaction_amount)}

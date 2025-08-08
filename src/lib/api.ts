@@ -520,6 +520,8 @@ export interface FullTransactionLog {
     transaction_type: string;
     from_name: string;
     to_name: string;
+    from_id: number | null,
+    to_id: number,
     new_balance: number;
     status: string;
     fee: number;
