@@ -66,7 +66,7 @@
       </Popover.Root>
     </div>
   </div>
-  <ScrollArea class="flex-1 h-full">
+  <ScrollArea class="flex-1 min-h-0">
     {#each users as user}
       <a
         class="w-full block p-4 text-left border-b duration-200"
