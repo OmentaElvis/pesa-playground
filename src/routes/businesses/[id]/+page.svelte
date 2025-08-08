@@ -97,6 +97,64 @@
     await loadBusinessDetails();
     await loadTransactions();
   });
+
+  let filterText = $state('');
+  let sortKey: keyof FullTransactionLog | null = $state('transaction_date');
+  let sortOrder: 'asc' | 'desc' = $state('desc');
+
+  let processedTransactions: Transaction[] = $state([]);
+
+  $effect(() => {
+    let filtered = transactions;
+    if (filterText) {
+      filtered = transactions.filter(t => {
+        return (
+          t.transaction_id.toLowerCase().includes(filterText.toLowerCase()) ||
+          t.from_name.toLowerCase().includes(filterText.toLowerCase()) ||
+          t.to_name.toLowerCase().includes(filterText.toLowerCase())
+        );
+      });
+    }
+
+    if (!sortKey) {
+      processedTransactions = filtered;
+      return;
+    }
+
+    processedTransactions = [...filtered].sort((a, b) => {
+      if (!sortKey) return 0;
+      const aValue = a[sortKey];
+      const bValue = b[sortKey];
+
+      if (aValue === null || aValue === undefined) return 1;
+      if (bValue === null || bValue === undefined) return -1;
+
+      if (sortKey === 'transaction_date') {
+        const dateA = new Date(aValue as string).getTime();
+        const dateB = new Date(bValue as string).getTime();
+        return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+      }
+      
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortOrder === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+      }
+
+      return 0;
+    });
+  });
+
+  function setSortKey(key: keyof FullTransactionLog) {
+    if (sortKey === key) {
+      sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortKey = key;
+      sortOrder = 'desc';
+    }
+  }
 </script>
 
 <div class="space-y-6 p-6">
@@ -164,19 +222,27 @@
       </Tabs.Content>
       <Tabs.Content value="transactions">
         <h3 class="text-lg font-medium mt-6">Transactions</h3>
+        <div class="flex items-center py-4">
+          <Input
+            type="text"
+            placeholder="Filter by transaction id, from, or to..."
+            bind:value={filterText}
+            class="max-w-sm"
+          />
+        </div>
         <Table.Root>
           <Table.Header>
             <Table.Row>
               <Table.Head><ArrowRightLeft class="text-foreground/50"/></Table.Head>
-              <Table.Head>Amount</Table.Head>
+              <Table.Head><button onclick={() => setSortKey('transaction_amount')}>Amount</button></Table.Head>
               <Table.Head class="font-bold">Txn Id</Table.Head>
-              <Table.Head class="font-bold">From</Table.Head>
-              <Table.Head class="font-bold">To</Table.Head>
-              <Table.Head class="font-bold">Date</Table.Head>
+              <Table.Head class="font-bold"><button onclick={() => setSortKey('from_name')}>From</button></Table.Head>
+              <Table.Head class="font-bold"><button onclick={() => setSortKey('to_name')}>To</button></Table.Head>
+              <Table.Head class="font-bold"><button onclick={() => setSortKey('transaction_date')}>Date</button></Table.Head>
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {#each transactions as transaction}
+            {#each processedTransactions as transaction}
               <Table.Row>
                 <Table.Cell>
                   {#if transaction.direction == "Credit"}
