@@ -11,7 +11,7 @@
   import { Label } from "$lib/components/ui/label";
   import { createBusiness, getBusinesses } from "$lib/api";
   import { onMount } from "svelte";
-  import { Plus, PlusCircle } from "lucide-svelte";
+  import { Plus } from "lucide-svelte";
   import { goto } from "$app/navigation";
   import * as Dialog from "$lib/components/ui/dialog";
 

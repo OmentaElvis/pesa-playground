@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
-  import { X, Maximize2, Minus } from 'lucide-svelte';
+  import { X, Maximize2, Minus, ArrowRight, ArrowLeft } from 'lucide-svelte';
 	import '../app.css';
 	import { Button } from "$lib/components/ui/button/index.js";
   import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -15,6 +15,8 @@
   import { onDestroy } from "svelte";
   import { resolveStkPrompt } from "$lib/api";
   import { Toaster } from "svelte-sonner";
+    import { page } from "$app/state";
+    import { onNavigate } from "$app/navigation";
   
 	const appWindow = getCurrentWindow();
 	let { children } = $props();
@@ -68,6 +70,14 @@
   	if (unlisten)
   		unlisten();
   })
+
+  function forward() {
+  	window.history.forward();
+  }
+
+  function back() {
+  	window.history.back();
+  }
 	
 </script>
 
@@ -96,8 +106,12 @@
 	  </Button>
 	</div>
 	<AppSidebar variant="sidebar" />
-	<div class="mt-[36px] h-[calc(100vh-36px)] w-full overflow-y-auto">
+	<div class="mt-[36px] mb-[32px] h-[calc(100vh-72px)] w-full overflow-y-auto">
 		{@render children()}
+	</div>
+	<div class="bg-muted h-[36px] fixed w-full bottom-0 border z-1000">
+		<Button variant="ghost" onclick={back} class="cursor-pointer" aria-label="back"> <ArrowLeft /></Button>
+		<Button variant="ghost" onclick={forward} class="cursor-pointer" aria-label="foward"> <ArrowRight /></Button>
 	</div>
 </Sidebar.Provider>
 <StkPushDialog bind:open={stkPushOpened} dialogData={stkPush} on:action={stkPushAction} />
