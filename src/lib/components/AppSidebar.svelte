@@ -37,9 +37,9 @@
           <Sidebar.MenuItem>
             <Sidebar.MenuButton>
               {#snippet child({ props })}
-                <a {...props} href="/users">
-                    <Users size={20} />
-                    <span>Users</span>
+                <a {...props} href="/businesses">
+                    <Briefcase size={20} />
+                    <span>Businesses</span>
                 </a>
               {/snippet}
             </Sidebar.MenuButton>
@@ -47,9 +47,9 @@
           <Sidebar.MenuItem>
             <Sidebar.MenuButton>
               {#snippet child({ props })}
-                <a {...props} href="/businesses">
-                    <Briefcase size={20} />
-                    <span>Businesses</span>
+                <a {...props} href="/users">
+                    <Users size={20} />
+                    <span>Users</span>
                 </a>
               {/snippet}
             </Sidebar.MenuButton>
