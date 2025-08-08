@@ -7,23 +7,15 @@
     CardHeader,
     CardTitle,
   } from "$lib/components/ui/card";
-  import { deleteProject, SimulationMode, type ProjectSummary } from "$lib/api";
+  import { deleteProject, type ProjectSummary } from "$lib/api";
   import { Plus, Settings, Trash2, Users } from "lucide-svelte";
   import { Badge } from "$lib/components/ui/badge/index.js";
+  import { getSimulationModeColor } from "$lib/utils";
 
 
   export let projects: ProjectSummary[] = [];
   export let businessId: number;
 
-  function getSimulationModeColor(mode: SimulationMode) {
-    switch (mode) {
-      case SimulationMode.AlwaysSuccess: return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-      case SimulationMode.AlwaysFail: return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
-      case SimulationMode.Random: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
-      case SimulationMode.Realistic: return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
-    }
-  }
 
   async function removeProject(id: number) {
     await deleteProject(id);

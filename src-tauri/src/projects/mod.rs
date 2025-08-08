@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 
 use sea_orm::prelude::DateTimeUtc;
-use sea_orm::{ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter};
+use sea_orm::{ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, QueryFilter};
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 
@@ -68,12 +68,15 @@ pub struct ProjectDetails {
     pub passkey: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default, FromQueryResult)]
 pub struct ProjectSummary {
     pub id: u32,
     pub name: String,
     pub simulation_mode: String,
+    pub business_id: u32,
+    pub business_name: String,
     pub created_at: DateTime<Utc>,
+    pub short_code: String,
 }
 
 #[derive(Debug, Clone, Default)]

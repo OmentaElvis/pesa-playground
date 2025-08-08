@@ -1,6 +1,9 @@
 use chrono::Utc;
 use sea_orm::ActiveValue::Set;
-use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, TransactionTrait};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, EntityTrait, JoinType, QuerySelect, RelationTrait,
+    TransactionTrait,
+};
 use tauri::State;
 
 use crate::api_keys;
@@ -115,20 +118,20 @@ pub async fn get_projects(state: State<'_, Database>) -> Result<Vec<ProjectSumma
     let db = &state.conn;
 
     let projects = db::Entity::find()
+        .join(JoinType::InnerJoin, db::Relation::Business.def())
+        .select_only()
+        .column(db::Column::Id)
+        .column(db::Column::Name)
+        .column(db::Column::SimulationMode)
+        .column(db::Column::CreatedAt)
+        .column(db::Column::BusinessId)
+        .column(db::Column::StkDelay)
+        .column(crate::business::db::Column::ShortCode)
+        .column_as(crate::business::db::Column::Name, "business_name")
+        .into_model::<ProjectSummary>()
         .all(db)
         .await
         .map_err(|err| format!("Failed to fetch projects: {}", err))?;
-
-    // Map the rows to `ProjectSummary` structs.
-    let projects: Vec<ProjectSummary> = projects
-        .iter()
-        .map(|project| ProjectSummary {
-            id: project.id,
-            name: project.name.clone(),
-            simulation_mode: project.simulation_mode.clone(),
-            created_at: project.created_at,
-        })
-        .collect();
 
     Ok(projects)
 }
@@ -145,6 +148,16 @@ pub async fn get_projects_by_business_id(
 
     let projects = db::Entity::find()
         .filter(Column::BusinessId.eq(business_id))
+        .join(JoinType::InnerJoin, db::Relation::Business.def())
+        .select_only()
+        .column(db::Column::Id)
+        .column(db::Column::Name)
+        .column(db::Column::SimulationMode)
+        .column(db::Column::CreatedAt)
+        .column(db::Column::BusinessId)
+        .column_as(crate::business::db::Column::Name, "business_name")
+        .column(crate::business::db::Column::ShortCode)
+        .into_model::<ProjectSummary>()
         .all(db)
         .await
         .map_err(|err| {
@@ -153,16 +166,6 @@ pub async fn get_projects_by_business_id(
                 business_id, err
             )
         })?;
-
-    let projects: Vec<ProjectSummary> = projects
-        .iter()
-        .map(|project| ProjectSummary {
-            id: project.id,
-            name: project.name.clone(),
-            simulation_mode: project.simulation_mode.clone(),
-            created_at: project.created_at,
-        })
-        .collect();
 
     Ok(projects)
 }

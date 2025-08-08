@@ -47,7 +47,6 @@
     type Business,
     getBusiness,
     type UserDetails,
-    type FullTransactionLog,
     getPaybillAccountsByBusinessId,
     getTillAccountsByBusinessId,
     type PaybillAccount,

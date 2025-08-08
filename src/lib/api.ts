@@ -271,6 +271,8 @@ export interface ProjectDetails {
 export interface ProjectSummary {
   id: number;
   business_id: number;
+  business_name: String;
+  short_code: String;
   name: string;
   simulation_mode: SimulationMode;
   created_at: string;
