@@ -1,7 +1,7 @@
 <script lang="ts">
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import { type ComponentProps } from "svelte";
-  import { Users, Settings, Folder, LayoutDashboard, Briefcase } from "lucide-svelte";
+  import { Users, Settings, Folder, LayoutDashboard, Briefcase, Info } from "lucide-svelte";
   import { sandboxes } from '$lib/stores/sandboxStatus';
   import Separator from "./ui/separator/separator.svelte";
 
@@ -92,6 +92,17 @@
     </Sidebar.Group>
   </Sidebar.Content>
   <Sidebar.Footer>
+    <Sidebar.MenuItem>
+      <Sidebar.MenuButton>
+        {#snippet child({ props })}
+          <a {...props} href="/info" >
+              <Info size={20} />
+              <span>Info</span>
+          </a>
+        {/snippet}
+      </Sidebar.MenuButton>
+    </Sidebar.MenuItem>
+    <br/>
   </Sidebar.Footer>
   <Sidebar.Rail />
 </Sidebar.Root>
