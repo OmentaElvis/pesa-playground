@@ -184,12 +184,14 @@
   });
 
   onMount(async () => {
-    project = await getProject(Number(id));
-    users = await getUsers();
-    business = await getBusiness(project.business_id);
-    await loadTransactions();
+    $effect(async ()=> {
+      project = await getProject(Number(id));
+      users = await getUsers();
+      business = await getBusiness(project.business_id);
+      await loadTransactions();
 
-    apiLogs = await getProjectApiLogs(Number(id), { limit: 20 });
+      apiLogs = await getProjectApiLogs(Number(id), { limit: 20 });
+    })
   });
 </script>
 

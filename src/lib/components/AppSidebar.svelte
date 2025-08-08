@@ -2,6 +2,8 @@
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import { type ComponentProps } from "svelte";
   import { Users, Settings, Folder, LayoutDashboard, Briefcase } from "lucide-svelte";
+  import { sandboxes } from '$lib/stores/sandboxStatus';
+  import Separator from "./ui/separator/separator.svelte";
 
   let sidebar = Sidebar.useSidebar();
   sidebar.setOpen(false);
@@ -72,10 +74,24 @@
               {/snippet}
             </Sidebar.MenuButton>
           </Sidebar.MenuItem>
+          <Separator class="mt-8"/>
+          {#each $sandboxes as info}
+            <Sidebar.MenuItem>
+              <Sidebar.MenuButton>
+                {#snippet child({ props })}
+                  <a {...props} href="/projects/{info.project_id}" >
+                    <div class="min-w-[16px] animate-pulse size-[16px] rounded-full" class:bg-green-700={info.status == "on"} class:bg-red-500={info.status == "off"} ></div>  
+                    <span>{info.name} <b>{info.port}</b></span>
+                  </a>
+                {/snippet}
+              </Sidebar.MenuButton>
+            </Sidebar.MenuItem>
+          {/each}
         </Sidebar.Menu>
       </Sidebar.GroupContent>
     </Sidebar.Group>
   </Sidebar.Content>
-
+  <Sidebar.Footer>
+  </Sidebar.Footer>
   <Sidebar.Rail />
 </Sidebar.Root>

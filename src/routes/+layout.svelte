@@ -9,7 +9,6 @@
   import MoonIcon from "@lucide/svelte/icons/moon";
   import { toggleMode } from "mode-watcher";
   import { title } from '$lib/stores/title';
-  import { type SandboxStatus, sandboxStatus } from '$lib/stores/sandboxStatus';
 	import AppSidebar from '$lib/components/AppSidebar.svelte';
 	import StkPushDialog from '$lib/components/StkPushDialog.svelte';
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
@@ -21,7 +20,6 @@
 	let { children } = $props();
 
 	let titlebar: HTMLDivElement | null = $state(null);
-	let status: SandboxStatus = $derived($sandboxStatus);
 
 	$effect(()=> {
 	 if (titlebar) {
@@ -35,11 +33,6 @@
 
 	let stkPush: any = $state(null);
 	let stkPushOpened : boolean = $state(false);
-
-	let barClass =  $derived(`
-    fixed top-0 transition-colors duration-500 left-0 pr-4 select-none items-center flex w-full h-[36px] shadow-lg z-1000
-    ${status === "on" ? 'bg-green-800 text-white' : 'bg-white dark:bg-gray-800'}
-  `);
 
   let unlisten: UnlistenFn;
   listen('stk_push', (e)=> {
@@ -80,7 +73,7 @@
 
 <ModeWatcher />
 <Sidebar.Provider>
-	<div class={barClass} >
+	<div class="fixed top-0 transition-colors duration-500 left-0 pr-4 select-none items-center flex w-full h-[36px] shadow-lg z-1000 bg-green-800 text-white" >
 		<Sidebar.Trigger class="cursor-pointer" />
 		<div bind:this={titlebar} class="basis-full font-bold">{$title}</div>
 		<Button onclick={toggleMode} variant="ghost" size="icon">

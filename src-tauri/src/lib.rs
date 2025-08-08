@@ -1,6 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use sea_orm::DatabaseConnection;
+use serde::Serialize;
 use serde_json::{json, Value};
 use server::start_project_server;
 use tauri::{AppHandle, Manager, State};
@@ -28,13 +29,13 @@ pub struct RunningSandbox {
 pub struct SandboxManager {
     pub handle: AppHandle,
     pub conn: DatabaseConnection,
-    pub running: Arc<Mutex<HashMap<i64, RunningSandbox>>>,
+    pub running: Arc<Mutex<HashMap<u32, RunningSandbox>>>,
 }
 
 #[tauri::command]
 async fn start_sandbox(
     state: State<'_, SandboxManager>,
-    project_id: i64,
+    project_id: u32,
 ) -> Result<String, String> {
     let port: u16 = (8000 + (project_id % 1000))
         .try_into()
@@ -47,7 +48,7 @@ async fn start_sandbox(
     }
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
     let handle = tokio::spawn(start_project_server(
-        project_id.try_into().unwrap(),
+        project_id,
         port,
         state.conn.clone(),
         shutdown_rx,
@@ -66,7 +67,7 @@ async fn start_sandbox(
 }
 
 #[tauri::command]
-async fn stop_sandbox(state: State<'_, SandboxManager>, project_id: i64) -> Result<(), String> {
+async fn stop_sandbox(state: State<'_, SandboxManager>, project_id: u32) -> Result<(), String> {
     let mut running = state.running.lock().await;
     let rs = if let Some(rs) = running.remove(&project_id) {
         rs
@@ -85,7 +86,7 @@ async fn stop_sandbox(state: State<'_, SandboxManager>, project_id: i64) -> Resu
 #[tauri::command]
 async fn sandbox_status(
     state: State<'_, SandboxManager>,
-    project_id: i64,
+    project_id: u32,
 ) -> Result<Value, String> {
     let mut running = state.running.lock().await;
     if let Some(rs) = running.get(&project_id) {
@@ -123,6 +124,37 @@ async fn sandbox_status(
         },
     }
 }
+#[derive(Serialize)]
+struct Status {
+    project_id: u32,
+    port: u16,
+    error: Option<String>,
+    status: String,
+}
+
+#[tauri::command]
+async fn list_running_sandboxes(state: State<'_, SandboxManager>) -> Result<Vec<Status>, String> {
+    let mut running = state.running.lock().await;
+
+    let mut instances: Vec<Status> = Vec::new();
+    for (project_id, rs) in running.iter_mut() {
+        let mut status = Status {
+            project_id: *project_id,
+            port: rs.port,
+            error: None,
+            status: "on".to_string(),
+        };
+
+        if rs.handle.is_finished() {
+            status.port = 0;
+            status.status = "off".to_string();
+        };
+
+        instances.push(status);
+    }
+
+    Ok(instances)
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -152,6 +184,7 @@ pub fn run() {
             start_sandbox,
             stop_sandbox,
             sandbox_status,
+            list_running_sandboxes,
             projects::ui::create_project,
             projects::ui::get_project,
             projects::ui::get_projects,

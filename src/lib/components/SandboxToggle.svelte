@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { Play, Pause, Cog, Loader2, CircleX } from "lucide-svelte";
-  import { sandboxStatus } from "$lib/stores/sandboxStatus";
+  import { Play, Cog, Loader2, CircleX } from "lucide-svelte";
+  import { getSandboxes, sandboxStatus } from "$lib/stores/sandboxStatus";
   import {
     sandboxStatus as apiSandboxStatus,
     startSandbox,
@@ -47,6 +47,7 @@
       try {
         await stopSandbox(id);
         setStatus("off");
+        await getSandboxes();
         port = null;
         error = null;
       } catch (e) {
@@ -60,6 +61,7 @@
         const addr = await startSandbox(id);
         port = parseInt(addr.split(":").pop() || "0");
         setTimeout(() => refresh(), 2000);
+        await getSandboxes();
         // status = "on";
       } catch (e) {
         setStatus("error");
