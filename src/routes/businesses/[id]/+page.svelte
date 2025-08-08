@@ -30,21 +30,24 @@
   import * as Table from "$lib/components/ui/table/index.js";
   import { formatDate } from "$lib/utils";
 
-  let business: BusinessDetails | null = null;
-  let paybillAccounts: PaybillAccountDetails[] = [];
-  let tillAccounts: TillAccountDetails[] = [];
-  let projects: ProjectSummary[] = [];
+  let business: BusinessDetails | null = $state(null);
+  let paybillAccounts: PaybillAccountDetails[] = $state([]);
+  let tillAccounts: TillAccountDetails[] = $state([]);
+  let projects: ProjectSummary[] = $state([]);
 
   interface Transaction extends FullTransactionLog {
     account_type: "Till" | "Paybill",
   }
-  let transactions: Transaction[] = [];
+  let transactions: Transaction[] = $state([]);
+  let currentTab = $derived(page.url.searchParams.get("tab") || "accounts");
 
-  let businessId: number;
+  let businessId: number | undefined = $state(undefined);
 
-  $: if (page.params.id) {
-    businessId = parseInt(page.params.id);
-  }
+  $effect(() => {
+     if (page.params.id) {
+      businessId = parseInt(page.params.id);
+    }
+  });
 
   async function loadBusinessDetails() {
     if (businessId) {
@@ -97,7 +100,7 @@
 </script>
 
 <div class="space-y-6 p-6">
-  {#if business}
+  {#if business && businessId}
     <div>
       <div>
         <h3 class="text-lg font-medium">{business.name}</h3>
@@ -142,13 +145,13 @@
       >
     </div>
     <Separator />
-    <Tabs.Root value="account" class="">
+    <Tabs.Root bind:value={currentTab} class="">
       <Tabs.List>
-        <Tabs.Trigger value="account"><WalletMinimal /> Accounts</Tabs.Trigger>
+        <Tabs.Trigger value="accounts"><WalletMinimal /> Accounts</Tabs.Trigger>
         <Tabs.Trigger value="projects"><ChevronsLeftRightEllipsis /> Projects</Tabs.Trigger>
         <Tabs.Trigger value="transactions"><DollarSign /> Transactions</Tabs.Trigger>
       </Tabs.List>
-      <Tabs.Content value="account">
+      <Tabs.Content value="accounts">
         <h3 class="text-lg font-medium mt-6">Associated Accounts</h3>
         <div class="grid gap-4 md:grid-cols-2">
           <PaybillAccounts {paybillAccounts} {businessId} on:refresh={loadBusinessDetails} />

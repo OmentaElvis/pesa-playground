@@ -52,7 +52,7 @@
     getTillAccountsByBusinessId,
     type PaybillAccount,
     type TillAccount,
-    listFullTransactionLogs,
+    countTransactionLogs,
   } from "$lib/api";
   import { page } from "$app/state";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
@@ -75,7 +75,7 @@
   let paybills: PaybillAccount[] = $state([]);
   let tills: TillAccount[] = $state([]);
 
-  let transactions: FullTransactionLog[] = $state([]);
+  let transactions: number = $state(0);
 
   // New user form
   let newUser = $state({
@@ -140,17 +140,10 @@
       paybills = await getPaybillAccountsByBusinessId(business.id);
       tills = await getTillAccountsByBusinessId(business.id);
 
-      for (let paybill of paybills) {
-        let paybill_transactions = await listFullTransactionLogs(
-          paybill.account_id,
-        );
-        transactions.concat(paybill_transactions);
-      }
+      let paybill_transaction_cost = await countTransactionLogs(paybills.map((p) => p.account_id));
+      let till_transaction_count = await countTransactionLogs(tills.map((t)=> t.account_id));
+      transactions = paybill_transaction_cost + till_transaction_count;
 
-      for (let till of tills) {
-        let till_transactions = await listFullTransactionLogs(till.account_id);
-        transactions.concat(till_transactions);
-      }
     }
   }
 
@@ -250,9 +243,9 @@
             <Activity class="text-muted-foreground" />
             <div>
               <p class="text-sm text-muted-foreground">Total Transactions</p>
-              <p class="text-2xl font-bold">
-                {transactions.length}
-              </p>
+              <a class="text-2xl font-bold" href="/businesses/{project.business_id}?tab=transactions">
+                {transactions}
+              </a>
             </div>
           </div>
           <div class="flex items-center gap-2">
@@ -268,9 +261,9 @@
             <Wallet class="text-muted-foreground" />
             <div>
               <p class="text-sm text-muted-foreground">Accounts</p>
-              <p class="text-2xl font-bold">
+              <a class="text-2xl font-bold" href="/businesses/{project.business_id}?tab=accounts">
                 {paybills.length + tills.length}
-              </p>
+              </a>
             </div>
           </div>
         </CardContent>

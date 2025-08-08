@@ -532,7 +532,7 @@ export async function listAccountsFullTransactionLogs(accounts: number[], limit?
     return await invoke("list_accounts_full_transaction_logs", { accounts, limit, offset });
 }
 
-export async function countTransactionLogs(accounts: number[]): Promise<FullTransactionLog[]> {
+export async function countTransactionLogs(accounts: number[]): Promise<number> {
     return await invoke("count_transaction_logs", { accounts });
 }
 
