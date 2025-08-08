@@ -37,16 +37,6 @@
           <Sidebar.MenuItem>
             <Sidebar.MenuButton>
               {#snippet child({ props })}
-                <a {...props} href="/projects">
-                  <Folder class="size-4" />
-                  <span>Projects</span>
-                </a>
-              {/snippet}
-            </Sidebar.MenuButton>
-          </Sidebar.MenuItem>
-          <Sidebar.MenuItem>
-            <Sidebar.MenuButton>
-              {#snippet child({ props })}
                 <a {...props} href="/users">
                     <Users size={20} />
                     <span>Users</span>
