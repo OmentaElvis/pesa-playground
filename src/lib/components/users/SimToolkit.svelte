@@ -388,7 +388,7 @@
                 <div class="text-xs">{simInputPrompt}</div>
               </div>
 
-              <div class="flex-1 flex flex-col justify-between">
+              <div class="flex-1 flex flex-col">
                 <div>
                   <div class="p-2 mb-4">
                     <Input
@@ -413,8 +413,21 @@
                   </div>
                 </div>
 
-                {#if suggestionType}
-                  <div class="flex-1 mt-4 space-y-1 overflow-y-auto">
+                <div class="flex-1 mt-4 space-y-1 overflow-y-auto">
+                  {#if simInputMode === 'password'}
+                    <p class="text-xs text-muted-foreground">Suggestion:</p>
+                    <button
+                      on:click={() => {
+                        simInputValue = user.pin;
+                        handleSimInput();
+                      }}
+                      class="w-full text-left p-2 text-xs cursor-pointer hover:bg-muted transition-colors radius"
+                    >
+                      {user.pin}
+                    </button>
+                  {/if}
+
+                  {#if suggestionType}
                     {#if suggestionsLoading}
                       <p>Loading...</p>
                     {:else if filteredSuggestions.length > 0}
@@ -457,8 +470,8 @@
                         {/each}
                       </div>
                     {/if}
-                  </div>
-                {/if}
+                  {/if}
+                </div>
               </div>
             </div>
           {:else}
