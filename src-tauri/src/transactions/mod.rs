@@ -10,7 +10,7 @@ use sea_orm::{
     ActiveValue::{Set, Unchanged},
     ConnectionTrait, DbErr, EntityTrait,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 use thiserror::Error;
 use tokio::sync::Mutex;
@@ -41,8 +41,9 @@ pub enum TransactionEngineError {
 
 static GLOBAL_LEDGER_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
-#[derive(Display, EnumString, Debug, PartialEq, Serialize)]
+#[derive(Display, EnumString, Debug, PartialEq, Serialize, Deserialize)]
 #[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum TransactionType {
     Paybill,
     BuyGoods,
@@ -56,6 +57,7 @@ pub enum TransactionType {
 
 #[derive(Display, EnumString, Debug, PartialEq, Serialize)]
 #[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum TransactionStatus {
     Pending,
     Failed,

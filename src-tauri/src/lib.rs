@@ -219,6 +219,7 @@ pub fn run() {
             accounts::user_profiles::ui::generate_user,
             accounts::user_profiles::ui::generate_users,
             // transactions
+            transactions::ui::transfer,
             transactions::ui::get_transaction,
             transactions::ui::list_transactions,
             transactions::ui::count_transactions,

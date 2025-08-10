@@ -1,5 +1,7 @@
 use super::db;
+use super::Ledger;
 use super::Transaction;
+use super::TransactionType;
 use sea_orm::ColumnTrait;
 use sea_orm::Condition;
 use sea_orm::EntityTrait;
@@ -222,6 +224,19 @@ pub async fn get_transaction_stats(state: State<'_, Database>) -> Result<Transac
         pending_count,
         failed_count,
     })
+}
+
+#[tauri::command]
+pub async fn transfer(
+    state: State<'_, Database>,
+    source: Option<u32>,
+    destination: u32,
+    amount: i64,
+    txn_type: TransactionType,
+) -> Result<Transaction, String> {
+    Ledger::transfer(&state.conn, source, destination, amount, &txn_type)
+        .await
+        .map_err(|err| format!("Transfer Error: {}", err))
 }
 
 #[derive(serde::Serialize)]

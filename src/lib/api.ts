@@ -446,6 +446,15 @@ export interface TransactionStats {
   failed_count: number;
 }
 
+export async function transfer(from: number | null, destination: number, amount: number, txnType: TransactionType): Promise<Transaction> {
+  return await invoke("transfer", {
+    from,
+    destination,
+    amount,
+    txnType
+  })
+}
+
 export async function getTransaction(transaction_id: string): Promise<Transaction | null> {
   return await invoke("get_transaction", { transactionId: transaction_id });
 }
