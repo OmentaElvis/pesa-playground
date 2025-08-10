@@ -2,11 +2,16 @@
   import * as Drawer from "$lib/components/ui/drawer";
   import { Button } from "../ui/button";
   import { Input } from "$lib/components/ui/input/index.js";
-  import type { User } from "$lib/api";
+  import type {
+    UserDetails,
+    PaybillAccountDetails,
+    TillAccountDetails,
+  } from "$lib/api";
   import { X, ArrowLeft } from "lucide-svelte";
+  import { getUsers, getPaybillAccounts, getTillAccounts } from "$lib/api";
 
   export let open = false;
-  export let user: User;
+  export let user: UserDetails;
 
   interface SimMenu {
     title: string;
@@ -23,6 +28,10 @@
   let simInputValue = "";
   let simInputPrompt = "";
   let simInputCallback: ((arg0: string) => void) | null = null;
+  let suggestions: (UserDetails | PaybillAccountDetails | TillAccountDetails)[] =
+    [];
+  let suggestionType: "phone" | "paybill" | "till" | null = null;
+  let suggestionsLoading = false;
 
   type SubmitType = "SendMoney" | "BuyAirtime" | "Paybill" | "BuyGoodsTill";
 
@@ -42,26 +51,44 @@
     }
   }
 
-  function showSimInput(
+  async function showSimInput(
     prompt: string,
     callback: ((arg0: string) => void) | null,
     type = "text",
+    suggType: "phone" | "paybill" | "till" | null = null,
   ) {
     simInputMode = type;
     simInputPrompt = prompt;
     simInputCallback = callback;
     simInputValue = "";
+    suggestionType = suggType;
+
+    if (suggestionType) {
+      suggestionsLoading = true;
+      if (suggestionType === "phone") {
+        suggestions = await getUsers();
+      } else if (suggestionType === "paybill") {
+        suggestions = await getPaybillAccounts();
+      } else if (suggestionType === "till") {
+        suggestions = await getTillAccounts();
+      }
+      suggestionsLoading = false;
+    }
   }
 
   function handleSimInput() {
     if (simInputCallback) {
       simInputCallback(simInputValue);
     }
+    suggestionType = null;
+    suggestions = [];
   }
 
   function cancelSimInput() {
     simInputMode = null;
     simInputValue = "";
+    suggestionType = null;
+    suggestions = [];
   }
 
   function submit(submit_type: SubmitType) {
@@ -74,24 +101,59 @@
   }
 
   function sendMoney() {
-    showSimInput("Enter phone number:", (value) => {
-      simFormData.phone = value;
-      showSimInput(
-        "Enter amount:",
-        (amount) => {
-          simFormData.amount = amount;
+    showSimInput(
+      "Enter phone number:",
+      (value) => {
+        simFormData.phone = value;
+        showSimInput(
+          "Enter amount:",
+          (amount) => {
+            simFormData.amount = amount;
+            showSimInput(
+              "Enter M-PESA PIN:",
+              (pin) => {
+                simFormData.pin = pin;
+                submit("SendMoney");
+              },
+              "password",
+            );
+          },
+          "number",
+        );
+      },
+      "text",
+      "phone",
+    );
+  }
+
+  async function selectFromPhonebook() {
+    const users = await getUsers();
+    simMenus.phonebook = {
+      title: "Phonebook",
+      options: users.map((user, i) => ({
+        id: `user_${user.id}`,
+        label: `${i + 1}. ${user.name}`,
+        action: () => {
+          simFormData.phone = user.phone;
           showSimInput(
-            "Enter M-PESA PIN:",
-            (pin) => {
-              simFormData.pin = pin;
-              submit("SendMoney");
+            "Enter amount:",
+            (amount) => {
+              simFormData.amount = amount;
+              showSimInput(
+                "Enter M-PESA PIN:",
+                (pin) => {
+                  simFormData.pin = pin;
+                  submit("SendMoney");
+                },
+                "password",
+              );
             },
-            "password",
+            "number",
           );
         },
-        "number",
-      );
-    });
+      })),
+    };
+    navigateSimMenu("phonebook");
   }
 
   const simMenus: Record<string, SimMenu> = {
@@ -136,7 +198,7 @@
         {
           id: "from_phonebook",
           label: "2. From Phonebook",
-          action: () => navigateSimMenu("phonebook"),
+          action: selectFromPhonebook,
         },
       ],
     },
@@ -168,24 +230,29 @@
           id: "another_phone",
           label: "2. Another Phone",
           action: () =>
-            showSimInput("Enter phone number:", (phone) => {
-              simFormData.phone = phone;
-              showSimInput(
-                "Enter amount:",
-                (amount) => {
-                  simFormData.amount = amount;
-                  showSimInput(
-                    "Enter M-PESA PIN:",
-                    (pin) => {
-                      simFormData.pin = pin;
-                      submit("BuyAirtime");
-                    },
-                    "password",
-                  );
-                },
-                "number",
-              );
-            }),
+            showSimInput(
+              "Enter phone number:",
+              (phone) => {
+                simFormData.phone = phone;
+                showSimInput(
+                  "Enter amount:",
+                  (amount) => {
+                    simFormData.amount = amount;
+                    showSimInput(
+                      "Enter M-PESA PIN:",
+                      (pin) => {
+                        simFormData.pin = pin;
+                        submit("BuyAirtime");
+                      },
+                      "password",
+                    );
+                  },
+                  "number",
+                );
+              },
+              "text",
+              "phone",
+            ),
         },
       ],
     },
@@ -196,10 +263,41 @@
           id: "paybill",
           label: "1. Pay Bill",
           action: () =>
-            showSimInput("Enter business number:", (business) => {
-              simFormData.business = business;
-              showSimInput("Enter account number:", (account) => {
-                simFormData.account = account;
+            showSimInput(
+              "Enter business number:",
+              (business) => {
+                simFormData.business = business;
+                showSimInput("Enter account number:", (account) => {
+                  simFormData.account = account;
+                  showSimInput(
+                    "Enter amount:",
+                    (amount) => {
+                      simFormData.amount = amount;
+                      showSimInput(
+                        "Enter M-PESA PIN:",
+                        (pin) => {
+                          simFormData.pin = pin;
+                          submit("Paybill");
+                        },
+                        "password",
+                      );
+                    },
+                    "number",
+                  );
+                });
+              },
+              "text",
+              "paybill",
+            ),
+        },
+        {
+          id: "buy_goods",
+          label: "2. Buy Goods and Services",
+          action: () =>
+            showSimInput(
+              "Enter till number:",
+              (till) => {
+                simFormData.business = `Till ${till}`;
                 showSimInput(
                   "Enter amount:",
                   (amount) => {
@@ -208,38 +306,17 @@
                       "Enter M-PESA PIN:",
                       (pin) => {
                         simFormData.pin = pin;
-                        submit("Paybill");
+                        submit("BuyGoodsTill");
                       },
                       "password",
                     );
                   },
                   "number",
                 );
-              });
-            }),
-        },
-        {
-          id: "buy_goods",
-          label: "2. Buy Goods and Services",
-          action: () =>
-            showSimInput("Enter till number:", (till) => {
-              simFormData.business = `Till ${till}`;
-              showSimInput(
-                "Enter amount:",
-                (amount) => {
-                  simFormData.amount = amount;
-                  showSimInput(
-                    "Enter M-PESA PIN:",
-                    (pin) => {
-                      simFormData.pin = pin;
-                      submit("BuyGoodsTill");
-                    },
-                    "password",
-                  );
-                },
-                "number",
-              );
-            }),
+              },
+              "text",
+              "till",
+            ),
         },
       ],
     },
@@ -266,7 +343,9 @@
     },
     account_balance: {
       title: "Account Balance",
-      message: `Your Account balance is Ksh <b class="text-green-500">${user.balance.toFixed(2) || "0.00"}</b>`,
+      message: `Your Account balance is Ksh <b class="text-green-500">${
+        user.balance.toFixed(2) || "0.00"
+      }</b>`,
       isInfo: true,
       options: [],
     },
@@ -277,13 +356,31 @@
       options: [],
     },
   };
+
+  $: filteredSuggestions = suggestions.filter((suggestion) => {
+    if (!simInputValue) return true;
+    if (suggestionType === "phone") {
+      const u = suggestion as UserDetails;
+      return (
+        u.phone.includes(simInputValue) ||
+        u.name.toLowerCase().includes(simInputValue.toLowerCase())
+      );
+    } else if (suggestionType === "paybill") {
+      const p = suggestion as PaybillAccountDetails;
+      return p.paybill_number.toString().includes(simInputValue);
+    } else if (suggestionType === "till") {
+      const t = suggestion as TillAccountDetails;
+      return t.till_number.toString().includes(simInputValue);
+    }
+    return true;
+  });
 </script>
 
 <Drawer.Root bind:open direction="right">
   <Drawer.Content class="mt-[36px]">
-    <div class="">
-      <div class="text-sm rounded-lg w-full">
-        <div class="p-3 flex flex-col">
+    <div class="h-full">
+      <div class="text-sm rounded-lg w-full h-full">
+        <div class="p-3 flex flex-col h-full">
           {#if simInputMode}
             <div class="mt-8 flex-1 flex flex-col">
               <div class="mb-4">
@@ -291,28 +388,77 @@
                 <div class="text-xs">{simInputPrompt}</div>
               </div>
 
-              <div class="flex-1 flex flex-col justify-center">
-                <div class="p-2 mb-4">
-                  <Input
-                    type={simInputMode === "password"
-                      ? "password"
-                      : simInputMode === "number"
-                        ? "number"
-                        : "text"}
-                    bind:value={simInputValue}
-                    class="w-full bg-transparent outline-none"
-                    placeholder={simInputMode === "password"
-                      ? "****"
-                      : "Enter..."}
-                  />
+              <div class="flex-1 flex flex-col justify-between">
+                <div>
+                  <div class="p-2 mb-4">
+                    <Input
+                      type={simInputMode === "password"
+                        ? "password"
+                        : simInputMode === "number"
+                          ? "number"
+                          : "text"}
+                      bind:value={simInputValue}
+                      class="w-full bg-transparent outline-none"
+                      placeholder={simInputMode === "password"
+                        ? "****"
+                        : "Enter..."}
+                    />
+                  </div>
+
+                  <div class="flex gap-2 text-xs">
+                    <Button onclick={handleSimInput} disabled={!simInputValue}>
+                      OK
+                    </Button>
+                    <Button onclick={cancelSimInput}>Cancel</Button>
+                  </div>
                 </div>
 
-                <div class="flex gap-2 text-xs">
-                  <Button onclick={handleSimInput} disabled={!simInputValue}>
-                    OK
-                  </Button>
-                  <Button onclick={cancelSimInput}>Cancel</Button>
-                </div>
+                {#if suggestionType}
+                  <div class="flex-1 mt-4 space-y-1 overflow-y-auto">
+                    {#if suggestionsLoading}
+                      <p>Loading...</p>
+                    {:else if filteredSuggestions.length > 0}
+                      <p class="text-xs text-muted-foreground">
+                        Suggestions:
+                      </p>
+                      <div class="max-h-full overflow-y-auto">
+                        {#each filteredSuggestions as suggestion}
+                          <button
+                            on:click={() => {
+                              if (suggestionType === "phone") {
+                                simInputValue = (
+                                  suggestion as UserDetails
+                                ).phone;
+                              } else if (suggestionType === "paybill") {
+                                simInputValue = (
+                                  suggestion as PaybillAccountDetails
+                                ).paybill_number.toString();
+                              } else if (suggestionType === "till") {
+                                simInputValue = (
+                                  suggestion as TillAccountDetails
+                                ).till_number.toString();
+                              }
+                              handleSimInput();
+                            }}
+                            class="w-full text-left p-2 text-xs cursor-pointer hover:bg-muted transition-colors radius"
+                          >
+                            {#if suggestionType === "phone"}
+                              {(suggestion as UserDetails).name} -{(
+                                suggestion as UserDetails
+                              ).phone}
+                            {:else if suggestionType === "paybill"}
+                              {(
+                                suggestion as PaybillAccountDetails
+                              ).paybill_number}
+                            {:else if suggestionType === "till"}
+                              {(suggestion as TillAccountDetails).till_number}
+                            {/if}
+                          </button>
+                        {/each}
+                      </div>
+                    {/if}
+                  </div>
+                {/if}
               </div>
             </div>
           {:else}
