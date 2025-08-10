@@ -674,3 +674,29 @@ export function formatTransactionDate(dateString: string): string {
   const date = new Date(dateString);
   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
+
+export async function resolveAccountAndNavigate(id: number, goto: (href: string, opts?: { replaceState?: boolean | undefined; noScroll?: boolean | undefined; keepfocus?: boolean | undefined; state?: any; }) => Promise<void>) {
+  let account = await getAccount(id);
+  if (!account) return;
+
+  switch (account.account_type) {
+    case AccountType.Paybill:
+      let paybill = await getPaybillAccount(account.id);
+      if (!paybill) return;
+      await goto(`/businesses/${paybill.business_id}`);
+      break;
+    case AccountType.System:
+      // No navigation for system accounts
+      break;
+    case AccountType.Till:
+      let till = await getTillAccount(account.id);
+      if (!till) return;
+      await goto(`/businesses/${till.business_id}`);
+      break;
+    case AccountType.User:
+      let user = await getUser(account.id);
+      if (!user) return;
+      await goto(`/users/${user.id}`);
+      break;
+  }
+}

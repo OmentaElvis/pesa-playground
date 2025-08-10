@@ -1,6 +1,9 @@
 <script lang="ts">
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
-  import { X, Maximize2, Minus, ArrowRight, ArrowLeft } from 'lucide-svelte';
+  import { X, Maximize2, Minus, ArrowRight, ArrowLeft, Bell } from 'lucide-svelte';
+  import * as Popover from "$lib/components/ui/popover/index.js";
+  import { ScrollArea } from "$lib/components/ui/scroll-area/index.js";
+  import { formatAmount } from "$lib/utils";
 	import '../app.css';
 	import { Button } from "$lib/components/ui/button/index.js";
   import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -13,10 +16,10 @@
 	import StkPushDialog from '$lib/components/StkPushDialog.svelte';
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { onDestroy } from "svelte";
-  import { resolveStkPrompt } from "$lib/api";
+  import { resolveStkPrompt, type FullTransactionLog, resolveAccountAndNavigate } from "$lib/api";
+  import { transactionLogStore } from '$lib/stores/transactionLogStore';
   import { Toaster } from "svelte-sonner";
-    import { page } from "$app/state";
-    import { onNavigate } from "$app/navigation";
+  import { goto } from "$app/navigation";
   
 	const appWindow = getCurrentWindow();
 	let { children } = $props();
@@ -36,14 +39,24 @@
 	let stkPush: any = $state(null);
 	let stkPushOpened : boolean = $state(false);
 
-  let unlisten: UnlistenFn;
+  const unlistenFunctions: UnlistenFn[] = [];
+
   listen('stk_push', (e)=> {
   	stkPush = e.payload;
   	stkPushOpened = true;
   }).then((un)=> {
-  	unlisten = un;
+  	unlistenFunctions.push(un);
   }).catch((err)=> {
   	console.log(err)
+  });
+
+  listen<FullTransactionLog>('new_transaction', (e) => {
+		console.log('New transaction log received', e.payload);
+		transactionLogStore.add(e.payload);
+  }).then((un) => {
+		unlistenFunctions.push(un);
+  }).catch((err) => {
+		console.error('Failed to set up new_transaction listener:', err);
   });
 
 
@@ -67,8 +80,7 @@
   }
 
   onDestroy(()=> {
-  	if (unlisten)
-  		unlisten();
+  	unlistenFunctions.forEach((unlisten) => unlisten());
   })
 
   function forward() {
@@ -78,6 +90,44 @@
   function back() {
   	window.history.back();
   }
+
+  function getTransactionLogDescription(log: FullTransactionLog): string {
+    if (log.transaction_type === 'Deposit') {
+      return 'Deposit';
+    } else if (log.direction === 'Credit') {
+      return 'Received';
+    } else if (log.direction === 'Debit') {
+      if (log.transaction_type === 'send_money') {
+        return 'Sent';
+      } else if (log.transaction_type === 'paybill' || log.transaction_type === 'buy_goods') {
+        return 'Paid';
+      } else if (log.transaction_type === 'withdraw') {
+        return 'Withdrawn';
+      }
+    }
+    return 'Transacted'; // Fallback
+  }
+
+  function getTransactionLogSummarySentence(log: FullTransactionLog): string {
+    const formattedAmount = formatAmount(log.transaction_amount / 100);
+
+    if (log.transaction_type === 'Deposit') {
+        return `Deposit of ${formattedAmount} to ${log.to_name}`;
+    } else if (log.direction === 'Credit') {
+        return `${log.to_name} received ${formattedAmount} from ${log.from_name}`;
+    } else if (log.direction === 'Debit') {
+        if (log.transaction_type === 'send_money') {
+            return `${log.from_name} sent ${formattedAmount} to ${log.to_name}`;
+        } else if (log.transaction_type === 'paybill') {
+            return `${log.from_name} paid ${formattedAmount} to Pay Bill ${log.to_name}`;
+        } else if (log.transaction_type === 'buy_goods') {
+            return `${log.from_name} paid ${formattedAmount} to Buy Goods ${log.to_name}`;
+        } else if (log.transaction_type === 'withdraw') {
+            return `${log.from_name} withdrew ${formattedAmount}`;
+        }
+    }
+    return `Transaction of ${formattedAmount} between ${log.from_name} and ${log.to_name}`; // Fallback
+}
 	
 </script>
 
@@ -109,9 +159,52 @@
 	<div class="mt-[36px] mb-[32px] h-[calc(100vh-72px)] w-full overflow-y-auto">
 		{@render children()}
 	</div>
-	<div class="bg-muted h-[36px] fixed w-full bottom-0 border z-1000">
-		<Button variant="ghost" onclick={back} class="cursor-pointer" aria-label="back"> <ArrowLeft /></Button>
-		<Button variant="ghost" onclick={forward} class="cursor-pointer" aria-label="foward"> <ArrowRight /></Button>
+	<div class="bg-muted h-[36px] fixed w-full bottom-0 border z-1000 flex items-center justify-between px-2">
+		<div>
+			<Button variant="ghost" onclick={back} class="cursor-pointer" aria-label="back"> <ArrowLeft /></Button>
+			<Button variant="ghost" onclick={forward} class="cursor-pointer" aria-label="foward"> <ArrowRight /></Button>
+		</div>
+		<div>
+			<Popover.Root>
+				<Popover.Trigger>
+					<Button variant="ghost" size="icon" class="relative">
+						<Bell />
+						{#if $transactionLogStore.length > 0}
+							<div class="absolute top-1 right-1 h-3 w-3 rounded-full bg-red-500 border-2 border-muted" ></div>
+						{/if}
+					</Button>
+				</Popover.Trigger>
+				<Popover.Content class="w-96">
+					<div class="flex justify-between items-center mb-2">
+						<h3 class="font-medium">Unread Transactions</h3>
+						<Button variant="link" size="sm" onclick={() => transactionLogStore.reset()}>Clear All</Button>
+					</div>
+					<ScrollArea class="h-72">
+						<div class="flex flex-col gap-2">
+							{#each $transactionLogStore as log (log.transaction_id + log.direction)}
+								{@const account_id_to_visit = log.direction === 'Credit' ? log.to_id : log.from_id}
+								{#if account_id_to_visit}
+									<button class="block p-2 text-left rounded-md hover:bg-secondary text-sm" onclick={() => { resolveAccountAndNavigate(account_id_to_visit, goto); transactionLogStore.remove(log.transaction_id); }}>
+										<div class="font-semibold">{getTransactionLogSummarySentence(log)}</div>
+										<div class="flex justify-between items-center">
+											<div class="flex items-center gap-1">
+												<span class="font-semibold">{getTransactionLogDescription(log)}</span>
+												<span class:text-green-500={log.direction === 'Credit'} class:text-red-500={log.direction === 'Debit'}>
+													{log.direction === 'Credit' ? '+' : '-'}{formatAmount(log.transaction_amount / 100)}
+												</span>
+											</div>
+											<span class="text-xs text-muted-foreground">{new Date(log.transaction_date).toLocaleTimeString()}</span>
+										</div>
+									</button>
+								{/if}
+							{:else}
+								<div class="text-center text-muted-foreground p-4">No new transactions.</div>
+							{/each}
+						</div>
+					</ScrollArea>
+				</Popover.Content>
+			</Popover.Root>
+		</div>
 	</div>
 </Sidebar.Provider>
 <StkPushDialog bind:open={stkPushOpened} dialogData={stkPush} on:action={stkPushAction} />

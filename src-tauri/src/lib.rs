@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
+use once_cell::sync::OnceCell;
 use sea_orm::DatabaseConnection;
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -19,6 +20,17 @@ mod transaction_costs;
 mod transactions;
 mod transactions_log;
 mod user;
+
+pub static GLOBAL_APP_HANDLE: OnceCell<AppHandle> = OnceCell::new();
+pub fn init_app_handle(app_handle: AppHandle) {
+    GLOBAL_APP_HANDLE
+        .set(app_handle)
+        .expect("Failed to initialize app handle.");
+}
+
+pub fn get_app_handle() -> &'static AppHandle {
+    GLOBAL_APP_HANDLE.get().expect("AppHandle not initialized.")
+}
 
 pub struct RunningSandbox {
     pub port: u16,
@@ -162,6 +174,7 @@ pub fn run() {
         .setup(move |app| {
             tauri::async_runtime::block_on(async move {
                 let handle = app.handle();
+                init_app_handle(handle.clone());
                 let database = db::Database::new(handle)
                     .await
                     .expect("Failed to initialize database");

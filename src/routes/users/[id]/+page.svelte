@@ -27,6 +27,10 @@
   import { Label } from "$lib/components/ui/label";
   import { Input } from "$lib/components/ui/input";
   import { toast } from "svelte-sonner";
+  import { onMount } from "svelte";
+  import { listen } from "@tauri-apps/api/event";
+  import { transactionLogStore } from "$lib/stores/transactionLogStore";
+  import { activeUserPageId } from "$lib/stores/activePageStore";
 
   let id = $derived(page.params.id);
   let stkOpen = $state(false);
@@ -43,21 +47,50 @@
   async function handleDepositFunds() {
     let user_details = await user;
     if (!user_details) return;
-    
+
     try {
       addingDeposit = true;
-      await transfer(null, user_details.id, fundsToAdd * 100, TransactionType.Deposit);
+      await transfer(
+        null,
+        user_details.id,
+        fundsToAdd * 100,
+        TransactionType.Deposit,
+      );
 
-      toast.success(`Deposited ${formatAmount(fundsToAdd)} to ${user_details.name} ${user_details.phone}`);     
+      toast.success(
+        `Deposited ${formatAmount(fundsToAdd)} to ${user_details.name} ${user_details.phone}`,
+      );
     } catch (err) {
       console.log(err);
-      toast.error(""+ err);
-        
+      toast.error("" + err);
     } finally {
       addingDeposit = false;
       depositDialogOpen = false;
     }
   }
+
+  onMount(() => {
+    // Set active user page ID
+    activeUserPageId.set(Number(id));
+
+    // Listen for new transactions to refresh data
+    const unlisten = listen<FullTransactionLog>("new_transaction", (event) => {
+      const isRelated =
+        event.payload.to_id === Number(id) ||
+        event.payload.from_id === Number(id);
+      if (isRelated) {
+        console.log(`Refreshing user ${id} due to new transaction.`);
+        user = getUser(Number(id));
+        transactions = listFullTransactionLogs(Number(id));
+      }
+    });
+
+    // Cleanup on component destroy
+    return () => {
+      activeUserPageId.set(null);
+      unlisten.then((f) => f());
+    };
+  });
 </script>
 
 <div class="h-full flex flex-col">
@@ -165,14 +198,17 @@
                       >
                     </div>
                     <div>
-                      <Button onclick={handleDepositFunds} disabled={addingDeposit} class="mt-4"
-                        >
-                          {#if addingDeposit}
-                            <LoaderCircle class="animate-spin"/>
-                          {:else}
-                            <Save />
-                          {/if}
-                          Deposit funds</Button
+                      <Button
+                        onclick={handleDepositFunds}
+                        disabled={addingDeposit}
+                        class="mt-4"
+                      >
+                        {#if addingDeposit}
+                          <LoaderCircle class="animate-spin" />
+                        {:else}
+                          <Save />
+                        {/if}
+                        Deposit funds</Button
                       >
                     </div>
                   </Dialog.Content>

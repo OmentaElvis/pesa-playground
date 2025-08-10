@@ -8,9 +8,10 @@
   import * as Popover from "$lib/components/ui/popover/index.js";
   import { toast } from "svelte-sonner";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+  import { transactionLogStore } from '$lib/stores/transactionLogStore';
 
   let users: UserDetails[] = $state([]);
-  let listen_handler: UnlistenFn;
+  const unlistenFunctions: UnlistenFn[] = [];
    
   async function fetchUsers() {
     try {
@@ -22,13 +23,20 @@
 
   onMount(async () => {
     await fetchUsers();
-    listen_handler = await listen("user_created", (_) => {
+
+    const userCreatedUnlisten = await listen("user_created", (_) => {
       fetchUsers();
     });
+    unlistenFunctions.push(userCreatedUnlisten);
+
+    const newTransactionUnlisten = await listen("new_transaction", (_) => {
+      fetchUsers();
+    });
+    unlistenFunctions.push(newTransactionUnlisten);
   })
 
   onDestroy(()=>{
-    listen_handler();
+    unlistenFunctions.forEach(f => f());
   })
 </script>
 
@@ -68,12 +76,16 @@
   </div>
   <ScrollArea class="flex-1 min-h-0">
     {#each users as user}
+      {@const hasUnread = $transactionLogStore.some(log => log.to_id === user.id || log.from_id === user.id)}
       <a
         class="w-full block p-4 text-left border-b duration-200"
         href="/users/{user.id}"
       >
         <div class="flex gap-3 items-center">
-          <div class="w-16 h-16">
+          <div class="w-16 h-16 relative">
+            {#if hasUnread}
+              <div class="absolute top-0 right-0 h-4 w-4 rounded-full bg-red-500 border-2 border-background z-10" />
+            {/if}
             <DiceBearAvatar seed={`${user.id}-${user.name}`} fallback={getInitials(user.name)} />
           </div>
           <div class="flex-1 min-w-0">
