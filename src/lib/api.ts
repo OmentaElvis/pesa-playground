@@ -1,5 +1,30 @@
 import { invoke } from "@tauri-apps/api/core";
 
+export enum AccountType {
+    User = "user",
+    System = "system",
+    Paybill = "paybill",
+    Till = "till",
+}
+
+export interface Account {
+    id: number,
+    account_type: AccountType,
+    balance: number,
+    created_at: string,
+    disabled: boolean,
+}
+
+export async function getAccount(id: number) : Promise<Account | null> {
+  return invoke("get_account", {
+    id
+  })
+}
+
+export async function createAccount(accountType: AccountType, initialBalance: number): Promise<number> {
+  return await invoke("create_account", { accountType, initialBalance });
+}
+
 /**
  * Represents the data structure for creating a new business.
  */
@@ -195,11 +220,6 @@ export async function updateTillAccount(
 export async function deleteTillAccount(id: number): Promise<void> {
   return await invoke("delete_till_account", { id });
 }
-
-export async function createAccount(account_type: string, initial_balance: number): Promise<number> {
-  return await invoke("create_account", { accountType: account_type, initialBalance: initial_balance });
-}
-
 
 export enum SimulationMode {
   AlwaysSuccess = "AlwaysSuccess",

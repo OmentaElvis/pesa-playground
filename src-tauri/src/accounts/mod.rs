@@ -4,7 +4,10 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, ConnectionTrait, DbErr, EntityTrait,
     QueryFilter,
 };
+use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
+
+use crate::transactions::{Ledger, TransactionType};
 
 pub mod db;
 pub mod paybill_accounts;
@@ -12,8 +15,9 @@ pub mod till_accounts;
 pub mod ui;
 pub mod user_profiles;
 
-#[derive(EnumString, Display, Debug, Clone, PartialEq, Eq)]
+#[derive(EnumString, Display, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum AccountType {
     User,
     System,
@@ -21,6 +25,7 @@ pub enum AccountType {
     Till,
 }
 
+#[derive(Serialize)]
 pub struct Account {
     pub id: u32,
     pub account_type: AccountType,
@@ -58,19 +63,28 @@ impl Account {
         conn: &C,
         account_type: AccountType,
         initial_balance: i64,
-    ) -> Result<u32, DbErr>
+    ) -> anyhow::Result<u32>
     where
         C: ConnectionTrait,
     {
         let create = db::ActiveModel {
             account_type: Set(account_type.to_string()),
-            balance: Set(initial_balance),
-            created_at: Set(Utc::now().into()),
+            balance: Set(0),
+            created_at: Set(Utc::now()),
             disabled: Set(false),
             ..Default::default()
         };
 
         let account = create.insert(conn).await?;
+
+        Ledger::transfer(
+            conn,
+            None,
+            account.id,
+            initial_balance,
+            &TransactionType::Deposit,
+        )
+        .await?;
         Ok(account.id)
     }
 }

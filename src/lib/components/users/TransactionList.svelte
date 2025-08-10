@@ -1,8 +1,9 @@
 <script lang="ts">
   import type { FullTransactionLog, UserDetails } from "$lib/api";
   import { MessageSquare, ArrowUpRight, ArrowDownLeft } from "lucide-svelte";
-  import { formatTransactionAmount, formatTransactionDate, TransactionStatus, TransactionType } from "$lib/api";
+  import { AccountType, formatTransactionAmount, formatTransactionDate, getAccount, getPaybillAccount, getTillAccount, getUser, TransactionStatus, TransactionType } from "$lib/api";
   import { ScrollArea } from "$lib/components/ui/scroll-area/index.js";
+  import { goto } from "$app/navigation";
   
   export let transactions: FullTransactionLog[];
   export let user: UserDetails | null = null;
@@ -40,8 +41,33 @@
     return {amount, new_balance, date, time, transactionId, cost}
   }
 
-  function viewDetails(id: number) {
-    alert(id)
+  async function viewDetails(id: number) {
+    let account = await getAccount(id);
+    if (!account) return;
+
+    switch (account.account_type) {
+      case AccountType.Paybill:
+        let paybill = await getPaybillAccount(account.id);
+        if (!paybill) return;
+
+        await goto(`/businesses/${paybill.business_id}`);
+      break;
+      case AccountType.System:
+        
+      break;
+      case AccountType.Till:
+        let till = await getTillAccount(account.id);
+        if (!till) return;
+
+        await goto(`/businesses/${till.business_id}`);
+      break;
+      case AccountType.User:
+        let user = await getUser(account.id);
+        if (!user) return;
+        
+        await goto(`/users/${user.id}`);
+      break;
+    }
   }
 
   function isSentTransaction(transaction: FullTransactionLog): boolean {
@@ -68,16 +94,16 @@
             <p class="text-sm leading-relaxed">
               {#if transaction.transaction_type == TransactionType.SendMoney}
                 {@const {date, time, amount, cost, new_balance, transactionId} = formatValues(transaction)}
-                <b>{transactionId}</b> Confirmed. <b>{amount}</b> sent to <button onclick={() =>viewDetails(transaction.to_id)}><b>{transaction.to_name}</b></button> on {date} at {time}. New M-PESA balance is {new_balance}. Transaction cost, {cost}
+                <b>{transactionId}</b> Confirmed. <b>{amount}</b> sent to <button class="cursor-pointer hover:underline" onclick={() =>viewDetails(transaction.to_id)}><b>{transaction.to_name}</b></button> on {date} at {time}. New M-PESA balance is {new_balance}. Transaction cost, {cost}
               {:else if transaction.transaction_type ==  TransactionType.Deposit}
                 {@const {date, time, amount, new_balance, transactionId} = formatValues(transaction)}
                 <b>{transactionId}</b> Confirmed. Deposit <b>{amount}</b> on {date} at {time}. New M-PESA balance is  {new_balance}.
               {:else if transaction.transaction_type == TransactionType.Paybill }
                 {@const {date, time, amount, cost, new_balance, transactionId} = formatValues(transaction)}
-                <b>{transactionId}</b> Confirmed. <b>{amount}</b> paid to Pay Bill <button onclick={() => viewDetails(transaction.to_id)}><b>{transaction.to_name}</b></button> for account {transaction.from_name || 'N/A'} on {date} at {time}. New M-PESA balance is {new_balance}. Transaction cost, {cost}
+                <b>{transactionId}</b> Confirmed. <b>{amount}</b> paid to Pay Bill <button class="cursor-pointer hover:underline" onclick={() => viewDetails(transaction.to_id)}><b>{transaction.to_name}</b></button> for account {transaction.from_name || 'N/A'} on {date} at {time}. New M-PESA balance is {new_balance}. Transaction cost, {cost}
               {:else if transaction.transaction_type == TransactionType.BuyGoods}
                 {@const {date, time, amount, cost, new_balance, transactionId} = formatValues(transaction)}
-                <b>{transactionId}</b> Confirmed. <b>{amount}</b> paid to Buy Goods <button onclick={() => viewDetails(transaction.to_id)}><b>{transaction.to_name}</b></button> on {date} at {time}. New M-PESA balance is {new_balance}. Transaction cost, {cost}
+                <b>{transactionId}</b> Confirmed. <b>{amount}</b> paid to Buy Goods <button class="cursor-pointer hover:underline" onclick={() => viewDetails(transaction.to_id)}><b>{transaction.to_name}</b></button> on {date} at {time}. New M-PESA balance is {new_balance}. Transaction cost, {cost}
               {:else if transaction.transaction_type == TransactionType.Withdraw}
                 {@const {date, time, amount, cost, new_balance, transactionId} = formatValues(transaction)}
                 <b>{transactionId}</b> Confirmed. <b>{amount}</b> withdrawn at {transaction.from_name || 'Agent'} on {date} at {time}. New M-PESA balance is {new_balance}. Transaction cost, {cost}

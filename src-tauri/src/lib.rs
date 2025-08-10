@@ -198,6 +198,8 @@ pub fn run() {
             business::ui::update_business,
             business::ui::delete_business,
             // accounts
+            accounts::ui::get_account,
+            accounts::ui::create_account,
             accounts::paybill_accounts::ui::create_paybill_account,
             accounts::paybill_accounts::ui::get_paybill_account,
             accounts::paybill_accounts::ui::get_paybill_accounts,
