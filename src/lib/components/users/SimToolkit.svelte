@@ -66,7 +66,9 @@
     if (suggestionType) {
       suggestionsLoading = true;
       if (suggestionType === "phone") {
-        suggestions = await getUsers();
+        suggestions = (await getUsers()).filter((u) => {
+          return u.id != user.id;
+        });
       } else if (suggestionType === "paybill") {
         suggestions = await getPaybillAccounts();
       } else if (suggestionType === "till") {
@@ -127,7 +129,10 @@
   }
 
   async function selectFromPhonebook() {
-    const users = await getUsers();
+    const users = (await getUsers()).filter((u) => {
+      return u.id != user.id;
+    });
+    
     simMenus.phonebook = {
       title: "Phonebook",
       options: users.map((user, i) => ({
