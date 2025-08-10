@@ -26,8 +26,7 @@
   import * as Dialog from "$lib/components/ui/dialog";
   import { Label } from "$lib/components/ui/label";
   import { Input } from "$lib/components/ui/input";
-    import { toast } from "svelte-sonner";
-    import { invalidateAll } from "$app/navigation";
+  import { toast } from "svelte-sonner";
 
   let id = $derived(page.params.id);
   let stkOpen = $state(false);

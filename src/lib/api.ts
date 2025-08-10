@@ -455,6 +455,10 @@ export async function transfer(from: number | null, destination: number, amount:
   })
 }
 
+export async function reverse(id: String): Promise<Transaction> {
+  return await invoke("reverse", {id});
+}
+
 export async function getTransaction(transaction_id: string): Promise<Transaction | null> {
   return await invoke("get_transaction", { transactionId: transaction_id });
 }

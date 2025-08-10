@@ -239,6 +239,13 @@ pub async fn transfer(
         .map_err(|err| format!("Transfer Error: {}", err))
 }
 
+#[tauri::command]
+pub async fn reverse(state: State<'_, Database>, id: String) -> Result<Transaction, String> {
+    Ledger::reverse(&state.conn, &id)
+        .await
+        .map_err(|err| format!("Transfer Error: {}", err))
+}
+
 #[derive(serde::Serialize)]
 pub struct TransactionStats {
     pub total_count: u64,
