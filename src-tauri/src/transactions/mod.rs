@@ -1,9 +1,8 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use chrono::{DateTime, Utc};
 use once_cell::sync::Lazy;
-use rand::{
-    distr::{Alphanumeric, Uniform},
-    Rng,
-};
+use rand::{distr::Alphanumeric, Rng};
 use sea_orm::{
     prelude::DateTimeUtc,
     ActiveModelTrait,
@@ -274,22 +273,34 @@ impl Ledger {
     }
 
     pub fn generate_receipt() -> String {
-        // Ensure it starts with an uppercase letter
-        let first_char = rand::rng()
-            .sample_iter(&Uniform::new_inclusive(b'A', b'Z').unwrap())
-            .take(1)
-            .map(char::from)
-            .collect::<String>();
+        let now_ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_millis();
 
-        // Followed by 9 random alphanumeric characters
-        let rest: String = rand::rng()
+        let timestamp_str = Self::to_base36(now_ms as u64);
+
+        let rand_suffix: String = rand::rng()
             .sample_iter(&Alphanumeric)
-            .filter(|c| c.is_ascii_alphanumeric())
-            .map(|c| c.to_ascii_uppercase())
-            .take(9)
-            .map(char::from)
+            .map(|c| (c as char).to_ascii_uppercase())
+            .take(10 - timestamp_str.len())
             .collect();
+        format!("{}{}", timestamp_str, rand_suffix)
+    }
 
-        format!("{first_char}{rest}")
+    // Base36 helper
+    fn to_base36(mut num: u64) -> String {
+        let mut chars = Vec::new();
+        let base = 36;
+        while num > 0 {
+            let rem = num % base;
+            chars.push(match rem {
+                0..=9 => (b'0' + rem as u8) as char,
+                _ => (b'A' + (rem as u8 - 10)) as char,
+            });
+            num /= base;
+        }
+        chars.reverse();
+        chars.into_iter().collect()
     }
 }
