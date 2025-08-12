@@ -553,6 +553,13 @@ export async function deleteTransactionCost(id: number): Promise<void> {
     return await invoke("delete_transaction_cost", { id });
 }
 
+export async function calculateTransactionFee(txnType: TransactionType, amount: number) {
+  return await invoke("calculate_transaction_fee", {
+    txnType,
+    amount
+  })
+}
+
 export interface FullTransactionLog {
     transaction_id: string;
     transaction_date: string;

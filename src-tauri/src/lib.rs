@@ -264,6 +264,7 @@ pub fn run() {
             transaction_costs::ui::list_transaction_costs,
             transaction_costs::ui::update_transaction_cost,
             transaction_costs::ui::delete_transaction_cost,
+            transaction_costs::ui::calculate_transaction_fee,
         ]);
 
     app.run(tauri::generate_context!())

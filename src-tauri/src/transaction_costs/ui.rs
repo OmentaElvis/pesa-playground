@@ -1,9 +1,12 @@
-use super::db::{self, Entity, Model};
+use super::{
+    db::{self, Entity, Model},
+    get_fee,
+};
 use sea_orm::entity::*;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
-use crate::db::Database;
+use crate::{db::Database, transactions::TransactionType};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TransactionCostData {
@@ -74,4 +77,15 @@ pub async fn delete_transaction_cost(state: State<'_, Database>, id: i32) -> Res
     } else {
         Err("Transaction cost not found".to_string())
     }
+}
+
+#[tauri::command]
+pub async fn calculate_transaction_fee(
+    state: State<'_, Database>,
+    txn_type: TransactionType,
+    amount: i64,
+) -> Result<i64, String> {
+    get_fee(&state.conn, &txn_type, amount)
+        .await
+        .map_err(|err| format!("Failed to calculate transaction cost: {err}"))
 }
