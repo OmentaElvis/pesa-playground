@@ -1,4 +1,4 @@
-use super::db as user_profiles;
+use super::{db as user_profiles, User};
 use crate::{
     accounts::{db as accounts, AccountType},
     transactions::Ledger,
@@ -212,6 +212,39 @@ pub async fn generate_user() -> Result<UserDetails, String> {
 pub async fn generate_users(count: u32) -> Result<Vec<UserDetails>, String> {
     let users = UserDetails::generate_users(count);
     Ok(users)
+}
+
+#[tauri::command]
+pub async fn get_user_by_phone(
+    state: State<'_, Database>,
+    phone: String,
+) -> Result<Option<UserDetails>, String> {
+    let user = User::get_user_by_phone(&state.conn, &phone)
+        .await
+        .map_err(|err| format!("Failed to read account from db: {}", err))?;
+
+    if user.is_none() {
+        return Ok(None);
+    }
+
+    let user = user.unwrap();
+
+    let account = accounts::Entity::find_by_id(user.account_id)
+        .one(&state.conn)
+        .await
+        .map_err(|err| format!("Failed to read user profile {} ", err))?;
+
+    if let Some(account) = account {
+        Ok(Some(UserDetails {
+            id: account.id,
+            name: user.name,
+            pin: user.pin,
+            phone: user.phone,
+            balance: account.balance as f64 / 100.0,
+        }))
+    } else {
+        Ok(None)
+    }
 }
 
 #[tauri::command]

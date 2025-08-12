@@ -63,9 +63,12 @@
               <span class="text-xs text-gray-500">{formatTransactionDate(transaction.transaction_date)}</span>
             </div>
             <p class="text-sm leading-relaxed">
-              {#if transaction.transaction_type == TransactionType.SendMoney}
+              {#if transaction.transaction_type == TransactionType.SendMoney && transaction.direction == "Debit"}
                 {@const {date, time, amount, cost, new_balance, transactionId} = formatValues(transaction)}
                 <b>{transactionId}</b> Confirmed. <b>{amount}</b> sent to <button class="cursor-pointer hover:underline" onclick={() =>resolveAccountAndNavigate(transaction.to_id, goto)}><b>{transaction.to_name}</b></button> on {date} at {time}. New M-PESA balance is {new_balance}. Transaction cost, {cost}
+              {:else if transaction.transaction_type == TransactionType.SendMoney && transaction.direction == "Credit"}
+                {@const {date, time, amount, new_balance, transactionId} = formatValues(transaction)}
+                <b>{transactionId}</b> Confirmed. <b>{amount}</b> received from <button class="cursor-pointer hover:underline" onclick={() =>resolveAccountAndNavigate(transaction.from_id, goto)}><b>{transaction.from_name}</b></button> on {date} at {time}. New M-PESA balance is {new_balance}.
               {:else if transaction.transaction_type ==  TransactionType.Deposit}
                 {@const {date, time, amount, new_balance, transactionId} = formatValues(transaction)}
                 <b>{transactionId}</b> Confirmed. Deposit <b>{amount}</b> on {date} at {time}. New M-PESA balance is  {new_balance}.

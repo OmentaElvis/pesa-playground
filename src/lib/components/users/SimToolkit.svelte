@@ -7,8 +7,9 @@
     PaybillAccountDetails,
     TillAccountDetails,
   } from "$lib/api";
-  import { X, ArrowLeft } from "lucide-svelte";
-  import { getUsers, getPaybillAccounts, getTillAccounts } from "$lib/api";
+  import { X, ArrowLeft, LoaderCircle } from "lucide-svelte";
+  import { getUsers, getPaybillAccounts, getTillAccounts, transfer, getUserByPhone, TransactionType } from "$lib/api";
+    import { toast } from "svelte-sonner";
 
   export let open = false;
   export let user: UserDetails;
@@ -32,6 +33,7 @@
     [];
   let suggestionType: "phone" | "paybill" | "till" | null = null;
   let suggestionsLoading = false;
+  let submitting = false;
 
   type SubmitType = "SendMoney" | "BuyAirtime" | "Paybill" | "BuyGoodsTill";
 
@@ -93,13 +95,38 @@
     suggestions = [];
   }
 
-  function submit(submit_type: SubmitType) {
+  async function transferMoneyToUser() {
+   try {
+      let phone = simFormData.phone;
+      let receiver = await getUserByPhone(phone);
+      if (!receiver) {
+        toast.error(`Account with phone: ${phone} Not found.`);
+        return;
+      }
+      let amount = Number(simFormData.amount) * 100;
+      let txn = await transfer(user.id, receiver.id, amount, TransactionType.SendMoney);
+      toast.info(`${txn.id}. Sent money to ${phone}. `);
+      currentSimMenu = "main";
+      open = false;
+    } catch(err) {
+      toast.error(`${err}`);
+    }
+  }
+
+  async function submit(submit_type: SubmitType) {
+    submitting = true;
     switch (submit_type) {
       case "SendMoney":
+        if (simFormData.pin == "0000" || user.pin == simFormData.pin) {
+          await transferMoneyToUser();
+        } else {
+          toast.error(`Incorrect pin for: ${user.name}, use the suggested pin or type 0000 to override checks.`);
+        }
         break;
       case "BuyAirtime":
         break;
     }
+    submitting = false;
   }
 
   function sendMoney() {
@@ -113,7 +140,7 @@
             simFormData.amount = amount;
             showSimInput(
               "Enter M-PESA PIN:",
-              (pin) => {
+              async (pin) => {
                 simFormData.pin = pin;
                 submit("SendMoney");
               },
@@ -411,10 +438,13 @@
                   </div>
 
                   <div class="flex gap-2 text-xs">
-                    <Button onclick={handleSimInput} disabled={!simInputValue}>
+                    <Button onclick={handleSimInput} disabled={!simInputValue || submitting}>
+                      {#if submitting}
+                      <LoaderCircle class="animate-spin" />
+                      {/if}
                       OK
                     </Button>
-                    <Button onclick={cancelSimInput}>Cancel</Button>
+                    <Button disabled={submitting} onclick={cancelSimInput}>Cancel</Button>
                   </div>
                 </div>
 

@@ -379,6 +379,13 @@ export async function getUser(user_id: number): Promise<UserDetails | null> {
     userId: user_id
   })
 }
+
+export async function getUserByPhone(phone: string): Promise<UserDetails | null> {
+  return await invoke("get_user_by_phone", {
+    phone
+  })
+}
+
 export async function createUser(
   name: string,
   phone: string,
@@ -468,7 +475,7 @@ export interface TransactionStats {
 
 export async function transfer(from: number | null, destination: number, amount: number, txnType: TransactionType): Promise<Transaction> {
   return await invoke("transfer", {
-    from,
+    source: from,
     destination,
     amount,
     txnType
@@ -675,7 +682,9 @@ export function formatTransactionDate(dateString: string): string {
   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-export async function resolveAccountAndNavigate(id: number, goto: (href: string, opts?: { replaceState?: boolean | undefined; noScroll?: boolean | undefined; keepfocus?: boolean | undefined; state?: any; }) => Promise<void>) {
+export async function resolveAccountAndNavigate(id: number | null, goto: (href: string, opts?: { replaceState?: boolean | undefined; noScroll?: boolean | undefined; keepfocus?: boolean | undefined; state?: any; }) => Promise<void>) {
+  if (!id) return;
+  
   let account = await getAccount(id);
   if (!account) return;
 
