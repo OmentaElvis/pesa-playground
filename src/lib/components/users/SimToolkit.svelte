@@ -123,6 +123,11 @@
           toast.error(`Incorrect pin for: ${user.name}, use the suggested pin or type 0000 to override checks.`);
         }
         break;
+      case "Paybill":
+        break;
+      case "BuyGoodsTill":
+      
+        break;
       case "BuyAirtime":
         break;
     }
@@ -142,7 +147,7 @@
               "Enter M-PESA PIN:",
               async (pin) => {
                 simFormData.pin = pin;
-                submit("SendMoney");
+                await submit("SendMoney");
               },
               "password",
             );
@@ -173,9 +178,9 @@
               simFormData.amount = amount;
               showSimInput(
                 "Enter M-PESA PIN:",
-                (pin) => {
+                async (pin) => {
                   simFormData.pin = pin;
-                  submit("SendMoney");
+                  await submit("SendMoney");
                 },
                 "password",
               );
@@ -248,9 +253,9 @@
                 simFormData.phone = user.phone;
                 showSimInput(
                   "Enter M-PESA PIN:",
-                  (pin) => {
+                  async (pin) => {
                     simFormData.pin = pin;
-                    submit("BuyAirtime");
+                    await submit("BuyAirtime");
                   },
                   "password",
                 );
@@ -272,9 +277,9 @@
                     simFormData.amount = amount;
                     showSimInput(
                       "Enter M-PESA PIN:",
-                      (pin) => {
+                      async (pin) => {
                         simFormData.pin = pin;
-                        submit("BuyAirtime");
+                        await submit("BuyAirtime");
                       },
                       "password",
                     );
@@ -307,9 +312,9 @@
                       simFormData.amount = amount;
                       showSimInput(
                         "Enter M-PESA PIN:",
-                        (pin) => {
+                        async (pin) => {
                           simFormData.pin = pin;
-                          submit("Paybill");
+                          await submit("Paybill");
                         },
                         "password",
                       );
@@ -336,9 +341,9 @@
                     simFormData.amount = amount;
                     showSimInput(
                       "Enter M-PESA PIN:",
-                      (pin) => {
+                      async (pin) => {
                         simFormData.pin = pin;
-                        submit("BuyGoodsTill");
+                        await submit("BuyGoodsTill");
                       },
                       "password",
                     );

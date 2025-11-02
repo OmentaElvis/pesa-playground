@@ -82,6 +82,11 @@ export async function deleteBusiness(id: number): Promise<void> {
   return await invoke("delete_business", { id });
 }
 
+export enum C2BResponseType {
+  Canceled = "Canceled",
+  Completed = "Completed"
+}
+
 /**
  * Represents the data structure for creating a new paybill account.
  */
@@ -89,6 +94,7 @@ export interface CreatePaybillAccountData {
   business_id: number;
   paybill_number: number;
   account_validation_regex?: string;
+  response_type?: C2BResponseType,
   validation_url?: string;
   confirmation_url?: string;
   initial_balance: number;
@@ -103,6 +109,7 @@ export interface UpdatePaybillAccountData {
   account_validation_regex?: string;
   validation_url?: string;
   confirmation_url?: string;
+  response_type?: C2BResponseType;
 }
 
 export interface PaybillAccount {
@@ -112,6 +119,7 @@ export interface PaybillAccount {
   account_validation_regex?: string;
   validation_url?: string;
   confirmation_url?: string;
+  response_type?: C2BResponseType;
 }
 
 export interface PaybillAccountDetails {
@@ -121,6 +129,7 @@ export interface PaybillAccountDetails {
   account_validation_regex?: string;
   validation_url?: string;
   confirmation_url?: string;
+  response_type?: C2BResponseType;
   balance: number;
   created_at: string;
 }
@@ -164,6 +173,9 @@ export interface CreateTillAccountData {
   till_number: number;
   store_number: number;
   initial_balance: number;
+  response_type?: C2BResponseType,
+  validation_url?: string;
+  confirmation_url?: string;
   location_description?: string;
 }
 
@@ -172,6 +184,9 @@ export interface UpdateTillAccountData {
   till_number?: number;
   store_number?: number;
   location_description?: string;
+  response_type?: C2BResponseType;
+  validation_url?: string;
+  confirmation_url?: string;
 }
 
 export interface TillAccount {
@@ -190,6 +205,9 @@ export interface TillAccountDetails {
   location_description?: string;
   balance: number;
   created_at: string;
+  response_type?: C2BResponseType;
+  validation_url?: string;
+  confirmation_url?: string;
 }
 
 export async function createTillAccount(

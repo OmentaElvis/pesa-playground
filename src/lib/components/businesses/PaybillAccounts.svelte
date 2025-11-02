@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Button } from "$lib/components/ui/button";
   import * as Dialog from "$lib/components/ui/dialog/index.js";
+  import * as Select from "$lib/components/ui/select/index.js";
   import {
     Card,
     CardContent,
@@ -12,20 +13,23 @@
   import { Label } from "$lib/components/ui/label";
   import { createEventDispatcher } from "svelte";
   import {
+    C2BResponseType,
     createPaybillAccount,
     updatePaybillAccount,
     type CreatePaybillAccountData,
+    type PaybillAccount,
+    type PaybillAccountDetails,
     type UpdatePaybillAccountData,
   } from "$lib/api";
   import { PlusCircle, Save } from "lucide-svelte";
 
-  export let paybillAccounts: any[] = [];
+  export let paybillAccounts: PaybillAccountDetails[] = [];
   export let businessId: number;
 
   let showCreatePaybillDialog = false;
   let showEditPaybillDialog = false;
 
-  let selectedPaybillAccount: any = null;
+  let selectedPaybillAccount: PaybillAccount | null = null;
 
   let newPaybill: CreatePaybillAccountData = {
     business_id: 0,
@@ -41,7 +45,12 @@
   async function handleCreatePaybillAccount() {
     if (businessId) {
       newPaybill.business_id = businessId;
-      await createPaybillAccount(newPaybill);
+      await createPaybillAccount({
+        ...newPaybill,
+        account_validation_regex: newPaybill.account_validation_regex || undefined,
+        validation_url: newPaybill.validation_url || undefined,
+        confirmation_url: newPaybill.confirmation_url || undefined,
+      });
       newPaybill = {
         business_id: 0,
         initial_balance: 0,
@@ -59,11 +68,12 @@
     if (selectedPaybillAccount) {
       const data: UpdatePaybillAccountData = {
         paybill_number: selectedPaybillAccount.paybill_number,
-        account_validation_regex: selectedPaybillAccount.account_validation_regex,
-        validation_url: selectedPaybillAccount.validation_url,
-        confirmation_url: selectedPaybillAccount.confirmation_url,
+        account_validation_regex: selectedPaybillAccount.account_validation_regex || undefined,
+        validation_url: selectedPaybillAccount.validation_url || undefined,
+        confirmation_url: selectedPaybillAccount.confirmation_url || undefined,
+        response_type: selectedPaybillAccount.response_type,
       };
-      await updatePaybillAccount(selectedPaybillAccount.id, data);
+      await updatePaybillAccount(selectedPaybillAccount.account_id, data);
       dispatch("refresh");
       showEditPaybillDialog = false;
     }
@@ -113,6 +123,22 @@
               class="col-span-3"
               bind:value={newPaybill.account_validation_regex}
             />
+          </div>
+          <span class="font-bold text-lg mt-4">
+            C2B parameters
+          </span>
+          <span class="text-sm">
+            These can be modified using c2b <pre>/mpesa/c2b/v1/registerurl</pre>
+          </span>
+          <div class="grid grid-cols-4 items-center gap-4">
+            <Label for="newPaybillResponseType" class="text-right">Response Type</Label>
+            <Select.Root type="single" bind:value={newPaybill.response_type}>
+              <Select.Trigger>{newPaybill.response_type}</Select.Trigger>
+              <Select.Content>
+                <Select.Item value={C2BResponseType.Completed}>Completed</Select.Item>
+                <Select.Item value={C2BResponseType.Canceled}>Canceled</Select.Item>
+              </Select.Content>
+            </Select.Root>
           </div>
           <div class="grid grid-cols-4 items-center gap-4">
             <Label for="newPaybillValidationUrl" class="text-right">Validation URL</Label>
@@ -195,6 +221,12 @@
                       bind:value={selectedPaybillAccount.account_validation_regex}
                     />
                   </div>
+                  <span class="font-bold text-lg mt-4">
+                    C2B parameters
+                  </span>
+                  <span class="text-sm">
+                    These can be modified using c2b <pre>/mpesa/c2b/v1/registerurl</pre>
+                  </span>
                   <div class="grid grid-cols-4 items-center gap-4">
                     <Label for="editPaybillValidationUrl" class="text-right">Validation URL</Label>
                     <Input
@@ -214,6 +246,16 @@
                       class="col-span-3"
                       bind:value={selectedPaybillAccount.confirmation_url}
                     />
+                  </div>
+                  <div class="grid grid-cols-4 items-center gap-4">
+                    <Label for="newPaybillResponseType" class="text-right">Response Type</Label>
+                    <Select.Root type="single" bind:value={selectedPaybillAccount.response_type}>
+                      <Select.Trigger>{selectedPaybillAccount.response_type}</Select.Trigger>
+                      <Select.Content>
+                        <Select.Item value={C2BResponseType.Completed}>Completed</Select.Item>
+                        <Select.Item value={C2BResponseType.Canceled}>Canceled</Select.Item>
+                      </Select.Content>
+                    </Select.Root>
                   </div>
                 </div>
                 <Dialog.Footer>

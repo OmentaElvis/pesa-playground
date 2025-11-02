@@ -84,7 +84,7 @@
         <div class="flex gap-3 items-center">
           <div class="w-16 h-16 relative">
             {#if hasUnread}
-              <div class="absolute top-0 right-0 h-4 w-4 rounded-full bg-red-500 border-2 border-background z-10" />
+              <div class="absolute top-0 right-0 h-4 w-4 rounded-full bg-red-500 border-2 border-background z-10" ></div>
             {/if}
             <DiceBearAvatar seed={`${user.id}-${user.name}`} fallback={getInitials(user.name)} />
           </div>

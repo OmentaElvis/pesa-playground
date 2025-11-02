@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Button } from "$lib/components/ui/button";
   import * as Dialog from "$lib/components/ui/dialog/index.js";
+  import * as Select from "$lib/components/ui/select/index.js";
   import {
     Card,
     CardContent,
@@ -12,14 +13,16 @@
   import { Label } from "$lib/components/ui/label";
   import { createEventDispatcher } from "svelte";
   import {
+    C2BResponseType,
     createTillAccount,
     updateTillAccount,
     type CreateTillAccountData,
+    type TillAccountDetails,
     type UpdateTillAccountData,
   } from "$lib/api";
   import { PlusCircle, Save } from "lucide-svelte";
 
-  export let tillAccounts: any[] = [];
+  export let tillAccounts: TillAccountDetails[] = [];
   export let businessId: number;
 
   let showCreateTillDialog = false;
@@ -40,7 +43,12 @@
   async function handleCreateTillAccount() {
     if (businessId) {
       newTill.business_id = businessId;
-      await createTillAccount(newTill);
+      await createTillAccount({
+        ...newTill,
+        location_description: newTill.location_description || undefined,
+        validation_url: newTill.validation_url || undefined,
+        confirmation_url: newTill.confirmation_url || undefined,
+      });
       newTill = {
         business_id: 0,
         initial_balance: 0,
@@ -58,7 +66,10 @@
       const data: UpdateTillAccountData = {
         till_number: selectedTillAccount.till_number,
         store_number: selectedTillAccount.store_number,
-        location_description: selectedTillAccount.location_description,
+        location_description: selectedTillAccount.location_description || undefined,
+        response_type: selectedTillAccount.response_type,
+        confirmation_url: selectedTillAccount.confirmation_url || undefined,
+        validation_url: selectedTillAccount.validation_url || undefined,
       };
       await updateTillAccount(selectedTillAccount.id, data);
       dispatch("refresh");
@@ -116,6 +127,40 @@
               type="text"
               class="col-span-3"
               bind:value={newTill.location_description}
+            />
+          </div>
+          <span class="font-bold text-lg mt-4">
+            C2B parameters
+          </span>
+          <span class="text-sm">
+            These can be modified using c2b <pre>/mpesa/c2b/v1/registerurl</pre>
+          </span>
+          <div class="grid grid-cols-4 items-center gap-4">
+            <Label for="newTillResponseType" class="text-right">Response Type</Label>
+            <Select.Root type="single" bind:value={newTill.response_type}>
+              <Select.Trigger>{newTill.response_type}</Select.Trigger>
+              <Select.Content>
+                <Select.Item value={C2BResponseType.Completed}>Completed</Select.Item>
+                <Select.Item value={C2BResponseType.Canceled}>Canceled</Select.Item>
+              </Select.Content>
+            </Select.Root>
+          </div>
+          <div class="grid grid-cols-4 items-center gap-4">
+            <Label for="newTillConfirmationUrl" class="text-right">Confirmation URL</Label>
+            <Input
+              id="newTillConfirmationUrl"
+              type="text"
+              class="col-span-3"
+              bind:value={newTill.confirmation_url}
+            />
+          </div>
+          <div class="grid grid-cols-4 items-center gap-4">
+            <Label for="newTillValidationUrl" class="text-right">Validation URL</Label>
+            <Input
+              id="newTillValidationUrl"
+              type="text"
+              class="col-span-3"
+              bind:value={newTill.validation_url}
             />
           </div>
         </div>
@@ -186,6 +231,40 @@
                       type="text"
                       class="col-span-3"
                       bind:value={selectedTillAccount.location_description}
+                    />
+                  </div>
+                  <span class="font-bold text-lg mt-4">
+                    C2B parameters
+                  </span>
+                  <span class="text-sm">
+                    These can be modified using c2b <pre>/mpesa/c2b/v1/registerurl</pre>
+                  </span>
+                  <div class="grid grid-cols-4 items-center gap-4">
+                    <Label for="newTillResponseType" class="text-right">Response Type</Label>
+                    <Select.Root type="single" bind:value={selectedTillAccount.response_type}>
+                      <Select.Trigger>{selectedTillAccount.response_type}</Select.Trigger>
+                      <Select.Content>
+                        <Select.Item value={C2BResponseType.Completed}>Completed</Select.Item>
+                        <Select.Item value={C2BResponseType.Canceled}>Canceled</Select.Item>
+                      </Select.Content>
+                    </Select.Root>
+                  </div>
+                  <div class="grid grid-cols-4 items-center gap-4">
+                    <Label for="newTillConfirmationUrl" class="text-right">Confirmation URL</Label>
+                    <Input
+                      id="newTillConfirmationUrl"
+                      type="text"
+                      class="col-span-3"
+                      bind:value={selectedTillAccount.confirmation_url}
+                    />
+                  </div>
+                  <div class="grid grid-cols-4 items-center gap-4">
+                    <Label for="newTillValidationUrl" class="text-right">Validation URL</Label>
+                    <Input
+                      id="newTillValidationUrl"
+                      type="text"
+                      class="col-span-3"
+                      bind:value={selectedTillAccount.validation_url}
                     />
                   </div>
                 </div>

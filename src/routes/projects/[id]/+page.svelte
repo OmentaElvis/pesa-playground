@@ -176,13 +176,17 @@
   });
 
   onMount(async () => {
-    $effect(async ()=> {
-      project = await getProject(Number(id));
-      users = await getUsers();
-      business = await getBusiness(project.business_id);
-      await loadTransactions();
+    $effect(()=> {
+      async function get(id: number) {
+        project = await getProject(Number(id));
+        users = await getUsers();
+        business = await getBusiness(project.business_id);
+        await loadTransactions();
 
-      apiLogs = await getProjectApiLogs(Number(id), { limit: 20 });
+        apiLogs = await getProjectApiLogs(Number(id), { limit: 20 });
+      }
+
+      get(Number(id));
     })
   });
 </script>
@@ -423,13 +427,13 @@
           <CardContent>
             <div class="space-y-4">
               {#each apiLogs as log (log.id)}
+                {@const StatusIcon = getStatusIcon(log.status_code)}
                 <div class="border rounded-lg p-4 space-y-2">
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
-                      <svelte:component
-                        this={getStatusIcon(log.status_code)}
+                      <StatusIcon
                         class="h-4 w-4 {getStatusColor(log.status_code)}"
-                      />
+                      ></StatusIcon>
                       <span class="font-mono text-sm font-medium"
                         >{log.method}</span
                       >
