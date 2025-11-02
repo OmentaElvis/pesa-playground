@@ -28,6 +28,14 @@ pub struct TestApp {
 
 impl TestApp {
     pub async fn new(project_id: u32, log: bool) -> anyhow::Result<Self> {
+        let ctx = Self::new_context().await?;
+        let db = ctx.db.clone();
+
+        let router = server::create_router(ctx, project_id, log);
+        Ok(Self { router, db })
+    }
+
+    pub async fn new_context() -> anyhow::Result<AppContext> {
         let db = setup_db().await?;
         let t = mock_builder().build(tauri::generate_context!()).unwrap();
 
@@ -36,9 +44,7 @@ impl TestApp {
             db: db.clone(),
             event_manager: Arc::new(app_handle),
         };
-
-        let router = server::create_router(ctx, project_id, log);
-        Ok(Self { router, db })
+        Ok(ctx)
     }
 
     pub async fn get(&self, url: &str, headers: Option<HeaderMap>) -> anyhow::Result<Response> {

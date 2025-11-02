@@ -13,6 +13,7 @@ pub mod api_logs;
 pub mod business;
 pub mod callbacks;
 pub mod db;
+pub mod events;
 pub mod projects;
 pub mod server;
 pub mod transaction_costs;

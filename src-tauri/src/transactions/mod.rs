@@ -89,11 +89,12 @@ impl Ledger {
         destination: u32,
         amount: i64,
         txn_type: &TransactionType,
-    ) -> Result<Transaction, TransactionEngineError>
+    ) -> Result<(Transaction, Vec<crate::events::DomainEvent>), TransactionEngineError>
     where
         C: ConnectionTrait,
     {
         let _guard = GLOBAL_LEDGER_LOCK.lock().await;
+        let mut events = Vec::new();
 
         let mut source_account = if let Some(source) = source {
             let source_account = Account::get_account(conn, source).await?;
@@ -160,7 +161,7 @@ impl Ledger {
         let txn: Transaction = txn.insert(conn).await?.into();
 
         if let Some(source) = &source_account {
-            TransactionLog::create(
+            let (_log, event) = TransactionLog::create(
                 conn,
                 txn.id.clone(),
                 source.id as i32,
@@ -168,9 +169,10 @@ impl Ledger {
                 source.balance,
             )
             .await?;
+            events.push(event);
         }
 
-        TransactionLog::create(
+        let (_log, event) = TransactionLog::create(
             conn,
             txn.id.clone(),
             destination_account.id as i32,
@@ -178,17 +180,22 @@ impl Ledger {
             destination_account.balance,
         )
         .await?;
+        events.push(event);
 
         drop(_guard);
 
-        Ok(txn)
+        Ok((txn, events))
     }
 
-    pub async fn reverse<C>(conn: &C, id: &str) -> Result<Transaction, TransactionEngineError>
+    pub async fn reverse<C>(
+        conn: &C,
+        id: &str,
+    ) -> Result<(Transaction, Vec<crate::events::DomainEvent>), TransactionEngineError>
     where
         C: ConnectionTrait,
     {
         let _guard = GLOBAL_LEDGER_LOCK.lock().await;
+        let mut events = Vec::new();
 
         let transaction = db::Entity::find_by_id(id).one(conn).await?;
         if transaction.is_none() {
@@ -215,7 +222,7 @@ impl Ledger {
             dest_model.balance = Set(balance);
             dest_model.update(conn).await?;
 
-            TransactionLog::create(
+            let (_log, event) = TransactionLog::create(
                 conn,
                 transaction.id.clone(),
                 dest_id as i32,
@@ -223,6 +230,7 @@ impl Ledger {
                 balance,
             )
             .await?;
+            events.push(event);
         } else {
             return Err(TransactionEngineError::AccountNotFound(dest_id));
         }
@@ -238,7 +246,7 @@ impl Ledger {
                 source_model.balance = Set(balance);
                 source_model.update(conn).await?;
 
-                TransactionLog::create(
+                let (_log, event) = TransactionLog::create(
                     conn,
                     transaction.id.clone(),
                     source_id as i32,
@@ -246,6 +254,7 @@ impl Ledger {
                     balance,
                 )
                 .await?;
+                events.push(event);
             } else {
                 return Err(TransactionEngineError::AccountNotFound(source_id));
             }
@@ -269,7 +278,7 @@ impl Ledger {
         let txn: Transaction = txn.insert(conn).await?.into();
 
         drop(_guard);
-        Ok(txn)
+        Ok((txn, events))
     }
 
     pub fn generate_receipt() -> String {

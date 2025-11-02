@@ -1,15 +1,17 @@
 use pesa_playground_lib::transactions::ui::{c2b_lipa_logic, LipaArgs, LipaPaymentType};
-use tauri::test::mock_builder;
+
+use crate::common::TestApp;
 
 mod common;
 
 #[tokio::test]
 async fn test_lipa_paybill_success() -> anyhow::Result<()> {
-    let db = common::setup_db().await?;
-    let business = common::create_test_business(&db, None).await?;
-    let _project = common::create_test_project(&db, business.id, None).await?;
+    let ctx = TestApp::new_context().await?;
+    let db = &ctx.db;
+    let business = common::create_test_business(db, None).await?;
+    let _project = common::create_test_project(db, business.id, None).await?;
     let user = common::create_test_user(
-        &db,
+        db,
         Some(common::CreateTestUserOptions {
             balance: Some(20000),
             ..Default::default()
@@ -17,7 +19,7 @@ async fn test_lipa_paybill_success() -> anyhow::Result<()> {
     )
     .await?;
     let _paybill = common::create_test_paybill(
-        &db,
+        db,
         common::CreateTestPaybillOptions {
             business_id: business.id,
             paybill_number: Some(600000),
@@ -35,7 +37,7 @@ async fn test_lipa_paybill_success() -> anyhow::Result<()> {
         account_number: Some("12345".to_string()),
     };
 
-    let result = c2b_lipa_logic(db.clone(), lipa_args).await;
+    let result = c2b_lipa_logic(&ctx, lipa_args).await;
 
     assert!(result.is_ok());
 
@@ -49,11 +51,12 @@ async fn test_lipa_paybill_success() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_lipa_till_success() -> anyhow::Result<()> {
-    let db = common::setup_db().await?;
-    let business = common::create_test_business(&db, None).await?;
-    let _project = common::create_test_project(&db, business.id, None).await?;
+    let ctx = TestApp::new_context().await?;
+    let db = &ctx.db;
+    let business = common::create_test_business(db, None).await?;
+    let _project = common::create_test_project(db, business.id, None).await?;
     let user = common::create_test_user(
-        &db,
+        db,
         Some(common::CreateTestUserOptions {
             balance: Some(20000),
             ..Default::default()
@@ -62,7 +65,7 @@ async fn test_lipa_till_success() -> anyhow::Result<()> {
     .await?;
 
     let _till = common::create_test_till(
-        &db,
+        db,
         common::CreateTestTillOptions {
             business_id: business.id,
             till_number: Some(123456),
@@ -80,7 +83,7 @@ async fn test_lipa_till_success() -> anyhow::Result<()> {
         account_number: None,
     };
 
-    let result = c2b_lipa_logic(db.clone(), lipa_args).await;
+    let result = c2b_lipa_logic(&ctx, lipa_args).await;
 
     assert!(result.is_ok());
 
@@ -94,11 +97,12 @@ async fn test_lipa_till_success() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_lipa_insufficient_funds() -> anyhow::Result<()> {
-    let db = common::setup_db().await?;
-    let business = common::create_test_business(&db, None).await?;
-    let _project = common::create_test_project(&db, business.id, None).await?;
+    let ctx = TestApp::new_context().await?;
+    let db = &ctx.db;
+    let business = common::create_test_business(db, None).await?;
+    let _project = common::create_test_project(db, business.id, None).await?;
     let user = common::create_test_user(
-        &db,
+        db,
         Some(common::CreateTestUserOptions {
             balance: Some(500),
             ..Default::default()
@@ -106,7 +110,7 @@ async fn test_lipa_insufficient_funds() -> anyhow::Result<()> {
     )
     .await?;
     let _paybill = common::create_test_paybill(
-        &db,
+        db,
         common::CreateTestPaybillOptions {
             business_id: business.id,
             paybill_number: Some(600000),
@@ -124,7 +128,7 @@ async fn test_lipa_insufficient_funds() -> anyhow::Result<()> {
         account_number: Some("12345".to_string()),
     };
 
-    let result = c2b_lipa_logic(db.clone(), lipa_args).await;
+    let result = c2b_lipa_logic(&ctx, lipa_args).await;
 
     assert!(result.is_err());
     assert_eq!(result.unwrap_err(), "Insufficient funds");
@@ -134,11 +138,12 @@ async fn test_lipa_insufficient_funds() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_lipa_invalid_business_number() -> anyhow::Result<()> {
-    let db = common::setup_db().await?;
-    let business = common::create_test_business(&db, None).await?;
-    let _project = common::create_test_project(&db, business.id, None).await?;
+    let ctx = TestApp::new_context().await?;
+    let db = &ctx.db;
+    let business = common::create_test_business(db, None).await?;
+    let _project = common::create_test_project(db, business.id, None).await?;
     let user = common::create_test_user(
-        &db,
+        db,
         Some(common::CreateTestUserOptions {
             balance: Some(20000),
             ..Default::default()
@@ -154,7 +159,7 @@ async fn test_lipa_invalid_business_number() -> anyhow::Result<()> {
         account_number: Some("12345".to_string()),
     };
 
-    let result = c2b_lipa_logic(db.clone(), lipa_args).await;
+    let result = c2b_lipa_logic(&ctx, lipa_args).await;
 
     assert!(result.is_err());
     assert_eq!(
@@ -167,11 +172,12 @@ async fn test_lipa_invalid_business_number() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_lipa_missing_account_number_for_paybill() -> anyhow::Result<()> {
-    let db = common::setup_db().await?;
-    let business = common::create_test_business(&db, None).await?;
-    let _project = common::create_test_project(&db, business.id, None).await?;
+    let ctx = TestApp::new_context().await?;
+    let db = &ctx.db;
+    let business = common::create_test_business(db, None).await?;
+    let _project = common::create_test_project(db, business.id, None).await?;
     let user = common::create_test_user(
-        &db,
+        db,
         Some(common::CreateTestUserOptions {
             balance: Some(20000),
             ..Default::default()
@@ -179,7 +185,7 @@ async fn test_lipa_missing_account_number_for_paybill() -> anyhow::Result<()> {
     )
     .await?;
     let _paybill = common::create_test_paybill(
-        &db,
+        db,
         common::CreateTestPaybillOptions {
             business_id: business.id,
             paybill_number: Some(600000),
@@ -197,7 +203,7 @@ async fn test_lipa_missing_account_number_for_paybill() -> anyhow::Result<()> {
         account_number: None, // Missing account number
     };
 
-    let result = c2b_lipa_logic(db.clone(), lipa_args).await;
+    let result = c2b_lipa_logic(&ctx, lipa_args).await;
 
     assert!(result.is_err());
     assert_eq!(
@@ -210,6 +216,8 @@ async fn test_lipa_missing_account_number_for_paybill() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_lipa_validation_fails() -> anyhow::Result<()> {
+    let ctx = TestApp::new_context().await?;
+    let db = &ctx.db;
     let mut server = mockito::Server::new_async().await;
     let mock = server
         .mock("POST", "/validate")
@@ -218,11 +226,10 @@ async fn test_lipa_validation_fails() -> anyhow::Result<()> {
         .create_async()
         .await;
 
-    let db = common::setup_db().await?;
-    let business = common::create_test_business(&db, None).await?;
-    let _project = common::create_test_project(&db, business.id, None).await?;
+    let business = common::create_test_business(db, None).await?;
+    let _project = common::create_test_project(db, business.id, None).await?;
     let user = common::create_test_user(
-        &db,
+        db,
         Some(common::CreateTestUserOptions {
             balance: Some(20000),
             ..Default::default()
@@ -230,7 +237,7 @@ async fn test_lipa_validation_fails() -> anyhow::Result<()> {
     )
     .await?;
     let _paybill = common::create_test_paybill(
-        &db,
+        db,
         common::CreateTestPaybillOptions {
             business_id: business.id,
             paybill_number: Some(600000),
@@ -249,7 +256,7 @@ async fn test_lipa_validation_fails() -> anyhow::Result<()> {
         account_number: Some("12345".to_string()),
     };
 
-    let result = c2b_lipa_logic(db.clone(), lipa_args).await;
+    let result = c2b_lipa_logic(&ctx, lipa_args).await;
 
     assert!(result.is_ok());
 

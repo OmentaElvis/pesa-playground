@@ -56,7 +56,7 @@ impl TransactionLog {
         account_id: i32,
         direction: Direction,
         new_balance: i64,
-    ) -> Result<Self, DbErr>
+    ) -> Result<(Self, crate::events::DomainEvent), DbErr>
     where
         C: ConnectionTrait,
     {
@@ -70,14 +70,13 @@ impl TransactionLog {
 
         let log = log.insert(conn).await?;
 
-        // if let Err(err) = ctx.event_manager.emit_all(
-        //     "new_transaction",
-        //     Self::get_full_log(&ctx.db, log.id).await?,
-        // ) {
-        //     eprintln!("Failed to emit txn log: {}", err);
-        // }
+        let full_log = Self::get_full_log(conn, log.id)
+            .await?
+            .expect("Log just created should be found");
 
-        Ok(log.into())
+        let event = crate::events::DomainEvent::TransactionCreated(full_log);
+
+        Ok((log.into(), event))
     }
 
     pub async fn get_full_log<C>(

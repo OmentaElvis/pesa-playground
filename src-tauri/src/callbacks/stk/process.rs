@@ -7,6 +7,7 @@ use tokio::sync::oneshot;
 use crate::{
     accounts::{user_profiles::ui::UserDetails, Account},
     callbacks::{response::return_body, CallbackLog},
+    events::DomainEventDispatcher,
     projects::Project,
     server::ApiState,
     transactions::{Ledger, TransactionEngineError},
@@ -198,7 +199,8 @@ pub async fn callback_execute(
                     )
                     .await
                     {
-                        Ok(transaction) => {
+                        Ok((transaction, events)) => {
+                            DomainEventDispatcher::dispatch_events(&state.context, events)?;
                             receipt = transaction.id;
                             StkCodes::Success
                         }

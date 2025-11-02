@@ -21,12 +21,14 @@ use crate::accounts::user_profiles::User;
 use crate::accounts::Account;
 use crate::api_logs::ApiLog;
 use crate::db::Database;
+use crate::events::DomainEventDispatcher;
 use crate::projects;
 use crate::server::api::c2b::C2bTransactionType;
 use crate::server::api::c2b::ResponseType;
 use crate::server::api::c2b::ValidationRequest;
 use crate::server::api::c2b::ValidationResponse;
 use crate::transaction_costs::get_fee;
+use crate::AppContext;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct TransactionFilter {
@@ -243,22 +245,30 @@ pub async fn get_transaction_stats(state: State<'_, Database>) -> Result<Transac
 
 #[tauri::command]
 pub async fn transfer(
-    state: State<'_, Database>,
+    state: State<'_, AppContext>,
     source: Option<u32>,
     destination: u32,
     amount: i64,
     txn_type: TransactionType,
 ) -> Result<Transaction, String> {
-    Ledger::transfer(&state.conn, source, destination, amount, &txn_type)
+    let (txn, events) = Ledger::transfer(&state.db, source, destination, amount, &txn_type)
         .await
-        .map_err(|err| format!("Transfer Error: {}", err))
+        .map_err(|err| format!("Transfer Error: {}", err))?;
+
+    DomainEventDispatcher::dispatch_events(&state, events).map_err(|err| err.to_string())?;
+
+    Ok(txn)
 }
 
 #[tauri::command]
-pub async fn reverse(state: State<'_, Database>, id: String) -> Result<Transaction, String> {
-    Ledger::reverse(&state.conn, &id)
+pub async fn reverse(state: State<'_, AppContext>, id: String) -> Result<Transaction, String> {
+    let (txn, events) = Ledger::reverse(&state.db, &id)
         .await
-        .map_err(|err| format!("Transfer Error: {}", err))
+        .map_err(|err| format!("Transfer Error: {}", err))?;
+
+    DomainEventDispatcher::dispatch_events(&state, events).map_err(|err| err.to_string())?;
+
+    Ok(txn)
 }
 
 #[derive(serde::Serialize)]
@@ -284,10 +294,8 @@ pub struct LipaArgs {
     pub account_number: Option<String>,
 }
 
-pub async fn c2b_lipa_logic(
-    conn: sea_orm::DatabaseConnection,
-    args: LipaArgs,
-) -> Result<(), String> {
+pub async fn c2b_lipa_logic(ctx: &AppContext, args: LipaArgs) -> Result<(), String> {
+    let conn = &ctx.db;
     // validate the different paths of payment.
     match args.payment_type {
         LipaPaymentType::Paybill => {
@@ -299,7 +307,7 @@ pub async fn c2b_lipa_logic(
         LipaPaymentType::Till => {}
     }
     // get user
-    let user = User::get_user_by_phone(&conn, &args.user_phone)
+    let user = User::get_user_by_phone(conn, &args.user_phone)
         .await
         .map_err(|err| {
             format!(
@@ -320,7 +328,7 @@ pub async fn c2b_lipa_logic(
     let (account_id, validation_url, confirmation_url, response_type, business_id) =
         match args.payment_type {
             LipaPaymentType::Paybill => {
-                let paybill = PaybillAccount::get_by_paybill_number(&conn, args.business_number)
+                let paybill = PaybillAccount::get_by_paybill_number(conn, args.business_number)
                     .await
                     .map_err(|err| {
                         format!(
@@ -347,7 +355,7 @@ pub async fn c2b_lipa_logic(
                 )
             }
             LipaPaymentType::Till => {
-                let till = TillAccount::get_by_till_number(&conn, args.business_number)
+                let till = TillAccount::get_by_till_number(conn, args.business_number)
                     .await
                     .map_err(|err| {
                         format!(
@@ -374,7 +382,7 @@ pub async fn c2b_lipa_logic(
                 )
             }
         };
-    let account = Account::get_account(&conn, account_id)
+    let account = Account::get_account(conn, account_id)
         .await
         .map_err(|err| {
             format!(
@@ -389,7 +397,7 @@ pub async fn c2b_lipa_logic(
 
     let destination = account.unwrap();
 
-    let user_account = Account::get_account(&conn, user.account_id)
+    let user_account = Account::get_account(conn, user.account_id)
         .await
         .map_err(|err| format!("Failed to get user account. {}", err))?;
 
@@ -401,7 +409,7 @@ pub async fn c2b_lipa_logic(
 
     // pre calculate amount and balance
     let fee = get_fee(
-        &conn,
+        conn,
         match args.payment_type {
             LipaPaymentType::Paybill => &TransactionType::Paybill,
             LipaPaymentType::Till => &TransactionType::BuyGoods,
@@ -431,14 +439,15 @@ pub async fn c2b_lipa_logic(
             bill_ref_number: args.account_number,
             business_id,
         },
+        ctx.clone(),
     ));
 
     Ok(())
 }
 
 #[tauri::command]
-pub async fn lipa(state: State<'_, Database>, args: LipaArgs) -> Result<(), String> {
-    c2b_lipa_logic(state.conn.clone(), args).await
+pub async fn lipa(state: State<'_, AppContext>, args: LipaArgs) -> Result<(), String> {
+    c2b_lipa_logic(&state, args).await
 }
 
 struct ProcessLipaArgs {
@@ -454,7 +463,7 @@ struct ProcessLipaArgs {
     business_id: u32,
 }
 
-async fn process_lipa<C: ConnectionTrait>(conn: C, args: ProcessLipaArgs) {
+async fn process_lipa<C: ConnectionTrait>(conn: C, args: ProcessLipaArgs, ctx: AppContext) {
     let trasaction_id = Ledger::generate_receipt();
 
     let parts: Vec<&str> = args.user.name.split_whitespace().collect();
@@ -575,7 +584,10 @@ async fn process_lipa<C: ConnectionTrait>(conn: C, args: ProcessLipaArgs) {
     )
     .await
     {
-        Ok(txn) => txn,
+        Ok((txn, events)) => {
+            let _ = DomainEventDispatcher::dispatch_events(&ctx, events);
+            txn
+        }
         Err(err) => {
             eprintln!("Transaction error: {err}");
             return;
