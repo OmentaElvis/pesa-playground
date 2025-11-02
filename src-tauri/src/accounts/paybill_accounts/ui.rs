@@ -40,7 +40,7 @@ pub async fn create_paybill_account(
         account_id: Set(account_model.id),
         business_id: Set(input.business_id),
         paybill_number: Set(input.paybill_number),
-        account_validation_regex: Set(input.account_validation_regex),
+        response_type: Set(input.response_type.map(|res| res.to_string())),
         validation_url: Set(input.validation_url),
         confirmation_url: Set(input.confirmation_url),
     };
@@ -87,7 +87,6 @@ pub async fn get_paybill_account(
         .column(db::Column::AccountId)
         .column(db::Column::BusinessId)
         .column(db::Column::PaybillNumber)
-        .column(db::Column::AccountValidationRegex)
         .column(db::Column::ValidationUrl)
         .column(db::Column::ConfirmationUrl)
         .column(crate::accounts::db::Column::Balance)
@@ -114,7 +113,6 @@ pub async fn get_paybill_accounts(
         .column(db::Column::AccountId)
         .column(db::Column::BusinessId)
         .column(db::Column::PaybillNumber)
-        .column(db::Column::AccountValidationRegex)
         .column(db::Column::ValidationUrl)
         .column(db::Column::ConfirmationUrl)
         .column(crate::accounts::db::Column::Balance)
@@ -145,7 +143,6 @@ pub async fn get_paybill_accounts_by_business_id(
         .column(db::Column::AccountId)
         .column(db::Column::BusinessId)
         .column(db::Column::PaybillNumber)
-        .column(db::Column::AccountValidationRegex)
         .column(db::Column::ValidationUrl)
         .column(db::Column::ConfirmationUrl)
         .column(crate::accounts::db::Column::Balance)
@@ -185,14 +182,14 @@ pub async fn update_paybill_account(
     if let Some(paybill_number) = input.paybill_number {
         active_model.paybill_number = Set(paybill_number);
     }
-    if let Some(account_validation_regex) = input.account_validation_regex {
-        active_model.account_validation_regex = Set(Some(account_validation_regex));
-    }
     if let Some(validation_url) = input.validation_url {
         active_model.validation_url = Set(Some(validation_url));
     }
     if let Some(confirmation_url) = input.confirmation_url {
         active_model.confirmation_url = Set(Some(confirmation_url));
+    }
+    if let Some(response_type) = &input.response_type {
+        active_model.response_type = Set(Some(response_type.to_string()));
     }
 
     let updated_paybill_account = active_model
@@ -204,9 +201,9 @@ pub async fn update_paybill_account(
         account_id: updated_paybill_account.account_id,
         business_id: updated_paybill_account.business_id,
         paybill_number: updated_paybill_account.paybill_number,
-        account_validation_regex: updated_paybill_account.account_validation_regex,
         validation_url: updated_paybill_account.validation_url,
         confirmation_url: updated_paybill_account.confirmation_url,
+        response_type: input.response_type,
     }))
 }
 

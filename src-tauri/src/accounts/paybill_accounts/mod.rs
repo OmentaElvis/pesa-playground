@@ -1,6 +1,8 @@
 use chrono::{DateTime, Utc};
 use sea_orm::{ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, QueryFilter};
 use serde::{Deserialize, Serialize};
+
+use crate::server::api::c2b::ResponseType;
 pub mod db;
 pub mod ui;
 
@@ -9,9 +11,9 @@ pub struct PaybillAccount {
     pub account_id: u32,
     pub business_id: u32,
     pub paybill_number: u32,
-    pub account_validation_regex: Option<String>,
     pub validation_url: Option<String>,
     pub confirmation_url: Option<String>,
+    pub response_type: Option<ResponseType>,
 }
 
 impl From<&db::Model> for PaybillAccount {
@@ -20,9 +22,12 @@ impl From<&db::Model> for PaybillAccount {
             account_id: value.account_id,
             business_id: value.business_id,
             paybill_number: value.paybill_number,
-            account_validation_regex: value.account_validation_regex.clone(),
             validation_url: value.validation_url.clone(),
             confirmation_url: value.confirmation_url.clone(),
+            response_type: value
+                .response_type
+                .clone()
+                .map(|r| r.parse().unwrap_or(ResponseType::Completed)),
         }
     }
 }
@@ -58,7 +63,7 @@ impl PaybillAccount {
 pub struct CreatePaybillAccount {
     pub business_id: u32,
     pub paybill_number: u32,
-    pub account_validation_regex: Option<String>,
+    pub response_type: Option<ResponseType>,
     pub validation_url: Option<String>,
     pub confirmation_url: Option<String>,
     pub initial_balance: i64,
@@ -69,7 +74,7 @@ pub struct PaybillAccountDetails {
     pub account_id: u32,
     pub business_id: u32,
     pub paybill_number: u32,
-    pub account_validation_regex: Option<String>,
+    pub response_type: Option<String>,
     pub validation_url: Option<String>,
     pub confirmation_url: Option<String>,
     pub balance: i64,
@@ -80,7 +85,7 @@ pub struct PaybillAccountDetails {
 pub struct UpdatePaybillAccount {
     pub business_id: Option<u32>,
     pub paybill_number: Option<u32>,
-    pub account_validation_regex: Option<String>,
     pub validation_url: Option<String>,
     pub confirmation_url: Option<String>,
+    pub response_type: Option<ResponseType>,
 }

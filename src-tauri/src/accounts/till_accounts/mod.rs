@@ -1,6 +1,8 @@
 use chrono::{DateTime, Utc};
 use sea_orm::{ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, QueryFilter};
 use serde::{Deserialize, Serialize};
+
+use crate::server::api::c2b::ResponseType;
 pub mod db;
 pub mod ui;
 
@@ -9,8 +11,10 @@ pub struct TillAccount {
     pub account_id: u32,
     pub business_id: u32,
     pub till_number: u32,
-    pub store_number: u32,
     pub location_description: Option<String>,
+    pub response_type: Option<ResponseType>,
+    pub validation_url: Option<String>,
+    pub confirmation_url: Option<String>,
 }
 
 impl From<&db::Model> for TillAccount {
@@ -19,8 +23,10 @@ impl From<&db::Model> for TillAccount {
             account_id: value.account_id,
             business_id: value.business_id,
             till_number: value.till_number,
-            store_number: value.store_number,
             location_description: value.location_description.clone(),
+            response_type: None,
+            validation_url: None,
+            confirmation_url: None,
         }
     }
 }
@@ -56,7 +62,9 @@ impl TillAccount {
 pub struct CreateTillAccount {
     pub business_id: u32,
     pub till_number: u32,
-    pub store_number: u32,
+    pub response_type: Option<ResponseType>,
+    pub validation_url: Option<String>,
+    pub confirmation_url: Option<String>,
     pub initial_balance: i64,
     pub location_description: Option<String>,
 }
@@ -66,8 +74,10 @@ pub struct TillAccountDetails {
     pub account_id: u32,
     pub business_id: u32,
     pub till_number: u32,
-    pub store_number: u32,
     pub location_description: Option<String>,
+    pub response_type: Option<String>,
+    pub validation_url: Option<String>,
+    pub confirmation_url: Option<String>,
     pub balance: i64,
     pub created_at: DateTime<Utc>,
 }
@@ -76,6 +86,8 @@ pub struct TillAccountDetails {
 pub struct UpdateTillAccount {
     pub business_id: Option<u32>,
     pub till_number: Option<u32>,
-    pub store_number: Option<u32>,
     pub location_description: Option<String>,
+    pub response_type: Option<ResponseType>,
+    pub validation_url: Option<String>,
+    pub confirmation_url: Option<String>,
 }

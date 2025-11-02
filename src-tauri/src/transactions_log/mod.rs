@@ -7,11 +7,10 @@ use sea_orm::{
 };
 use sea_orm::{PaginatorTrait, QuerySelect};
 use serde::Serialize;
-use tauri::Emitter;
 
 use self::db::{ActiveModel, Direction};
 use crate::accounts::{self, Account};
-use crate::{get_app_handle, transactions};
+use crate::transactions;
 
 #[derive(Serialize)]
 pub struct TransactionLog {
@@ -52,7 +51,7 @@ impl From<db::Model> for TransactionLog {
 
 impl TransactionLog {
     pub async fn create<C>(
-        db: &C,
+        conn: &C,
         transaction_id: String,
         account_id: i32,
         direction: Direction,
@@ -69,13 +68,14 @@ impl TransactionLog {
             ..Default::default()
         };
 
-        let log = log.insert(db).await?;
+        let log = log.insert(conn).await?;
 
-        if let Err(err) =
-            get_app_handle().emit("new_transaction", Self::get_full_log(db, log.id).await?)
-        {
-            eprintln!("Failed to emit txn log: {}", err);
-        }
+        // if let Err(err) = ctx.event_manager.emit_all(
+        //     "new_transaction",
+        //     Self::get_full_log(&ctx.db, log.id).await?,
+        // ) {
+        //     eprintln!("Failed to emit txn log: {}", err);
+        // }
 
         Ok(log.into())
     }

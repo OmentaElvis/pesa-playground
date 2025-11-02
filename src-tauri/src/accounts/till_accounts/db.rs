@@ -7,8 +7,10 @@ pub struct Model {
     pub account_id: u32,
     pub business_id: u32,
     pub till_number: u32,
-    pub store_number: u32,
     pub location_description: Option<String>,
+    pub response_type: Option<String>,
+    pub validation_url: Option<String>,
+    pub confirmation_url: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, EnumIter)]
@@ -25,7 +27,7 @@ impl RelationTrait for Relation {
                 .to(crate::accounts::db::Column::Id)
                 .into(),
             Self::Business => Entity::belongs_to(crate::business::db::Entity)
-                .from(Column::AccountId)
+                .from(Column::BusinessId)
                 .to(crate::business::db::Column::Id)
                 .into(),
         }

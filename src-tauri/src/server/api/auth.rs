@@ -125,7 +125,7 @@ pub async fn oauth(
     let api_key = api_keys_db::Entity::find()
         .filter(api_keys_db::Column::ConsumerKey.eq(key))
         .filter(api_keys_db::Column::ConsumerSecret.eq(secret))
-        .one(&state.conn)
+        .one(&state.context.db)
         .await
         .map_err(|e| {
             println!("{}", e);
@@ -158,7 +158,7 @@ pub async fn oauth(
         created_at: Set(Utc::now().to_utc()),
     };
 
-    if let Err(err) = new_access_token.insert(&state.conn).await {
+    if let Err(err) = new_access_token.insert(&state.context.db).await {
         println!("{}", err);
     }
 

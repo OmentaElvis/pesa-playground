@@ -1,35 +1,42 @@
 use std::{collections::HashMap, sync::Arc};
 
-use once_cell::sync::OnceCell;
 use sea_orm::DatabaseConnection;
 use serde::Serialize;
 use serde_json::{json, Value};
 use server::start_project_server;
-use tauri::{AppHandle, Manager, State};
+use tauri::{Emitter, Manager, Runtime, State};
 use tokio::sync::{oneshot, Mutex};
 
-mod accounts;
-mod api_keys;
-mod api_logs;
-mod business;
-mod callbacks;
-mod db;
-mod projects;
-mod server;
-mod transaction_costs;
-mod transactions;
-mod transactions_log;
-mod user;
+pub mod accounts;
+pub mod api_keys;
+pub mod api_logs;
+pub mod business;
+pub mod callbacks;
+pub mod db;
+pub mod projects;
+pub mod server;
+pub mod transaction_costs;
+pub mod transactions;
+pub mod transactions_log;
+pub mod user;
 
-pub static GLOBAL_APP_HANDLE: OnceCell<AppHandle> = OnceCell::new();
-pub fn init_app_handle(app_handle: AppHandle) {
-    GLOBAL_APP_HANDLE
-        .set(app_handle)
-        .expect("Failed to initialize app handle.");
+pub trait AppEventManager {
+    fn emit_all(&self, event: &str, payload: serde_json::Value) -> anyhow::Result<()>;
 }
 
-pub fn get_app_handle() -> &'static AppHandle {
-    GLOBAL_APP_HANDLE.get().expect("AppHandle not initialized.")
+pub struct TauriEventManager<R: Runtime>(pub tauri::AppHandle<R>);
+
+impl<R: Runtime> AppEventManager for TauriEventManager<R> {
+    fn emit_all(&self, event: &str, payload: serde_json::Value) -> anyhow::Result<()> {
+        self.0.emit(event, payload)?;
+        Ok(())
+    }
+}
+
+#[derive(Clone)]
+pub struct AppContext {
+    pub db: DatabaseConnection,
+    pub event_manager: Arc<dyn AppEventManager + Send + Sync>,
 }
 
 pub struct RunningSandbox {
@@ -39,8 +46,7 @@ pub struct RunningSandbox {
 }
 
 pub struct SandboxManager {
-    pub handle: AppHandle,
-    pub conn: DatabaseConnection,
+    pub context: AppContext,
     pub running: Arc<Mutex<HashMap<u32, RunningSandbox>>>,
 }
 
@@ -62,9 +68,8 @@ async fn start_sandbox(
     let handle = tokio::spawn(start_project_server(
         project_id,
         port,
-        state.conn.clone(),
+        state.context.clone(),
         shutdown_rx,
-        state.handle.clone(),
     ));
     running.insert(
         project_id,
@@ -172,10 +177,12 @@ async fn list_running_sandboxes(state: State<'_, SandboxManager>) -> Result<Vec<
 pub fn run() {
     let app = tauri::Builder::default()
         .setup(move |app| {
+            let handle = app.handle().clone();
+            let app_dir = handle.path().app_data_dir().expect("failed to get app dir");
+            let db_path = app_dir.join("database.sqlite");
+
             tauri::async_runtime::block_on(async move {
-                let handle = app.handle();
-                init_app_handle(handle.clone());
-                let database = db::Database::new(handle)
+                let database = db::Database::new(&db_path)
                     .await
                     .expect("Failed to initialize database");
 
@@ -183,12 +190,19 @@ pub fn run() {
                     eprintln!("Database error: {:?}", err);
                 }
 
+                let event_manager = Arc::new(TauriEventManager(handle.clone()));
+
+                let context = AppContext {
+                    db: database.conn.clone(),
+                    event_manager,
+                };
+
+                app.manage(context.clone());
+
                 app.manage(SandboxManager {
-                    conn: database.conn.clone(),
+                    context,
                     running: Arc::new(Mutex::new(HashMap::new())),
-                    handle: app.handle().clone(),
                 });
-                app.manage(database);
             });
             Ok(())
         })
@@ -235,6 +249,7 @@ pub fn run() {
             accounts::user_profiles::ui::generate_users,
             accounts::user_profiles::ui::get_user_by_phone,
             // transactions
+            transactions::ui::lipa,
             transactions::ui::transfer,
             transactions::ui::reverse,
             transactions::ui::get_transaction,

@@ -1,10 +1,9 @@
 use axum::{extract::State, http::HeaderMap, Json};
 use base64::{engine::general_purpose, Engine};
-use chrono::{DateTime, Utc};
-use rand::{distr::Alphanumeric, Rng};
+use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 
-use crate::server::MpesaError;
+use crate::server::{ApiState, MpesaError};
 use crate::{
     accounts::{
         paybill_accounts::PaybillAccount, till_accounts::TillAccount, user_profiles::User, Account,
@@ -13,7 +12,7 @@ use crate::{
     business::Business,
     callbacks::stk::init::StkpushInit,
     projects::Project,
-    server::{access_token::AccessToken, ApiError, ApiState},
+    server::{access_token::AccessToken, ApiError},
 };
 
 #[derive(Deserialize)]
@@ -37,26 +36,6 @@ pub struct StkPushRequest {
     pub call_back_u_r_l: String,
     pub account_reference: String,
     pub transaction_desc: String,
-}
-
-fn generate_merchant_request_id() -> String {
-    format!(
-        "{}-{}-{}",
-        rand::rng().random_range(10000..99999),
-        rand::rng().random_range(10000000..99999999),
-        rand::rng().random_range(0..9)
-    )
-}
-
-fn generate_checkout_request_id() -> String {
-    let timestamp = Utc::now().format("%d%m%Y%H%M%S").to_string(); // e.g. 02072025143500
-    let rand_suffix: String = rand::rng()
-        .sample_iter(&Alphanumeric)
-        .take(6)
-        .map(char::from)
-        .collect();
-
-    format!("ws_CO_{}{}", timestamp, rand_suffix)
 }
 
 #[derive(Serialize)]
@@ -107,7 +86,7 @@ pub async fn stkpush(
     }
 
     let key = &auth[7..];
-    let access_token = AccessToken::read_by_token(&state.conn, key)
+    let access_token = AccessToken::read_by_token(&state.context.db, key)
         .await
         .map_err(|error| {
             ApiError::new(
@@ -133,7 +112,7 @@ pub async fn stkpush(
         ));
     }
 
-    let api_key = ApiKey::read_by_project_id(&state.conn, access_token.project_id)
+    let api_key = ApiKey::read_by_project_id(&state.context.db, access_token.project_id)
         .await
         .map_err(|error| {
             ApiError::new(
@@ -155,7 +134,7 @@ pub async fn stkpush(
     let (account_id, business_id) = match req.transaction_type {
         TransactionType::CustomerBuyGoodsOnline => {
             let till = match TillAccount::get_by_till_number(
-                &state.conn,
+                &state.context.db,
                 req.party_b.parse().unwrap_or_default(),
             )
             .await
@@ -175,7 +154,7 @@ pub async fn stkpush(
         }
         TransactionType::CustomerPayBillOnline => {
             let paybill = match PaybillAccount::get_by_paybill_number(
-                &state.conn,
+                &state.context.db,
                 req.party_b.parse().unwrap_or_default(),
             )
             .await
@@ -196,7 +175,7 @@ pub async fn stkpush(
         }
     };
 
-    let business = match Business::get_by_id(&state.conn, business_id).await {
+    let business = match Business::get_by_id(&state.context.db, business_id).await {
         Ok(Some(business)) => business,
         Ok(None) => {
             return Err(ApiError::new(
@@ -209,7 +188,7 @@ pub async fn stkpush(
         }
     };
 
-    let entity_account = match Account::get_account(&state.conn, account_id).await {
+    let entity_account = match Account::get_account(&state.context.db, account_id).await {
         Ok(Some(account)) => account,
         Ok(None) => {
             return Err(ApiError::new(
@@ -247,7 +226,7 @@ pub async fn stkpush(
         )
     })?;
 
-    let user = match User::get_user_by_phone(&state.conn, &req.phone_number)
+    let user = match User::get_user_by_phone(&state.context.db, &req.phone_number)
         .await
         .map_err(|err| {
             ApiError::new(
@@ -264,7 +243,7 @@ pub async fn stkpush(
         }
     };
 
-    let project = match Project::get_by_id(&state.conn, state.project_id).await {
+    let project = match Project::get_by_id(&state.context.db, state.project_id).await {
         Ok(Some(project)) => project,
         Ok(None) => {
             return Err(ApiError::new(

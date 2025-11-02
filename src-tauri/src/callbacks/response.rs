@@ -3,7 +3,6 @@ use std::time::Duration;
 use rand::Rng;
 use reqwest::Client;
 use serde_json::{json, Value};
-use tauri::Emitter;
 use tokio::time::{sleep, Instant};
 
 use crate::{api_logs::ApiLog, server::ApiState};
@@ -64,7 +63,7 @@ pub async fn return_body(
         let start = Instant::now();
         let result = client.post(&url).json(&body_json).send().await;
         let duration = start.elapsed();
-        let db = &state.conn;
+        let db = &state.context.db;
 
         match result {
             Ok(resp) => {
@@ -102,8 +101,10 @@ pub async fn return_body(
                         eprintln!("Api log save error: {}", err);
                     }
 
-                    let _ = state.handle.emit("new-api-log", state.project_id);
-                    return;
+                    let _ = state
+                        .context
+                        .event_manager
+                        .emit_all("new-api-log", json!(state.project_id));
                 } else {
                     if let Err(err) = ApiLog::builder()
                         .project_id(state.project_id)
@@ -134,7 +135,10 @@ pub async fn return_body(
                         eprintln!("Api log save error: {}", err);
                     }
 
-                    let _ = state.handle.emit("new-api-log", state.project_id);
+                    let _ = state
+                        .context
+                        .event_manager
+                        .emit_all("new-api-log", json!(state.project_id));
                 }
             }
 
@@ -162,7 +166,10 @@ pub async fn return_body(
                     eprintln!("Api log save error: {}", err);
                 }
 
-                let _ = state.handle.emit("new-api-log", state.project_id);
+                let _ = state
+                    .context
+                    .event_manager
+                    .emit_all("new-api-log", json!(state.project_id));
             }
         }
 

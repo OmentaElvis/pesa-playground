@@ -1,7 +1,14 @@
-use pesa_playground_lib::{accounts, projects, projects::SimulationMode, accounts::user_profiles::db::Entity as UserProfileEntity, accounts::paybill_accounts::db::Entity as PaybillEntity, accounts::till_accounts::db::Entity as TillEntity};
+use pesa_playground_lib::{
+    accounts, accounts::paybill_accounts::db::Entity as PaybillEntity,
+    accounts::till_accounts::db::Entity as TillEntity,
+    accounts::user_profiles::db::Entity as UserProfileEntity, projects, projects::SimulationMode,
+};
 use sea_orm::EntityTrait;
 
-use crate::common::{CreateTestBusinessOptions, CreateTestProjectOptions, CreateTestUserOptions, CreateTestPaybillOptions, CreateTestTillOptions};
+use crate::common::{
+    CreateTestBusinessOptions, CreateTestPaybillOptions, CreateTestProjectOptions,
+    CreateTestTillOptions, CreateTestUserOptions,
+};
 
 mod common;
 
@@ -32,8 +39,7 @@ async fn test_project_factory_with_options() -> anyhow::Result<()> {
         &db,
         Some(CreateTestBusinessOptions {
             short_code: Some("123456".to_string()),
-            ..
-            Default::default()
+            ..Default::default()
         }),
     )
     .await?;
@@ -42,8 +48,7 @@ async fn test_project_factory_with_options() -> anyhow::Result<()> {
         business.id,
         Some(CreateTestProjectOptions {
             simulation_mode: Some(SimulationMode::AlwaysFail),
-            ..
-            Default::default()
+            ..Default::default()
         }),
     )
     .await?;
@@ -69,8 +74,7 @@ async fn test_user_factory() -> anyhow::Result<()> {
         &db,
         Some(CreateTestUserOptions {
             balance: Some(5000),
-            ..
-            Default::default()
+            ..Default::default()
         }),
     )
     .await?;
@@ -87,12 +91,11 @@ async fn test_user_factory() -> anyhow::Result<()> {
     let fetched_account = accounts::db::Entity::find_by_id(user.account_id)
         .one(&db)
         .await?;
-    
+
     assert!(fetched_account.is_some());
     let fetched_account = fetched_account.unwrap();
 
     assert_eq!(fetched_account.balance, 5000);
-
 
     Ok(())
 }
@@ -107,6 +110,7 @@ async fn test_paybill_factory() -> anyhow::Result<()> {
             business_id: business.id,
             balance: Some(100000),
             paybill_number: Some(123456),
+            ..Default::default()
         },
     )
     .await?;
@@ -144,13 +148,12 @@ async fn test_till_factory() -> anyhow::Result<()> {
             business_id: business.id,
             balance: Some(50000),
             till_number: Some(654321),
+            ..Default::default()
         },
     )
     .await?;
 
-    let fetched_till = TillEntity::find_by_id(till.account_id)
-        .one(&db)
-        .await?;
+    let fetched_till = TillEntity::find_by_id(till.account_id).one(&db).await?;
 
     assert!(fetched_till.is_some());
     let fetched_till = fetched_till.unwrap();

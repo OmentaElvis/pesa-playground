@@ -8,10 +8,9 @@ use axum::{
 use http_body_util::BodyExt;
 use serde_json::json;
 use std::collections::HashMap;
-use tauri::Emitter;
 use tokio::time::Instant;
 
-use crate::api_logs::ApiLog;
+use crate::{api_logs::ApiLog, server::ApiState};
 
 use rand::{rng, Rng};
 
@@ -42,7 +41,7 @@ pub fn generate_request_id() -> String {
     format!("{}-{}-{}-{}{}", part1, part2, part3, part4, part5)
 }
 
-use super::{ApiError, ApiState};
+use super::ApiError;
 
 // Middleware function that captures all request/response data
 pub async fn logging_middleware(
@@ -108,13 +107,16 @@ pub async fn logging_middleware(
     if let Some(error) = error_desc {
         builder = builder.error_desc(error);
     }
-    builder.save(&state.conn).await.map_err(|err| {
+    builder.save(&state.context.db).await.map_err(|err| {
         println!("{}", err);
 
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    let _ = state.handle.emit("new-api-log", state.project_id);
+    let _ = state
+        .context
+        .event_manager
+        .emit_all("new-api-log", state.project_id.into());
 
     Ok(response)
 }

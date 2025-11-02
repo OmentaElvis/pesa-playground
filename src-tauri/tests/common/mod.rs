@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use axum::{
     body::Body,
     http::{HeaderMap, Request},
@@ -10,7 +12,10 @@ use fake::{
     Fake,
 };
 use pesa_playground_lib::{
-    accounts, api_keys, business, db::run_migrations, projects, projects::SimulationMode, server,
+    accounts, api_keys, business,
+    db::run_migrations,
+    projects::{self, SimulationMode},
+    server, AppContext, TauriEventManager,
 };
 use sea_orm::{ActiveModelTrait, Database, DatabaseConnection, Set};
 use tauri::test::mock_builder;
@@ -22,13 +27,17 @@ pub struct TestApp {
 }
 
 impl TestApp {
-    pub async fn new(project_id: u32) -> anyhow::Result<Self> {
+    pub async fn new(project_id: u32, log: bool) -> anyhow::Result<Self> {
         let db = setup_db().await?;
         let t = mock_builder().build(tauri::generate_context!()).unwrap();
 
-        let app_handle = t.handle();
+        let app_handle = TauriEventManager(t.handle().clone());
+        let ctx = AppContext {
+            db: db.clone(),
+            event_manager: Arc::new(app_handle),
+        };
 
-        let router = server::create_router(db.clone(), project_id, app_handle.clone());
+        let router = server::create_router(ctx, project_id, log);
         Ok(Self { router, db })
     }
 
@@ -158,11 +167,16 @@ pub async fn create_test_user(
     Ok(user)
 }
 
+use pesa_playground_lib::server::api::c2b::ResponseType;
+
 #[derive(Default)]
 pub struct CreateTestPaybillOptions {
     pub business_id: u32,
     pub paybill_number: Option<u32>,
     pub balance: Option<i64>,
+    pub validation_url: Option<String>,
+    pub confirmation_url: Option<String>,
+    pub response_type: Option<ResponseType>,
 }
 
 pub async fn create_test_paybill(
@@ -183,7 +197,9 @@ pub async fn create_test_paybill(
         account_id: Set(account.id),
         business_id: Set(options.business_id),
         paybill_number: Set(options.paybill_number.unwrap_or(600000)),
-        ..Default::default()
+        validation_url: Set(options.validation_url),
+        confirmation_url: Set(options.confirmation_url),
+        response_type: Set(options.response_type.map(|rt| rt.to_string())),
     }
     .insert(db)
     .await?;
@@ -191,11 +207,14 @@ pub async fn create_test_paybill(
     Ok(paybill)
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct CreateTestTillOptions {
     pub business_id: u32,
     pub till_number: Option<u32>,
     pub balance: Option<i64>,
+    pub validation_url: Option<String>,
+    pub confirmation_url: Option<String>,
+    pub response_type: Option<ResponseType>,
 }
 
 pub async fn create_test_till(
@@ -216,6 +235,9 @@ pub async fn create_test_till(
         account_id: Set(account.id),
         business_id: Set(options.business_id),
         till_number: Set(options.till_number.unwrap_or(123456)),
+        validation_url: Set(options.validation_url),
+        confirmation_url: Set(options.confirmation_url),
+        response_type: Set(options.response_type.map(|rt| rt.to_string())),
         ..Default::default()
     }
     .insert(db)

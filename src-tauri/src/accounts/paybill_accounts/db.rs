@@ -7,7 +7,7 @@ pub struct Model {
     pub account_id: u32,
     pub business_id: u32,
     pub paybill_number: u32,
-    pub account_validation_regex: Option<String>,
+    pub response_type: Option<String>,
     pub validation_url: Option<String>,
     pub confirmation_url: Option<String>,
 }

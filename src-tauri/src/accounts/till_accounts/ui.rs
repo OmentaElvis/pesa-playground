@@ -7,6 +7,7 @@ use tauri::State;
 
 use crate::accounts::{self, AccountType};
 use crate::db::Database;
+use crate::server::api::c2b::ResponseType;
 use crate::transactions::Ledger;
 
 use super::{db, CreateTillAccount, TillAccount, TillAccountDetails, UpdateTillAccount};
@@ -39,8 +40,10 @@ pub async fn create_till_account(
         account_id: Set(account_model.id),
         business_id: Set(input.business_id),
         till_number: Set(input.till_number),
-        store_number: Set(input.store_number),
         location_description: Set(input.location_description.clone()),
+        response_type: Set(input.response_type.map(|res| res.to_string())),
+        validation_url: Set(input.validation_url),
+        confirmation_url: Set(input.confirmation_url),
     };
 
     let till_model = &new_till
@@ -85,7 +88,6 @@ pub async fn get_till_account(
         .column(db::Column::AccountId)
         .column(db::Column::BusinessId)
         .column(db::Column::TillNumber)
-        .column(db::Column::StoreNumber)
         .column(db::Column::LocationDescription)
         .column(crate::accounts::db::Column::Balance)
         .column(crate::accounts::db::Column::CreatedAt)
@@ -111,7 +113,6 @@ pub async fn get_till_accounts(
         .column(db::Column::AccountId)
         .column(db::Column::BusinessId)
         .column(db::Column::TillNumber)
-        .column(db::Column::StoreNumber)
         .column(db::Column::LocationDescription)
         .column(crate::accounts::db::Column::Balance)
         .column(crate::accounts::db::Column::CreatedAt)
@@ -141,7 +142,6 @@ pub async fn get_till_accounts_by_business_id(
         .column(db::Column::AccountId)
         .column(db::Column::BusinessId)
         .column(db::Column::TillNumber)
-        .column(db::Column::StoreNumber)
         .column(db::Column::LocationDescription)
         .column(crate::accounts::db::Column::Balance)
         .column(crate::accounts::db::Column::CreatedAt)
@@ -180,11 +180,17 @@ pub async fn update_till_account(
     if let Some(till_number) = input.till_number {
         active_model.till_number = Set(till_number);
     }
-    if let Some(store_number) = input.store_number {
-        active_model.store_number = Set(store_number);
-    }
     if let Some(location_description) = input.location_description {
         active_model.location_description = Set(Some(location_description.clone()));
+    }
+    if let Some(response_type) = input.response_type {
+        active_model.response_type = Set(Some(response_type.to_string()));
+    }
+    if let Some(validation_url) = input.validation_url {
+        active_model.validation_url = Set(Some(validation_url));
+    }
+    if let Some(confirmation_url) = input.confirmation_url {
+        active_model.confirmation_url = Set(Some(confirmation_url));
     }
 
     let updated_till_account = active_model
@@ -196,8 +202,12 @@ pub async fn update_till_account(
         account_id: updated_till_account.account_id,
         business_id: updated_till_account.business_id,
         till_number: updated_till_account.till_number,
-        store_number: updated_till_account.store_number,
         location_description: updated_till_account.location_description,
+        response_type: updated_till_account
+            .response_type
+            .map(|r| r.parse().unwrap_or(ResponseType::Cancelled)),
+        validation_url: updated_till_account.validation_url,
+        confirmation_url: updated_till_account.confirmation_url,
     }))
 }
 

@@ -1,10 +1,9 @@
-use api::{auth::oauth, stkpush::stkpush};
+use crate::AppContext;
+use api::{auth::oauth, c2b::registerurl, stkpush::stkpush};
 use axum::{
     routing::{get, post},
     Router,
 };
-use sea_orm::DatabaseConnection;
-use tauri::AppHandle;
 use tokio::sync::oneshot;
 
 pub mod access_token;
@@ -48,6 +47,11 @@ pub enum MpesaError {
     RateLimitExceeded,    // 429.001.01
     InvalidRequestFormat, // 400.001.01
     Unknown(StatusCode),  // fallback
+
+    // ==== C2B ======
+    UrlsAlreadyRegistered,
+    C2BServerFailure,      // 500.003.1001
+    C2BInvalidAccessToken, // 400.003.01
 }
 
 impl MpesaError {
@@ -160,6 +164,21 @@ impl MpesaError {
                 "400.008.02",
                 "Invalid Authentication passed",
             ),
+            UrlsAlreadyRegistered => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "500.003.1001",
+                "Urls are already registered.",
+            ),
+            C2BInvalidAccessToken => (
+                StatusCode::BAD_REQUEST,
+                "400.003.01",
+                "Invalid Access Token",
+            ),
+            C2BServerFailure => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "500.003.01",
+                "Internal server error",
+            ),
 
             Unknown(status) => (*status, "400.000.00", "Unknown error"),
         }
@@ -168,25 +187,17 @@ impl MpesaError {
 
 #[derive(Clone)]
 pub struct ApiState {
-    pub conn: DatabaseConnection,
+    pub context: AppContext,
     pub project_id: u32,
-    pub handle: AppHandle,
 }
 
-pub async fn start_project_server(
-    project_id: u32,
-    port: u16,
-    conn: DatabaseConnection,
-    shutdown_rx: oneshot::Receiver<()>,
-    handle: AppHandle,
-) -> anyhow::Result<()> {
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
+pub fn create_router(context: AppContext, project_id: u32, log: bool) -> Router {
     let state = ApiState {
-        conn,
+        context,
         project_id,
-        handle,
     };
-    let router = Router::new().route(
+
+    let mut router = Router::new().route(
         "/",
         get(|| async {
     let banner = r#"    
@@ -200,14 +211,35 @@ ______              ______ _                                             _
                                    |___/ |___/                             
     "#;
     format!("{banner}\n\n🧪 Welcome to Pesa Playground Sandbox.\nTry /mpesa/stkpush/v1/processrequest")
-})).route("/oauth/v1/generate", get(oauth))
-.route("/mpesa/stkpush/v1/processrequest", post(stkpush))
-.with_state(state.clone())
-.layer(axum::middleware::from_fn_with_state(state.clone(), log::logging_middleware));
+}))
+    .route("/oauth/v1/generate", get(oauth))
+    .route("/mpesa/stkpush/v1/processrequest", post(stkpush))
+    .route("/mpesa/c2b/v1/registerurl", post(registerurl))
+    .with_state(state.clone());
+
+    if log {
+        router = router.layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            log::logging_middleware,
+        ));
+    }
+
+    router
+}
+
+pub async fn start_project_server(
+    project_id: u32,
+    port: u16,
+    context: AppContext,
+    shutdown_rx: oneshot::Receiver<()>,
+) -> anyhow::Result<()> {
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
+    let router = create_router(context, project_id, true);
 
     axum::serve(listener, router)
         .with_graceful_shutdown(shutdown_signal(shutdown_rx))
         .await?;
+
     Ok(())
 }
 
@@ -259,8 +291,7 @@ impl IntoResponse for ApiError {
         let body = json!({
             "errorCode": code,
             "errorMessage": msg,
-        })
-        .to_string();
+        });
 
         let mut response = (status, Json(body)).into_response();
         response.extensions_mut().insert(self);

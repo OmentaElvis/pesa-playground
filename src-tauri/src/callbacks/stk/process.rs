@@ -2,7 +2,6 @@ use std::time::Duration;
 
 use chrono::Utc;
 use serde_json::json;
-use tauri::Emitter;
 use tokio::sync::oneshot;
 
 use crate::{
@@ -91,7 +90,7 @@ pub async fn callback_execute(
         crate::projects::SimulationMode::Realistic => {}
     }
 
-    let account = match Account::get_account(&state.conn, user.account_id).await {
+    let account = match Account::get_account(&state.context.db, user.account_id).await {
         Ok(Some(account)) => account,
         Ok(None) => {
             return_body(
@@ -149,10 +148,11 @@ pub async fn callback_execute(
 
     let (tx, rx) = oneshot::channel();
     reg.insert(checkout_id.clone(), tx);
-    let business_name = get_account_name(&state.conn, init.business.id).await?;
+    let business_name = get_account_name(&state.context.db, init.business.id).await?;
     if state
-        .handle
-        .emit(
+        .context
+        .event_manager
+        .emit_all(
             "stk_push",
             json!({
                 "checkout_id": checkout_id,
@@ -190,7 +190,7 @@ pub async fn callback_execute(
             UserResponse::Accepted { pin } => {
                 if pin.eq(&user.pin) {
                     match Ledger::transfer(
-                        &state.conn,
+                        &state.context.db,
                         Some(account.id),
                         init.business.id,
                         init.amount,

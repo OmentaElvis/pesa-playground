@@ -2,13 +2,14 @@ use super::{db as user_profiles, User};
 use crate::{
     accounts::{db as accounts, AccountType},
     transactions::Ledger,
+    AppContext,
 };
 use chrono::Utc;
 use fake::{faker::name::en::Name, Fake};
 use rand::seq::IndexedRandom;
 use sea_orm::{prelude::*, ActiveValue::Set, TransactionTrait};
 use serde::{Deserialize, Serialize};
-use tauri::{Emitter, State};
+use tauri::State;
 
 use crate::db::Database;
 
@@ -88,14 +89,14 @@ pub async fn get_users(state: State<'_, Database>) -> Result<Vec<UserDetails>, S
 
 #[tauri::command]
 pub async fn create_user(
-    state: State<'_, Database>,
+    state: State<'_, AppContext>,
     name: String,
     phone: String,
     balance: f64,
     pin: String,
 ) -> Result<u32, String> {
     let txn = state
-        .conn
+        .db
         .begin()
         .await
         .map_err(|err| format!("Failed to start transaction: {}", err))?;
@@ -146,15 +147,16 @@ pub async fn create_user(
         .await
         .map_err(|err| format!("Failed to complete transaction: {}", err))?;
 
-    let _ = state.handle.emit(
+    let _ = state.event_manager.emit_all(
         "new_user",
-        UserDetails {
+        serde_json::to_value(UserDetails {
             id: user_model.account_id,
             name: user_model.name,
             pin: user_model.pin,
             phone: user_model.phone,
             balance: balance as f64 / 100.0,
-        },
+        })
+        .expect("Failed to convert UserDetails to serde_json value"),
     );
     Ok(account_model.id)
 }
