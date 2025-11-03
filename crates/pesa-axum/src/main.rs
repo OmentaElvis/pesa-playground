@@ -6,9 +6,13 @@ use axum::extract::{
     ws::{Message, WebSocket, WebSocketUpgrade},
     State,
 };
-use axum::response::Response;
 use axum::routing::{get, post};
 use axum::Router;
+use axum::{
+    http::Request,
+    middleware::{self, Next},
+    response::Response,
+};
 use clap::Parser;
 use futures_util::stream::StreamExt;
 use futures_util::SinkExt;
@@ -30,9 +34,12 @@ use pesa_core::{
 };
 use pesa_macros::generate_axum_rpc_handler;
 use tokio::sync::{broadcast, Mutex};
+use tower_http::cors::CorsLayer;
 use tower_http::services::ServeDir;
-use tower_http::trace::TraceLayer;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+use log::{error, info};
+
+const TAURI_APP_ID: &str = "net.omenta.pesaplayground";
 
 const WEBSOCKET_CHANNEL_CAPACITY: usize = 100;
 
@@ -84,7 +91,7 @@ async fn handle_socket(socket: WebSocket, event_manager: Arc<AxumEventManager>) 
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(Message::Text(text))) = ws_receiver.next().await {
             // Optionally handle incoming messages from the client
-            println!("Received from WebSocket: {}", text);
+            info!("Received from WebSocket: {}", text);
         }
     });
 
@@ -189,25 +196,84 @@ struct CliArgs {
     webroot: PathBuf,
 }
 
+async fn log_requests(mut req: Request<axum::body::Body>, next: Next) -> Response {
+    let start = std::time::Instant::now();
+    let method = req.method().clone();
+    let uri = req.uri().clone();
+
+    let mut rpc_method = None;
+
+    if uri.path() == "/rpc" {
+        let (parts, body) = req.into_parts();
+        let bytes = axum::body::to_bytes(body, usize::MAX)
+            .await
+            .unwrap_or_default();
+
+        if let Ok(json_body) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+            if let Some(method_name) = json_body["method"].as_str() {
+                rpc_method = Some(method_name.to_string());
+            }
+        }
+        req = Request::from_parts(parts, axum::body::Body::from(bytes));
+    }
+
+    let response = next.run(req).await;
+
+    let duration = start.elapsed();
+    match rpc_method {
+        Some(rpc_method) => info!(
+            "{} {} ({}) -> {} ({:?})",
+            method,
+            uri,
+            rpc_method,
+            response.status(),
+            duration
+        ),
+        None => info!(
+            "{} {} -> {} ({:?})",
+            method,
+            uri,
+            response.status(),
+            duration
+        ),
+    }
+
+    response
+}
+
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "pesa_axum=debug,tower_http=debug".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    std::env::set_var("RUST_LOG", "info,sqlx=warn");
+    env_logger::init();
 
     let cli_args = CliArgs::parse();
 
-    let db_path = std::path::Path::new("database.sqlite");
-    let db = pesa_core::db::Database::new(db_path)
+    let db_path = if let Some(mut data_dir) = dirs::data_dir() {
+        data_dir.push(TAURI_APP_ID);
+        if !data_dir.exists() {
+            if let Err(e) = std::fs::create_dir_all(&data_dir) {
+                error!("Failed to create data directory: {}", e);
+                // Fallback to current directory
+                PathBuf::from("database.sqlite")
+            } else {
+                data_dir.push("database.sqlite");
+                data_dir
+            }
+        } else {
+            data_dir.push("database.sqlite");
+            data_dir
+        }
+    } else {
+        // Fallback to current directory
+        PathBuf::from("database.sqlite")
+    };
+
+    let db = pesa_core::db::Database::new(&db_path)
         .await
         .expect("Failed to initialize database");
 
     if let Err(err) = db.init().await {
-        eprintln!("Database error: {:?}", err);
+        error!("Database error: {:?}", err);
     }
 
     let (event_sender, _event_receiver) = broadcast::channel(WEBSOCKET_CHANNEL_CAPACITY);
@@ -231,10 +297,11 @@ async fn main() {
         .route("/ws", get(ws_handler))
         .with_state(app_state)
         .fallback_service(ServeDir::new(cli_args.webroot))
-        .layer(TraceLayer::new_for_http());
+        .layer(middleware::from_fn(log_requests))
+        .layer(CorsLayer::permissive());
 
     let addr = format!("{}:{}", cli_args.address, cli_args.port);
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-    println!("listening on {}", listener.local_addr().unwrap());
+    info!("listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
 }

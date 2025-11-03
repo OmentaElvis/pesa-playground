@@ -10,9 +10,11 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1.0"
 clap = { version = "4.0", features = ["derive"] }
-tower-http = { version = "0.5", features = ["fs", "trace"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tower-http = { version = "0.5", features = ["fs", "cors"] }
+log = "0.4"
+env_logger = "0.10"
 pesa-core = { path = "../pesa-core" }
 pesa-macros = { path = "../pesa-macros" }
 futures-util = "0.3.31"
+dirs = "5.0"
+bytes = "1.0"
