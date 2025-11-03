@@ -1,0 +1,48 @@
+[package]
+name = "pesa-tauri"
+version = "0.1.0"
+description = "A Tauri App"
+authors = ["you"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "pesa_playground_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["test"] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+axum = "0.8.4"
+fake = "4.3.0"
+sqlx = { version = "0.8.6", features = ["chrono", "runtime-tokio", "sqlite"] }
+anyhow = "1.0.98"
+nanoid = "0.4.0"
+sea-query = { version = "0.32.6", features = ["backend-sqlite"] }
+chrono = { version = "0.4.41", features = ["serde"] }
+uuid = { version = "1.17.0", features = ["v4"] }
+tokio = { version = "1.45.1", features = ["full"] }
+http-body-util = "0.1.3"
+bytes = "1.10.1"
+rand = "0.9.1"
+base64 = "0.22.1"
+reqwest = { version = "0.12.22", features = ["json"] }
+once_cell = "1.21.3"
+sea-orm = { version = "1.1.14", features = ["sqlx-sqlite"] }
+strum = { version = "0.27.2", features = ["derive"] }
+thiserror = "2.0.12"
+tower = "0.5.2"
+pesa-core = { path = "../pesa-core" }
+pesa-macros = { path = "../pesa-macros" }
+
+[dev-dependencies]
+mockito = "1.4.0"

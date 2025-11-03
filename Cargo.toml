@@ -1,0 +1,9 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/pesa-core",
+    "crates/pesa-tauri",
+    "crates/pesa-macros",
+    "crates/pesa-axum",
+    # "crates/pesa-ratatui",
+]
