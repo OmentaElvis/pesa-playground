@@ -3,7 +3,7 @@ import { provideInvoke, type Invoke } from '../api';
 console.log('Providing Web (fetch) invoke implementation');
 
 const webInvoke: Invoke = async (cmd, args) => {
-  const response = await fetch('http://localhost:3000/rpc', {
+  const response = await fetch('/rpc', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
