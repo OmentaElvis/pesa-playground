@@ -35,7 +35,7 @@ use pesa_core::{
 use pesa_macros::generate_axum_rpc_handler;
 use tokio::sync::{broadcast, Mutex};
 use tower_http::cors::CorsLayer;
-use tower_http::services::ServeDir;
+use tower_http::services::{ServeDir, ServeFile};
 
 use log::{error, info};
 
@@ -296,7 +296,10 @@ async fn main() {
         .route("/rpc", post(rpc_handler))
         .route("/ws", get(ws_handler))
         .with_state(app_state)
-        .fallback_service(ServeDir::new(cli_args.webroot))
+        .fallback_service(
+        ServeDir::new(cli_args.webroot.clone())
+            .not_found_service(ServeFile::new(cli_args.webroot.join("index.html"))),
+    )
         .layer(middleware::from_fn(log_requests))
         .layer(CorsLayer::permissive());
 
