@@ -24,7 +24,7 @@ export default defineConfig(async ({ mode }) => {
     clearScreen: false,
     // 2. tauri expects a fixed port, fail if that port is not available
     server: {
-      port: 1420,
+      port: target === 'tauri' ? 1420 : 5173,
       strictPort: true,
       host: host || false,
       hmr: host
@@ -34,8 +34,18 @@ export default defineConfig(async ({ mode }) => {
           port: 1421,
         }
         : undefined,
-      watch: {
-      },
+      watch: {},
+
+      proxy: target === 'web' ? {
+        '/rpc': {
+          target: 'http://127.0.0.1:3000',
+          changeOrigin: true,
+        },
+        '/ws': {
+          target: 'http://127.0.0.1:3000',
+          ws: true,
+        },
+      } : undefined,
     },
   }
 });
