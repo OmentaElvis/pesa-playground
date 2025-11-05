@@ -30,9 +30,9 @@
   import { onMount } from "svelte";
   import { listen } from "$lib/api";
   import { activeUserPageId } from "$lib/stores/activePageStore";
+  import { sidebarStore } from "$lib/stores/sidebarStore";
 
   let id = $derived(page.params.id);
-  let stkOpen = $state(false);
 
   let user: Promise<UserDetails | null> = $derived(getUser(Number(id)));
   let transactions: Promise<FullTransactionLog[]> = $derived(
@@ -68,6 +68,22 @@
     }
   }
 
+  $effect(() => {
+    user.then((u) => {
+      if (!u) return;
+      
+      sidebarStore.register({
+        id: 'user-stk-menu',
+        title: `${u.name}'s Sim Toolkit`,
+        icon: CardSim,
+        component: SimToolkit,
+        props: {
+          user: u
+        }
+      });
+    })
+  });
+
   onMount(() => {
     // Set active user page ID
     activeUserPageId.set(Number(id));
@@ -88,6 +104,7 @@
     return () => {
       activeUserPageId.set(null);
       unlisten.then((f) => f());
+      sidebarStore.unregister('user-stk-menu');
     };
   });
 </script>
@@ -123,9 +140,6 @@
               </div>
             </div>
           </div>
-          <Button variant="ghost" onclick={() => (stkOpen = true)}>
-            <CardSim />
-          </Button>
           <DropdownMenu.Root>
             <DropdownMenu.Trigger>
               <EllipsisVertical />
@@ -222,7 +236,6 @@
       {#await transactions then transactions}
         <TransactionList {transactions} {user} />
       {/await}
-      <SimToolkit bind:open={stkOpen} {user} />
     {/if}
   {:catch err}
     <div class="p-4">

@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
-  import { ArrowRight, ArrowLeft, Bell } from 'lucide-svelte';
+  import { ArrowRight, ArrowLeft, Bell, History } from 'lucide-svelte';
   import * as Popover from "$lib/components/ui/popover/index.js";
   import { ScrollArea } from "$lib/components/ui/scroll-area/index.js";
   import { formatAmount } from "$lib/utils";
@@ -14,11 +14,17 @@
 	import AppSidebar from '$lib/components/AppSidebar.svelte';
 	import StkPushDialog from '$lib/components/StkPushDialog.svelte';
   import { listen, type UnlistenFn } from "$lib/api";
-  import { onDestroy } from "svelte";
+  import { onDestroy, onMount } from "svelte";
   import { resolveStkPrompt, type FullTransactionLog, resolveAccountAndNavigate } from "$lib/api";
   import { transactionLogStore } from '$lib/stores/transactionLogStore';
   import { Toaster } from "svelte-sonner";
   import { goto } from "$app/navigation";
+  import { Pane, PaneGroup as PaneForge} from "paneforge";
+  import SmartSidebar from "$lib/components/SmartSidebar.svelte";
+  import { sidebarStore } from "$lib/stores/sidebarStore";
+  import ApiLogWidget from "$lib/components/widgets/ApiLogWidget.svelte";
+  import { Tween } from 'svelte/motion';
+  import { cubicOut } from "svelte/easing";
 
   let WindowControls: any = $state(null);
   if (import.meta.env.MODE === 'tauri') {
@@ -27,32 +33,66 @@
   	});
   }
 
+  let innerWidth = $state(0);
+  // 42 px
+  let minSmartbarWidth = $derived(Math.ceil((42 / innerWidth) * 100));
+  let width = $derived(new Tween(minSmartbarWidth, {
+  	duration: 200,
+  	easing: cubicOut
+  }));
+
 	let { children } = $props();
 
 	let stkPush: any = $state(null);
 	let stkPushOpened : boolean = $state(false);
 	let titlebar: HTMLDivElement | null = $state(null);
+  let rightPane: Pane | undefined = $state();
 
   const unlistenFunctions: UnlistenFn[] = [];
 
-  listen('stk_push', (e)=> {
-  	stkPush = e.payload;
-  	stkPushOpened = true;
-  }).then((un)=> {
-  	unlistenFunctions.push(un);
-  }).catch((err)=> {
-  	console.log(err)
+  onMount(() => {
+    sidebarStore.register({
+      id: 'api-logs',
+      title: 'API Logs',
+      icon: History,
+      component: ApiLogWidget,
+    });
+
+    if (innerWidth > 1000) {
+    	sidebarStore.setActiveWidget('api-logs');
+    }
+
+    listen('stk_push', (e)=> {
+      stkPush = e.payload;
+      stkPushOpened = true;
+    }).then((un)=> {
+      unlistenFunctions.push(un);
+    }).catch((err)=> {
+      console.log(err)
+    });
+
+    listen<FullTransactionLog>('new_transaction', (e) => {
+      console.log('New transaction log received', e.payload);
+      transactionLogStore.add(e.payload);
+    }).then((un) => {
+      unlistenFunctions.push(un);
+    }).catch((err) => {
+      console.error('Failed to set up new_transaction listener:', err);
+    });
   });
 
-  listen<FullTransactionLog>('new_transaction', (e) => {
-		console.log('New transaction log received', e.payload);
-		transactionLogStore.add(e.payload);
-  }).then((un) => {
-		unlistenFunctions.push(un);
-  }).catch((err) => {
-		console.error('Failed to set up new_transaction listener:', err);
-  });
+  const { isCollapsed } = sidebarStore;
 
+  // Reactive effect to control pane size
+  $effect(() => {
+    if (!rightPane) return;
+
+    if ($isCollapsed) {
+      width.target = minSmartbarWidth;
+    } else {
+      width.target = Math.ceil((350 / innerWidth) * 100);
+    }
+  });
 
   async function stkPushAction(e: CustomEvent) {
   	let detail: {action: string, checkout_id: string} = e.detail;
@@ -121,9 +161,11 @@
         }
     }
     return `Transaction of ${formattedAmount} between ${log.from_name} and ${log.to_name}`; // Fallback
-}
+  }
 	
 </script>
+
+<svelte:window bind:innerWidth />
 
 <ModeWatcher />
 <Sidebar.Provider>
@@ -144,9 +186,28 @@
 		{/if}
 	</div>
 	<AppSidebar variant="sidebar" />
-	<div class="mt-[36px] mb-[32px] h-[calc(100vh-72px)] w-full overflow-y-auto">
-		{@render children()}
-	</div>
+
+  <div class="mt-[36px] mb-[32px] h-[calc(100vh-72px)] w-full">
+    <div class="h-full" >
+      <PaneForge direction="horizontal" class="w-full h-full">
+        <Pane id="main-content" class="h-full overflow-y-auto">
+          {@render children()}
+        </Pane>
+        <Pane id="right-sidebar"
+        	    bind:this={rightPane}
+        	    defaultSize={width.current}
+        	    minSize={width.current}
+        	    collapsible={true}
+        	    collapsedSize={minSmartbarWidth}
+        	    onCollapse={() => isCollapsed.set(true)}
+        	    onExpand={() => isCollapsed.set(false)}
+        	    class="h-full overflow-hidden">
+          <SmartSidebar />
+        </Pane>
+      </PaneForge>
+    </div>
+  </div>
+
 	<div class="bg-muted h-[36px] fixed w-full bottom-0 border z-1000 flex items-center justify-between px-2">
 		<div>
 			<Button variant="ghost" onclick={back} class="cursor-pointer" aria-label="back"> <ArrowLeft /></Button>
@@ -197,3 +258,9 @@
 </Sidebar.Provider>
 <StkPushDialog bind:open={stkPushOpened} dialogData={stkPush} on:action={stkPushAction} />
 <Toaster position="top-right" richColors offset="40px" />
+
+<style>
+	:global(body) {
+		overflow: hidden;
+	}
+</style>

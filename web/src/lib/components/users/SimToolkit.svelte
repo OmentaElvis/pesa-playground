@@ -1,5 +1,4 @@
 <script lang="ts">
-  import * as Drawer from "$lib/components/ui/drawer";
   import { Button } from "../ui/button";
   import { Input } from "$lib/components/ui/input/index.js";
   import type {
@@ -7,12 +6,12 @@
     PaybillAccountDetails,
     TillAccountDetails,
   } from "$lib/api";
-  import { X, ArrowLeft, LoaderCircle } from "lucide-svelte";
+  import { ArrowLeft, LoaderCircle } from "lucide-svelte";
   import { getUsers, getPaybillAccounts, getTillAccounts, transfer, getUserByPhone, TransactionType } from "$lib/api";
-    import { toast } from "svelte-sonner";
+  import { toast } from "svelte-sonner";
 
-  export let open = false;
-  export let user: UserDetails;
+  let props: {user: UserDetails} = $props();
+  let user: UserDetails = $derived(props.user || {});
 
   interface SimMenu {
     title: string;
@@ -22,18 +21,18 @@
     isSuccess?: boolean;
   }
 
-  let simMenuStack: string[] = [];
-  let currentSimMenu = "main";
+  let simMenuStack: string[] = $state([]);
+  let currentSimMenu = $state("main");
   let simFormData: Record<string, any> = {};
-  let simInputMode: string | null = null;
-  let simInputValue = "";
-  let simInputPrompt = "";
-  let simInputCallback: ((arg0: string) => void) | null = null;
+  let simInputMode: string | null = $state(null);
+  let simInputValue = $state("");
+  let simInputPrompt = $state("");
+  let simInputCallback: ((arg0: string) => void) | null = $state(null);
   let suggestions: (UserDetails | PaybillAccountDetails | TillAccountDetails)[] =
     [];
-  let suggestionType: "phone" | "paybill" | "till" | null = null;
-  let suggestionsLoading = false;
-  let submitting = false;
+  let suggestionType: "phone" | "paybill" | "till" | null = $state(null);
+  let suggestionsLoading = $state(false);
+  let submitting = $state(false);
 
   type SubmitType = "SendMoney" | "BuyAirtime" | "Paybill" | "BuyGoodsTill";
 
@@ -48,8 +47,6 @@
   function goBackSimMenu() {
     if (simMenuStack.length > 0) {
       currentSimMenu = simMenuStack.pop() || "";
-    } else {
-      open = false;
     }
   }
 
@@ -95,6 +92,12 @@
     suggestions = [];
   }
 
+  function resetMenu() {
+    cancelSimInput();
+    currentSimMenu = "main";
+    simMenuStack = [];    
+  }
+
   async function transferMoneyToUser() {
    try {
       let phone = simFormData.phone;
@@ -105,9 +108,8 @@
       }
       let amount = Number(simFormData.amount) * 100;
       let txn = await transfer(user.id, receiver.id, amount, TransactionType.SendMoney);
-      toast.info(`${txn.id}. Sent money to ${phone}. `);
-      currentSimMenu = "main";
-      open = false;
+      toast.info(`${txn.id}. Sent money to ${phone}. `);     
+      resetMenu();
     } catch(err) {
       toast.error(`${err}`);
     }
@@ -193,7 +195,7 @@
     navigateSimMenu("phonebook");
   }
 
-  const simMenus: Record<string, SimMenu> = {
+  const simMenus: Record<string, SimMenu> = $derived({
     main: {
       title: "M-PESA",
       options: [
@@ -392,9 +394,9 @@
       isSuccess: true,
       options: [],
     },
-  };
+  });
 
-  $: filteredSuggestions = suggestions.filter((suggestion) => {
+  let filteredSuggestions = $derived(suggestions.filter((suggestion) => {
     if (!simInputValue) return true;
     if (suggestionType === "phone") {
       const u = suggestion as UserDetails;
@@ -410,11 +412,10 @@
       return t.till_number.toString().includes(simInputValue);
     }
     return true;
-  });
-</script>
+  }));
 
-<Drawer.Root bind:open direction="right">
-  <Drawer.Content class="mt-[36px]">
+</script>
+<div>
     <div class="h-full">
       <div class="text-sm rounded-lg w-full h-full">
         <div class="p-3 flex flex-col h-full">
@@ -457,7 +458,7 @@
                   {#if simInputMode === 'password'}
                     <p class="text-xs text-muted-foreground">Suggestion:</p>
                     <button
-                      on:click={() => {
+                      onclick={() => {
                         simInputValue = user.pin;
                         handleSimInput();
                       }}
@@ -477,7 +478,7 @@
                       <div class="max-h-full overflow-y-auto">
                         {#each filteredSuggestions as suggestion}
                           <button
-                            on:click={() => {
+                            onclick={() => {
                               if (suggestionType === "phone") {
                                 simInputValue = (
                                   suggestion as UserDetails
@@ -515,16 +516,13 @@
               </div>
             </div>
           {:else}
-            <div class="flex py-8 justify-between items-center w-full">
-              <div class="mb-1">STK Menu</div>
-              <div class="">
+            <div class="flex justify-between items-center w-full">
+              <div></div>
+              {#if simMenuStack.length > 0}
                 <Button variant="ghost" onclick={goBackSimMenu}>
                   <ArrowLeft />
                 </Button>
-                <Button variant="ghost" onclick={() => (open = false)}>
-                  <X />
-                </Button>
-              </div>
+              {/if}
             </div>
 
             <div class="flex-1">
@@ -533,7 +531,7 @@
                   {#each simMenus[currentSimMenu].options as option}
                     <button
                       class="w-full text-left p-2 text-xs cursor-pointer hover:bg-muted transition-colors radius"
-                      on:click={option.action}
+                      onclick={option.action}
                     >
                       {option.label}
                     </button>
@@ -550,5 +548,4 @@
         </div>
       </div>
     </div>
-  </Drawer.Content>
-</Drawer.Root>
+</div>

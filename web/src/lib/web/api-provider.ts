@@ -26,7 +26,7 @@ const webInvoke: Invoke = async (cmd, args) => {
   const json = await response.json();
 
   if (json.error) {
-    throw new Error(json.error.message);
+    throw new Error(`Call '${cmd}' failed with ${json.error.message}`);
   }
 
   return json.result;

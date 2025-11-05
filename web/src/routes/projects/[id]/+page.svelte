@@ -147,9 +147,10 @@
   }
 
   function debounce(func: Function, wait: number) {
-    let timeout: number;
+    let timeout: any;
     return function (...args: any[]) {
       clearTimeout(timeout);
+      // @ts-ignore
       timeout = setTimeout(() => func.apply(this, args), wait);
     };
   }
