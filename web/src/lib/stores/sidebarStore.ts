@@ -13,6 +13,7 @@ function createSidebarStore() {
   const activeWidgetId = writable<string | null>(null);
   const isCollapsed = writable<boolean>(true);
   const lastAddedWidgetId = writable<string | null>(null);
+  const pendingWidgetId = writable<string | null>(null);
 
   const register = (widget: WidgetConfig) => {
     widgets.update(ws => {
@@ -20,6 +21,12 @@ function createSidebarStore() {
       lastAddedWidgetId.set(widget.id);
       return new Map(ws);
     });
+
+    // Check if the newly registered widget was the one we were waiting for
+    if (get(pendingWidgetId) === widget.id) {
+      setActiveWidget(widget.id);
+      pendingWidgetId.set(null); // Clear the pending state
+    }
   };
 
   const unregister = (id: string) => {
@@ -41,15 +48,13 @@ function createSidebarStore() {
   };
 
   const setActiveWidget = (id: string) => {
-    if (get(activeWidgetId) === id) {
-      isCollapsed.update((value)=> {
-        return !value;
-      });
-
-      return;
+    if (get(activeWidgetId) === id && !get(isCollapsed)) {
+        isCollapsed.set(true);
+    } else {
+        activeWidgetId.set(id);
+        isCollapsed.set(false);
     }
-    activeWidgetId.set(id);
-    isCollapsed.set(false);
+    pendingWidgetId.set(null); // An explicit action clears any pending state
   };
 
   const collapse = () => {
@@ -60,15 +65,38 @@ function createSidebarStore() {
     lastAddedWidgetId.set(null);
   };
 
+  const initFromUrl = (params: URLSearchParams) => {
+    const widgetId = params.get('widget');
+    const collapsed = params.get('collapsed');
+
+    if (widgetId) {
+      // Don't set active directly, set as pending
+      pendingWidgetId.set(widgetId);
+    }
+
+    if (collapsed === 'true') {
+      isCollapsed.set(true);
+    }
+  };
+
+  const resolvePending = () => {
+    // If after a timeout there's still a pending widget, it means it was invalid.
+    // So we clear the pending state and collapse.
+    if (get(pendingWidgetId)) {
+      pendingWidgetId.set(null);
+      collapse();
+    }
+  };
+
   const widgetArray = derived(widgets, $widgets => Array.from($widgets.values()));
   const activeWidget = derived([widgets, activeWidgetId], ([$widgets, $activeWidgetId]) => 
     $activeWidgetId ? $widgets.get($activeWidgetId) : null
   );
 
   return {
-    subscribe: isCollapsed.subscribe, // Default subscription is to isCollapsed
-    widgets: widgetArray, // Expose widgets as a derived array store
-    activeWidget, // Expose the active widget object
+    subscribe: isCollapsed.subscribe,
+    widgets: widgetArray,
+    activeWidget,
     lastAddedWidgetId,
     isCollapsed,
     register,
@@ -76,6 +104,8 @@ function createSidebarStore() {
     setActiveWidget,
     collapse,
     acknowledgeNewWidget,
+    initFromUrl,
+    resolvePending,
   };
 }
 

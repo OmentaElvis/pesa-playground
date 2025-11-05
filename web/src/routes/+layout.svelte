@@ -19,6 +19,8 @@
   import { transactionLogStore } from '$lib/stores/transactionLogStore';
   import { Toaster } from "svelte-sonner";
   import { goto } from "$app/navigation";
+  import { page } from "$app/stores";
+  import { get } from "svelte/store";
   import { Pane, PaneGroup as PaneForge} from "paneforge";
   import SmartSidebar from "$lib/components/SmartSidebar.svelte";
   import { sidebarStore } from "$lib/stores/sidebarStore";
@@ -58,9 +60,13 @@
       component: ApiLogWidget,
     });
 
-    if (innerWidth > 1000) {
-    	sidebarStore.setActiveWidget('api-logs');
-    }
+    // Pass URL params to store for initialization
+    sidebarStore.initFromUrl($page.url.searchParams);
+
+    // Set a timeout to resolve any pending widget that was not registered
+    setTimeout(() => {
+        sidebarStore.resolvePending();
+    }, 500);
 
     listen('stk_push', (e)=> {
       stkPush = e.payload;
@@ -81,7 +87,40 @@
     });
   });
 
-  const { isCollapsed } = sidebarStore;
+  const { isCollapsed, activeWidget } = sidebarStore;
+
+  // Effect to sync store state to URL
+  $effect(() => {
+    if (!$page.url) return; // Ensure page store is hydrated
+
+    const widgetId = $activeWidget?.id;
+    const collapsed = $isCollapsed;
+    const params = new URLSearchParams($page.url.searchParams);
+
+    if (widgetId && !collapsed) {
+        params.set('widget', widgetId);
+    } else {
+        params.delete('widget');
+    }
+
+    if (collapsed) {
+        params.set('collapsed', 'true');
+    } else {
+        params.delete('collapsed');
+    }
+
+    const newSearch = params.toString().replace(/=$/, '');
+    const currentSearch = $page.url.search.replace(/^\?/, '');
+
+    if (newSearch !== currentSearch) {
+        const url = `${$page.url.pathname}${newSearch ? `?${newSearch}`: ''}`;
+        goto(url, {
+            replaceState: true,
+            noScroll: true,
+            keepFocus: true,
+        });
+    }
+  });
 
   // Reactive effect to control pane size
   $effect(() => {
