@@ -1,85 +1,90 @@
-/**
- * Web platform implementation of the event API.
- *
- * Provides a compatible `listen` function that mimics Tauri's event API,
- * but uses a WebSocket connection to an Axum backend instead.
- */
+import { provideListen, type Listen, type ListenerFn } from '$lib/api';
+import { connectionStore } from '../stores/connectionStore';
+import { footerWidgetStore } from '../stores/footerWidgetStore';
+import ConnectionStatusWidget from '../components/widgets/ConnectionStatusWidget.svelte';
 
-import type { Listen } from '$lib/api';
-import { provideListen } from '$lib/api';
+console.log('Providing Web (WebSocket) listen implementation');
 
-// Registry of event listeners by event name
-const listeners: Record<string, Array<(event: { event: string; payload: any }) => void>> = {};
-
+const eventListeners = new Map<string, Set<ListenerFn>>();
 let socket: WebSocket | null = null;
-let socketStatus: 'disconnected' | 'connecting' | 'connected' = 'disconnected';
+let retryTimeout: any = null;
+let retryCount = 0;
 
-/**
- * Establishes a WebSocket connection if one does not already exist.
- */
 function connect() {
-  if (socket && socketStatus !== 'disconnected') return;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const url = `${protocol}//${window.location.host}/ws`;
 
-  socketStatus = 'connecting';
-  console.log('[WebSocket] Connecting...');
+    console.log('[WebSocket] Attempting to connect...');
+    connectionStore.setStatus('connecting');
 
-  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+    socket = new WebSocket(url);
 
-  socket = new WebSocket(wsUrl);
+    socket.onopen = () => {
+        console.log('[WebSocket] Connection established.');
+        connectionStore.setStatus('connected');
+        retryCount = 0;
+        if (retryTimeout) {
+            clearTimeout(retryTimeout);
+            retryTimeout = null;
+        }
+    };
 
-  socket.onopen = () => {
-    socketStatus = 'connected';
-    console.log('[WebSocket] Connected');
-  };
+    socket.onmessage = (event) => {
+        try {
+            const parsed = JSON.parse(event.data);
+            if (parsed.event && eventListeners.has(parsed.event)) {
+                eventListeners.get(parsed.event)?.forEach(handler => handler(parsed));
+            }
+        } catch (e) {
+            console.error('[WebSocket] Failed to parse message:', e);
+        }
+    };
 
-  socket.onmessage = (event) => {
-    try {
-      const message = JSON.parse(event.data);
+    socket.onclose = () => {
+        console.log('[WebSocket] Connection closed.');
+        connectionStore.setStatus('disconnected');
+        socket = null;
 
-      if (message.event && listeners[message.event]) {
-        const payload = { event: message.event, payload: message.payload };
-        for (const handler of listeners[message.event]) handler(payload);
-      }
-    } catch (err) {
-      console.error('[WebSocket] Failed to parse message:', err);
-    }
-  };
+        // Exponential backoff retry logic
+        const delay = Math.min(1000 * Math.pow(2, retryCount), 30000); // Max 30 seconds
+        retryCount++;
+        console.log(`[WebSocket] Will attempt to reconnect in ${delay / 1000} seconds...`);
+        retryTimeout = setTimeout(connect, delay);
+    };
 
-  socket.onclose = () => {
-    socketStatus = 'disconnected';
-    socket = null;
-    console.log('[WebSocket] Disconnected');
-    // Optional: auto-reconnect logic can go here
-  };
-
-  socket.onerror = (err) => {
-    console.error('[WebSocket] Error:', err);
-    socket?.close();
-  };
+    socket.onerror = (err) => {
+        console.error('[WebSocket] Error:', err);
+        // onclose will be called automatically after an error, triggering the retry logic.
+    };
 }
 
-/**
- * Web implementation of `listen(event, handler)`, compatible with the unified API.
- */
-export const webListen: Listen = async (event, handler) => {
-  connect();
+const webListen: Listen = async (event, handler) => {
+    if (!eventListeners.has(event)) {
+        eventListeners.set(event, new Set());
+    }
+    eventListeners.get(event)?.add(handler);
 
-  if (!listeners[event]) {
-    listeners[event] = [];
-  }
-
-  listeners[event].push(handler);
-
-  const unlisten = async () => {
-    const handlers = listeners[event];
-    if (!handlers) return;
-    const index = handlers.indexOf(handler);
-    if (index !== -1) handlers.splice(index, 1);
-    if (handlers.length === 0) delete listeners[event];
-  };
-
-  return unlisten;
+    // Return an unlisten function
+    return () => {
+        if (eventListeners.has(event)) {
+            eventListeners.get(event)?.delete(handler);
+            if (eventListeners.get(event)?.size === 0) {
+                eventListeners.delete(event);
+            }
+        }
+    };
 };
 
+// --- Initialization ---
+
+// Provide the listen implementation to the rest of the app
 provideListen(webListen);
+
+// Start the WebSocket connection
+connect();
+
+// Register the connection status widget in the footer
+footerWidgetStore.register({
+    id: 'connection-status',
+    component: ConnectionStatusWidget,
+});

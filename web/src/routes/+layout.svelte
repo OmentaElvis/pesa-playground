@@ -19,14 +19,14 @@
   import { transactionLogStore } from '$lib/stores/transactionLogStore';
   import { Toaster } from "svelte-sonner";
   import { goto } from "$app/navigation";
-  import { page } from "$app/stores";
-  import { get } from "svelte/store";
+  import { page } from "$app/state";
   import { Pane, PaneGroup as PaneForge} from "paneforge";
   import SmartSidebar from "$lib/components/SmartSidebar.svelte";
   import { sidebarStore } from "$lib/stores/sidebarStore";
   import ApiLogWidget from "$lib/components/widgets/ApiLogWidget.svelte";
   import { Tween } from 'svelte/motion';
   import { cubicOut } from "svelte/easing";
+  import { footerWidgetStore } from '$lib/stores/footerWidgetStore';
 
   let WindowControls: any = $state(null);
   if (import.meta.env.MODE === 'tauri') {
@@ -61,7 +61,7 @@
     });
 
     // Pass URL params to store for initialization
-    sidebarStore.initFromUrl($page.url.searchParams);
+    sidebarStore.initFromUrl(page.url.searchParams);
 
     // Set a timeout to resolve any pending widget that was not registered
     setTimeout(() => {
@@ -91,11 +91,11 @@
 
   // Effect to sync store state to URL
   $effect(() => {
-    if (!$page.url) return; // Ensure page store is hydrated
+    if (!page.url) return; // Ensure page store is hydrated
 
     const widgetId = $activeWidget?.id;
     const collapsed = $isCollapsed;
-    const params = new URLSearchParams($page.url.searchParams);
+    const params = new URLSearchParams(page.url.searchParams);
 
     if (widgetId && !collapsed) {
         params.set('widget', widgetId);
@@ -110,10 +110,10 @@
     }
 
     const newSearch = params.toString().replace(/=$/, '');
-    const currentSearch = $page.url.search.replace(/^\?/, '');
+    const currentSearch = page.url.search.replace(/^\?/, '');
 
     if (newSearch !== currentSearch) {
-        const url = `${$page.url.pathname}${newSearch ? `?${newSearch}`: ''}`;
+        const url = `${page.url.pathname}${newSearch ? `?${newSearch}`: ''}`;
         goto(url, {
             replaceState: true,
             noScroll: true,
@@ -252,6 +252,13 @@
 			<Button variant="ghost" onclick={back} class="cursor-pointer" aria-label="back"> <ArrowLeft /></Button>
 			<Button variant="ghost" onclick={forward} class="cursor-pointer" aria-label="foward"> <ArrowRight /></Button>
 		</div>
+
+    <div class="flex gap-4 flex-1">
+      {#each $footerWidgetStore as widget (widget.id)}
+        <widget.component {...(widget.props || {})} />
+      {/each}
+    </div>
+
 		<div>
 			<Popover.Root>
 				<Popover.Trigger>

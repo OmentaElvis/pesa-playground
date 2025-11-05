@@ -1,6 +1,6 @@
 import { provideInvoke, type Invoke } from '../api';
 
-console.log('Providing Web (fetch) invoke implementation');
+console.log('Providing Web API providers (fetch & WebSocket)');
 
 const webInvoke: Invoke = async (cmd, args) => {
   const response = await fetch('/rpc', {
@@ -17,7 +17,6 @@ const webInvoke: Invoke = async (cmd, args) => {
   });
 
   if (!response.ok) {
-    // Try to parse the error response from the server
     const errorBody = await response.json().catch(() => null);
     const errorMessage = errorBody?.error?.message || `HTTP error! status: ${response.status}`;
     throw new Error(errorMessage);
