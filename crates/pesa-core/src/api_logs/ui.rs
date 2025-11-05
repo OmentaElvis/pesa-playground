@@ -3,7 +3,7 @@ use super::{db::Entity as ApiLogs, UpdateApiLogRequest};
 use anyhow::Context;
 use anyhow::Result;
 use sea_orm::ActiveValue::Set;
-use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, QuerySelect};
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
 use serde::Deserialize;
 
 use crate::api_logs::ApiLog;
@@ -78,7 +78,7 @@ pub async fn delete_api_log(ctx: &AppContext, log_id: String) -> Result<bool> {
 }
 
 pub async fn list_api_logs(ctx: &AppContext, filter: ApiLogFilter) -> Result<Vec<ApiLog>> {
-    let mut q = ApiLogs::find();
+    let mut q = ApiLogs::find().order_by_desc(super::db::Column::CreatedAt);
 
     if let Some(project) = filter.project_id {
         q = q.filter(super::db::Column::ProjectId.eq(project));

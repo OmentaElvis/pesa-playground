@@ -706,6 +706,10 @@ export async function getApiLogsByMethod(filter: ApiLogFilter = {}): Promise<Api
   return await invoke("get_api_logs_by_method", { filter });
 }
 
+export async function listApiLogs(filter: ApiLogFilter = {}): Promise<ApiLog[]> {
+  return await invoke("list_api_logs", { filter });
+}
+
 export async function listRunningSandboxes(): Promise<any[]> {
   return await invoke("list_running_sandboxes");
 }

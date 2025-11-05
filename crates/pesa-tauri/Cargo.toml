@@ -1,8 +1,8 @@
 [package]
 name = "pesa-tauri"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Pesa playground Tauri app."
+authors = ["omenta"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -46,3 +46,8 @@ pesa-macros = { path = "../pesa-macros" }
 
 [dev-dependencies]
 mockito = "1.4.0"
+
+
+[[bin]]
+name = "ppg"
+path = "src/main.rs"
