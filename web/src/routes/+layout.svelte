@@ -229,8 +229,10 @@
   <div class="mt-[36px] mb-[32px] h-[calc(100vh-72px)] w-full">
     <div class="h-full" >
       <PaneForge direction="horizontal" class="w-full h-full">
-        <Pane id="main-content" class="h-full overflow-y-auto">
-          {@render children()}
+        <Pane id="main-content" class="h-full">
+        	<div class="h-full overflow-y-auto">
+	          {@render children()}
+        	</div>
         </Pane>
         <Pane id="right-sidebar"
         	    bind:this={rightPane}

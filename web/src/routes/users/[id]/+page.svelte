@@ -117,7 +117,7 @@
     {#if !user}
       User not found
     {:else}
-      <div class="border-b border-gray-200 p-4">
+      <div class="border-b border-gray-200 dark:border-gray-800 p-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3 flex-1">
             <div class="w-12 h-12">
@@ -131,7 +131,7 @@
               <div class="flex items-center gap-4 text-sm">
                 <span class="flex items-center gap-1">
                   <Phone size={14} />
-                  {user.phone}
+                  +{user.phone}
                 </span>
                 <span class="flex items-center gap-1">
                   <Wallet size={14} />

@@ -21,10 +21,10 @@
   }
 
   const getStatusColor = (status: number) => {
-    if (status >= 200 && status < 300) return "bg-green-200/50 text-green-800";
+    if (status >= 200 && status < 300) return "bg-green-200/50 text-green-800 dark:bg-green-800 dark:text-white dark:font-bold";
     if (status >= 400 && status < 500)
-      return "bg-orange-200/50 text-orange-600";
-    if (status >= 500) return "bg-red-200/50 text-red-500";
+      return "bg-orange-200/50 text-orange-600 dark:bg-orange-800 dark:text-white dark:font-bold";
+    if (status >= 500) return "bg-red-200/50 text-red-500 dark:bg-red-800 dark:font-bold dark:text-white";
     return "bg-gray-500 hover:bg-gray-600";
   };
 </script>

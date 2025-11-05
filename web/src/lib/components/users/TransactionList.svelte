@@ -24,7 +24,7 @@
       case "Credit":
         return "text-green-600";
       case "Debit":
-        return "text-red-600";
+        return "text-red-700";
       default:
         return "text-blue-600";
     }
@@ -48,11 +48,11 @@
 </script>
 
 <div class="h-full overflow-auto mx-4">
-    <ScrollArea class="h-full">
+    <ScrollArea class="h-full max-w-xl mx-auto">
       {#each transactions as transaction}
         <div class="m-4 flex {isSentTransaction(transaction) ? 'justify-end' : 'justify-start'}">
           <div
-            class="max-w-[70%] p-3 rounded-lg shadow-md {isSentTransaction(transaction) ? 'bg-blue-100 text-blue-900 rounded-br-none' : 'rounded-bl-none'}"
+            class="max-w-[85%] p-3 rounded-lg shadow-md {isSentTransaction(transaction) ? 'bg-green-800 text-white text-blue-900 rounded-br-none' : 'rounded-bl-none'}"
           >
             <div class="flex items-center gap-2 mb-1">
               <svelte:component
@@ -60,7 +60,7 @@
                 size={16}
                 class={getTransactionColor(transaction)}
               />
-              <span class="text-xs text-gray-500">{formatTransactionDate(transaction.transaction_date)}</span>
+              <span class="text-xs {!isSentTransaction(transaction)? 'text-gray-800' : 'text-white'}">{formatTransactionDate(transaction.transaction_date)}</span>
             </div>
             <p class="text-sm leading-relaxed">
               {#if transaction.transaction_type == TransactionType.SendMoney && transaction.direction == "Debit"}

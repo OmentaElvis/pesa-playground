@@ -76,7 +76,7 @@
 </script>
 
 <Sheet bind:open>
-  <SheetContent class="max-w-[800px] mt-[36px] p-8 pb-16 w-full overflow-y-auto">
+  <SheetContent class="max-w-[800px] mt-[36px] p-8 pb-[92px] w-full overflow-y-auto">
     <SheetHeader>
       <SheetTitle class="flex gap-2 text-left flex-col">
         <Badge variant="outline" class={getMethodColor(log.method)}>

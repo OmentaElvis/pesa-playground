@@ -78,7 +78,7 @@
     {#each users as user}
       {@const hasUnread = $transactionLogStore.some(log => log.to_id === user.id || log.from_id === user.id)}
       <a
-        class="w-full block p-4 text-left border-b duration-200"
+        class="w-full block p-4 text-left border-b dark:border-none duration-200"
         href="/users/{user.id}"
       >
         <div class="flex gap-3 items-center">
@@ -94,11 +94,11 @@
             </div>
             <div class="flex items-center gap-2 mt-1">
               <Phone size={12} class="" />
-              <span class="text-sm">{user.phone}</span>
+              <span class="text-sm">+{user.phone}</span>
             </div>
             <div class="flex items-center gap-2 mt-1">
               <Wallet size={12} class="" />
-              <span class="text-sm font-medium text-green-600">{formatAmount(user.balance)}</span>
+              <span class="text-sm font-bold text-green-700 dark:text-green-600">{formatAmount(user.balance)}</span>
             </div>
           </div>
         </div>
