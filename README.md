@@ -3,7 +3,7 @@
   <i>
   A local M-Pesa ecosystem simulator built for developers who need reliable, controllable test environments.
   </i><br />
-  <img src="static/pesaplayground_logo.png" alt="Logo" />
+  <img src="web/static/pesaplayground_logo.png" alt="Logo" />
 </p>
 
 ## Overview
@@ -44,9 +44,9 @@ Core M-Pesa API coverage roadmap for **Pesa Playground**.
 - [x] **STK Push (C2B Payment Simulation)** — full request/response flow with interactive prompt
 
 #### Customer to Business (C2B)
-- [ ] Register URL — simulate callback registration
-- [ ] C2B Payment — simulate customer-initiated payment to paybill/till
-- [ ] C2B Validation and Confirmation callbacks
+- [x] Register URL — simulate callback registration
+- [x] C2B Payment — simulate customer-initiated payment to paybill/till
+- [x] C2B Validation and Confirmation callbacks
 
 #### Business to Customer (B2C)
 - [ ] B2C Payment Request — simulate disbursements to mobile numbers
