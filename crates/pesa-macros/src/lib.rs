@@ -153,14 +153,12 @@ pub fn generate_axum_rpc_handler(input: TokenStream) -> TokenStream {
                 }
             };
 
-            
             let function_call_args = if arg_fields.is_empty() {
                 quote! { }
             } else {
                 quote! { #(p.#arg_names),* }
             };
 
-            
             let function_call = if has_no_context_attr {
                 quote! { #core_fn(#function_call_args) }
             } else {
@@ -175,15 +173,15 @@ pub fn generate_axum_rpc_handler(input: TokenStream) -> TokenStream {
                 }
             };
 
-            
+
             quote! {
                 #command_name_str => {
                     #struct_def
-                
+
                     let params_val = payload.params.unwrap_or(serde_json::Value::Null);
                     let call_result: std::result::Result<serde_json::Value, anyhow::Error> = async move {
                         #parse_p_tokens
-                        
+
                         let res = match #function_call.await {
                           Ok(val) => val,
                           Err(e) => return Err(anyhow::anyhow!(e.to_string())),
@@ -223,7 +221,7 @@ pub fn generate_axum_rpc_handler(input: TokenStream) -> TokenStream {
         ) -> (axum::http::StatusCode, axum::Json<serde_json::Value>) {
             let mut response = serde_json::json!({});
             let mut status_code = axum::http::StatusCode::OK;
-            
+
             match payload.method.as_str() {
                 #(#match_arms)*
                 _ => {

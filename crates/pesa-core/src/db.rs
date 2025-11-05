@@ -167,5 +167,4 @@ pub async fn run_migrations(db: &DatabaseConnection) -> anyhow::Result<()> {
     transaction_costs::init_default_costs(db).await?;
 
     Ok(())
-
 }

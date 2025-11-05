@@ -29,10 +29,7 @@ impl Business {
         Ok(business.as_ref().map(|b| b.into()))
     }
 
-    pub async fn get_by_short_code<C>(
-        conn: &C,
-        short_code: &str,
-    ) -> Result<Option<Business>, DbErr>
+    pub async fn get_by_short_code<C>(conn: &C, short_code: &str) -> Result<Option<Business>, DbErr>
     where
         C: ConnectionTrait,
     {
@@ -43,7 +40,6 @@ impl Business {
         Ok(business.as_ref().map(|b| b.into()))
     }
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CreateBusiness {

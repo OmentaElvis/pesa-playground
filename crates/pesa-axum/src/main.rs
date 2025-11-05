@@ -297,9 +297,9 @@ async fn main() {
         .route("/ws", get(ws_handler))
         .with_state(app_state)
         .fallback_service(
-        ServeDir::new(cli_args.webroot.clone())
-            .not_found_service(ServeFile::new(cli_args.webroot.join("index.html"))),
-    )
+            ServeDir::new(cli_args.webroot.clone())
+                .not_found_service(ServeFile::new(cli_args.webroot.join("index.html"))),
+        )
         .layer(middleware::from_fn(log_requests))
         .layer(CorsLayer::permissive());
 
