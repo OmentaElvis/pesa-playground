@@ -21,6 +21,16 @@ use pesa_macros::generate_tauri_wrappers;
 use tauri::{Emitter, Manager, Runtime};
 use tokio::sync::Mutex;
 
+#[tauri::command]
+async fn close_splashscreen(window: tauri::Window) {
+    // Close splashscreen
+    if let Some(splashscreen) = window.get_webview_window("splashscreen") {
+        splashscreen.close().unwrap();
+    }
+    // Show main window
+    window.get_webview_window("main").unwrap().show().unwrap();
+}
+
 pub struct TauriEventManager<R: Runtime>(pub tauri::AppHandle<R>);
 
 impl<R: Runtime> AppEventManager for TauriEventManager<R> {
@@ -140,6 +150,7 @@ pub fn run() {
         })
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
+            close_splashscreen,
             start_sandbox,
             stop_sandbox,
             sandbox_status,

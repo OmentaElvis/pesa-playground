@@ -13,8 +13,15 @@
     "windows": [
       {
         "title": "pesa-playground",
-        "width": 1000,
+        "label": "main",
+        "width": 1200,
         "height": 800,
+        "decorations": false,
+        "visible": false
+      },
+      {
+        "label": "splashscreen",
+        "url": "splashscreen.html",
         "decorations": false
       }
     ],

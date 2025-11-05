@@ -60,7 +60,7 @@
                 size={16}
                 class={getTransactionColor(transaction)}
               />
-              <span class="text-xs {!isSentTransaction(transaction)? 'text-gray-800' : 'text-white'}">{formatTransactionDate(transaction.transaction_date)}</span>
+              <span class="text-xs {!isSentTransaction(transaction)? 'text-gray-800 dark:text-white' : 'text-white'}">{formatTransactionDate(transaction.transaction_date)}</span>
             </div>
             <p class="text-sm leading-relaxed">
               {#if transaction.transaction_type == TransactionType.SendMoney && transaction.direction == "Debit"}

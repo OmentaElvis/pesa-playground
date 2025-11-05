@@ -782,3 +782,7 @@ export async function resolveAccountAndNavigate(id: number | null, goto: (href: 
       break;
   }
 }
+
+export async function closeSplashscreen(): Promise<void> {
+  return await invoke("close_splashscreen");
+}

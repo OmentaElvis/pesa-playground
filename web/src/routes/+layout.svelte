@@ -27,6 +27,8 @@
   import { Tween } from 'svelte/motion';
   import { cubicOut } from "svelte/easing";
   import { footerWidgetStore } from '$lib/stores/footerWidgetStore';
+  import SplashScreen from '$lib/components/SplashScreen.svelte';
+  import { closeSplashscreen } from '$lib/api';
 
   let WindowControls: any = $state(null);
   if (import.meta.env.MODE === 'tauri') {
@@ -51,8 +53,18 @@
   let rightPane: Pane | undefined = $state();
 
   const unlistenFunctions: UnlistenFn[] = [];
+  let showSplash = $state(true); // State for splash screen visibility
+
 
   onMount(() => {
+    // Hide splash screen after a delay
+    setTimeout(() => {
+      showSplash = false;
+      if (import.meta.env.MODE === 'tauri') {
+        closeSplashscreen();
+      }
+    }, 1000); // Adjust delay as needed
+
     sidebarStore.register({
       id: 'api-logs',
       title: 'API Logs',
@@ -205,6 +217,10 @@
 </script>
 
 <svelte:window bind:innerWidth />
+
+{#if showSplash}
+  <SplashScreen show={showSplash} />
+{/if}
 
 <ModeWatcher />
 <Sidebar.Provider>
