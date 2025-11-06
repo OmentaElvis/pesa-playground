@@ -177,7 +177,9 @@ generate_axum_rpc_handler! {
     delete_transaction_cost(id: i32) => pesa_core::transaction_costs::ui::delete_transaction_cost,
     calculate_transaction_fee(txn_type: TransactionType, amount: i64) => pesa_core::transaction_costs::ui::calculate_transaction_fee,
 
-    resolve_stk_prompt(checkout_id: String, result: UserResponse) => pesa_core::callbacks::stk::ui::resolve_stk_prompt
+    resolve_stk_prompt(checkout_id: String, result: UserResponse) => pesa_core::callbacks::stk::ui::resolve_stk_prompt,
+    #[no_context]
+    get_app_info() => pesa_core::info::get_app_info
 }
 
 #[derive(Parser, Debug)]

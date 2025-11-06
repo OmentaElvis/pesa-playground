@@ -19,6 +19,7 @@ pub mod transaction_costs;
 pub mod transactions;
 pub mod transactions_log;
 pub mod user;
+pub mod info;
 
 pub trait AppEventManager {
     fn emit_all(&self, event: &str, payload: serde_json::Value) -> anyhow::Result<()>;

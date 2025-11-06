@@ -1,0 +1,19 @@
+---
+title: 'Getting Started'
+order: 1
+---
+
+# Welcome to Pesa Playground!
+
+This is your guide to getting started with Pesa Playground. Here you'll find information on how to use the application, integrate with its APIs, and understand its core features.
+
+
+## Key Features
+
+*   **Local M-Pesa Simulation:** Test M-Pesa integrations without external dependencies.
+*   **Interactive STK Push:** Simulate user responses to STK Push prompts.
+*   **Clear Logging:** Detailed logs for easy debugging.
+
+## Next Steps
+
+Explore the sidebar to learn more about specific topics like API Keys, Transaction Costs, and more.

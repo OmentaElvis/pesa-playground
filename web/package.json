@@ -39,6 +39,7 @@
     "bits-ui": "^2.14.2",
     "clsx": "^2.1.1",
     "concurrently": "^9.2.1",
+    "mdsvex": "^0.12.6",
     "nodemon": "^3.1.10",
     "svelte": "^5.43.2",
     "svelte-check": "^4.3.3",

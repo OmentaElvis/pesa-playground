@@ -1,0 +1,53 @@
+---
+title: 'Daraja Auth API'
+order: 2
+summary: 'Learn how to get an OAuth 2.0 access token for making authenticated calls to the Daraja API.'
+---
+
+# Daraja Authentication API
+
+The Daraja API uses OAuth 2.0 for authentication. To make any API calls, you first need to obtain an access token by calling the authentication endpoint.
+
+## Request
+
+To get an access token, you need to make a `GET` request to the following endpoint:
+
+```http
+GET /oauth/v1/generate?grant_type=client_credentials
+```
+
+### Headers
+
+The request must include an `Authorization` header with Basic Auth credentials.
+
+- **Header:** `Authorization`
+- **Value:** `Basic <credentials>`
+
+### Generating Basic Auth Credentials
+
+The credentials are a Base64 encoded string of your app's `Consumer Key` and `Consumer Secret` joined by a colon (`:`).
+
+**Formula:** `Base64.encode(YOUR_CONSUMER_KEY:YOUR_CONSUMER_SECRET)`
+
+Most API clients and programming languages provide helper functions to generate this for you.
+
+## Successful Response
+
+A successful request will return a JSON object containing the access token and its expiry time.
+
+```json
+{
+  "access_token": "c8xf2TjD2a4Z1i9P...",
+  "expires_in": "3599"
+}
+```
+
+- `access_token`: The token you will use to authenticate subsequent API calls.
+- `expires_in`: The duration in seconds for which the token is valid (typically 1 hour).
+
+## Using the Access Token
+
+For all other API requests, you must include this access token in the `Authorization` header as a Bearer token.
+
+- **Header:** `Authorization`
+- **Value:** `Bearer <your_access_token>`

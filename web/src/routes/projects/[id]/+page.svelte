@@ -59,6 +59,7 @@
   import { toast } from "svelte-sonner";
   import DiceBearAvatar from "$lib/components/ui/avatar/DiceBearAvatar.svelte";
   import { getInitials } from "$lib/utils";
+  import HelpPopover from "$lib/components/ui/helppopover/HelpPopover.svelte";
 
   // Mock project data
   let id = $derived(page.params.id);
@@ -337,6 +338,7 @@
             <CardTitle class="flex items-center gap-2">
               <Key class="h-5 w-5" />
               API Credentials
+              <HelpPopover slug="daraja-auth" />
             </CardTitle>
             <p class="text-sm text-muted-foreground">
               Use these credentials to authenticate your API requests

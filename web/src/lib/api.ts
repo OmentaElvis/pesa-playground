@@ -786,3 +786,14 @@ export async function resolveAccountAndNavigate(id: number | null, goto: (href: 
 export async function closeSplashscreen(): Promise<void> {
   return await invoke("close_splashscreen");
 }
+
+export interface AppInfo {
+  name: string;
+  version: string;
+  description: string;
+  authors: string;
+}
+
+export async function getAppInfo(): Promise<AppInfo> {
+  return await invoke("get_app_info");
+}
