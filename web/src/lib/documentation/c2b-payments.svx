@@ -1,0 +1,140 @@
+---
+title: 'C2B Payments'
+order: 5
+summary: 'Understand how Customer-to-Business (C2B) payments work, including validation and confirmation callbacks.'
+---
+
+<script>
+    import ImageGrid from '$lib/components/ImageGrid.svelte';
+</script>
+
+# C2B Payments (Customer to Business)
+
+C2B (Customer to Business) payments are transactions where a customer initiates a payment to a business. In the M-Pesa ecosystem, these typically occur through Pay Bill or Buy Goods services. Your application can integrate with Daraja to receive and process these payments.
+
+## C2B Configuration
+
+To receive C2B payments, you need to configure your Pay Bill or Buy Goods shortcode with two URLs:
+
+1.  **Validation URL:** This URL is called by Daraja *before* the transaction is completed. It allows your system to validate the transaction details (e.g., check if the `AccountReference` is valid, if the amount is correct for a specific service). You can accept or reject the transaction at this stage.
+2.  **Confirmation URL:** This URL is called by Daraja *after* the transaction has been successfully completed. This is where you confirm the payment and update your internal systems (e.g., credit the customer's account, mark an invoice as paid).
+
+## Validation URL Callback
+
+When a customer initiates a C2B payment, Daraja will send a `POST` request to your configured Validation URL. Your system must respond within a short timeframe (typically 10 seconds).
+
+### Request Body Example
+
+```json
+{
+  "TransactionType": "Pay Bill",
+  "TransID": "RGU3456789",
+  "TransTime": "20241107123456",
+  "TransAmount": "100.00",
+  "BusinessShortCode": "174379",
+  "BillRefNumber": "INV-001",
+  "InvoiceNumber": "",
+  "OrgAccountBalance": "1000.00",
+  "ThirdPartyTransID": "",
+  "MSISDN": "254708374149",
+  "FirstName": "John",
+  "MiddleName": "",
+  "LastName": "Doe"
+}
+```
+
+### Response to Validation URL
+
+Your system must respond with a JSON object indicating whether to accept or reject the transaction.
+
+-   **Accept:**
+    ```json
+    {
+      "ResultCode": 0,
+      "ResultDesc": "Validation successful"
+    }
+    ```
+-   **Reject:**
+    ```json
+    {
+      "ResultCode": 1,
+      "ResultDesc": "Validation failed: Invalid Account Reference"
+    }
+    ```
+
+## Confirmation URL Callback
+
+If the validation is successful (or if no Validation URL is configured), Daraja will proceed with the transaction. Once completed, it will send a `POST` request to your configured Confirmation URL.
+
+### Request Body Example
+
+This request body is similar to the Validation URL callback, but it signifies a completed transaction.
+
+```json
+{
+  "TransactionType": "Pay Bill",
+  "TransID": "RGU3456789",
+  "TransTime": "20241107123456",
+  "TransAmount": "100.00",
+  "BusinessShortCode": "174379",
+  "BillRefNumber": "INV-001",
+  "InvoiceNumber": "",
+  "OrgAccountBalance": "1100.00",
+  "ThirdPartyTransID": "",
+  "MSISDN": "254708374149",
+  "FirstName": "John",
+  "MiddleName": "",
+  "LastName": "Doe"
+}
+```
+
+### Response to Confirmation URL
+
+Your system must acknowledge receipt of the confirmation. A simple success response is usually sufficient.
+
+```json
+{
+  "ResultCode": 0,
+  "ResultDesc": "Confirmation received successfully"
+}
+```
+
+It is crucial to process the confirmation and update your records, as this is the final notification of a successful payment.
+
+## Simulating a C2B Payment via the UI
+
+Beyond API integration, Pesa Playground provides a visual "Sim Toolkit" to simulate a customer initiating a C2B payment from their phone. This allows you to test your C2B flow from the perspective of a user.
+![Users page](/docs/user_account_with_stk.png)
+
+### Step-by-Step Guide
+
+1.  **Navigate to the Users Page**: From the main application sidebar, click on the "**Users**" icon to go to the [users page](/users).
+    *   *Note*: If no users are listed, you can generate some by clicking the "Generate 5 More Users" button in the settings popover on the users page.
+
+2.  **Select a User**: You will see a list of all available sandbox users. Click on any user to view their details.
+
+3.  **Open the Sim Toolkit**: When you select a user, a new **right sidebar** will appear. If it's collapsed, click the **Sim Card icon** (usually next to the user's name) to expand it. The sidebar will be titled **"[User's Name]'s Sim Toolkit"**. This is a simulation of the M-Pesa menu on a user's phone.
+
+4.  **Initiate Lipa na M-PESA**: In the Sim Toolkit menu, follow these steps, just as a user would on their phone:
+    *   Click on **`4. Lipa na M-PESA`**.
+    *   You will be presented with two options:
+        1.  `1. Pay Bill`
+        2.  `2. Buy Goods and Services`
+
+5.  **Making a Payment**:
+
+    *   **For Pay Bill**:
+        1.  Select `1. Pay Bill`.
+        2.  You will be prompted to `Enter business number:` (your Pay Bill shortcode).
+        3.  Next, `Enter account number:` (e.g., an invoice number).
+        4.  Then, `Enter amount:`.
+        5.  Finally, `Enter M-PESA PIN:`. The sandbox user's PIN is available for you to use, or you can use `0000` to bypass the check.
+
+    *   **For Buy Goods**:
+        1.  Select `2. Buy Goods and Services`.
+        2.  You will be prompted to `Enter till number:`.
+        3.  Next, `Enter amount:`.
+        4.  Finally, `Enter M-PESA PIN:`.
+
+Once you complete these steps, the simulated C2B transaction will be initiated. If you have configured Validation and Confirmation URLs for your business, Pesa Playground will send callbacks to your endpoints, just as the live Daraja API would. You can monitor the API logs in the "API Logs" section of the app to see these requests in real-time.
+

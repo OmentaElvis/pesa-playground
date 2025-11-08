@@ -28,7 +28,7 @@
   import { cubicOut } from "svelte/easing";
   import { footerWidgetStore } from '$lib/stores/footerWidgetStore';
   import SplashScreen from '$lib/components/SplashScreen.svelte';
-  import { closeSplashscreen } from '$lib/api';
+  import { closeSplashscreen, isApiReady } from '$lib/api';
 
   let WindowControls: any = $state(null);
   if (import.meta.env.MODE === 'tauri') {
@@ -222,6 +222,7 @@
   <SplashScreen show={showSplash} />
 {/if}
 
+{#if $isApiReady}
 <ModeWatcher />
 <Sidebar.Provider>
 	<div class="fixed top-0 transition-colors duration-500 left-0 pr-4 select-none items-center flex w-full h-[36px] shadow-lg z-1000 bg-green-800 text-white" >
@@ -322,6 +323,7 @@
 </Sidebar.Provider>
 <StkPushDialog bind:open={stkPushOpened} dialogData={stkPush} on:action={stkPushAction} />
 <Toaster position="top-right" richColors offset="40px" />
+{/if}
 
 <style>
 	:global(body) {

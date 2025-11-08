@@ -1,0 +1,136 @@
+---
+title: 'STK Push (C2B)'
+order: 3
+summary: 'Learn how to initiate a Customer-to-Business (C2B) payment on behalf of a customer using an STK Push.'
+---
+
+# STK Push (C2B Payment)
+
+An STK Push is a way to initiate a Customer-to-Business (C2B) payment on behalf of a customer. When you make an STK Push request, the customer receives a prompt on their phone asking them to enter their M-Pesa PIN to authorize the payment.
+
+## Request
+
+To initiate an STK Push, you need to make a `POST` request to the following endpoint. This requires a valid access token obtained via the [Daraja Auth API](/info/daraja-auth).
+
+```http
+POST /mpesa/stkpush/v1/processrequest
+```
+
+### Request Body
+
+The body of the request contains the details of the transaction.
+
+```json
+{
+  "BusinessShortCode": 174379,
+  "Password": "...",
+  "Timestamp": "20241107103000",
+  "TransactionType": "CustomerPayBillOnline",
+  "Amount": 1,
+  "PartyA": 254708374149,
+  "PartyB": 174379,
+  "PhoneNumber": 254708374149,
+  "CallBackURL": "https://mydomain.com/path",
+  "AccountReference": "CompanyXLTD",
+  "TransactionDesc": "Payment of X" 
+}
+```
+
+- `BusinessShortCode`: The short code of the organization receiving the payment.
+- `Password`: A Base64 encoded string of `BusinessShortCode` + `Passkey` + `Timestamp`.
+- `Timestamp`: The timestamp of the transaction in the format `YYYYMMDDHHMMSS`.
+- `TransactionType`: Either `CustomerPayBillOnline` or `CustomerBuyGoodsOnline`.
+- `Amount`: The amount to be transacted.
+- `PartyA`: The phone number of the customer making the payment.
+- `PartyB`: The short code of the organization receiving the payment.
+- `PhoneNumber`: The phone number of the customer making the payment.
+- `CallBackURL`: The URL that will receive the asynchronous response from Daraja.
+- `AccountReference`: A unique identifier for the transaction.
+- `TransactionDesc`: A short description of the transaction.
+
+## Initial Response
+
+If the request is accepted by Daraja, you will receive an immediate synchronous response indicating that the request is being processed.
+
+```json
+{
+  "MerchantRequestID": "12345-67890-1",
+  "CheckoutRequestID": "ws_CO_07112024103000123456789",
+  "ResponseCode": "0",
+  "ResponseDescription": "Success. Request accepted for processing",
+  "CustomerMessage": "Success. Request accepted for processing"
+}
+```
+
+This response only confirms that the request was received. The final status of the transaction will be sent to your `CallBackURL`.
+
+## Callback Response
+
+After the customer responds to the PIN prompt, Daraja will send a `POST` request to the `CallBackURL` you provided. The body of this request contains the final result of the transaction.
+
+```json
+{
+  "Body": {
+    "stkCallback": {
+      "MerchantRequestID": "12345-67890-1",
+      "CheckoutRequestID": "ws_CO_07112024103000123456789",
+      "ResultCode": 0,
+      "ResultDesc": "The service request is processed successfully.",
+      "CallbackMetadata": {
+        "Item": [
+          { "Name": "Amount", "Value": 1 },
+          { "Name": "MpesaReceiptNumber", "Value": "SGB1234567" },
+          { "Name": "TransactionDate", "Value": 20241107103015 },
+          { "Name": "PhoneNumber", "Value": 254708374149 }
+        ]
+      }
+    }
+  }
+}
+```
+
+- `ResultCode`: `0` indicates a successful transaction. Any other value indicates a failure (e.g., the user cancelled, insufficient funds, etc.).
+- `CallbackMetadata`: An array of key-value pairs containing the details of the completed transaction.
+
+## Simulating STK Push Responses in Pesa Playground
+
+One of the core features of Pesa Playground is the ability to simulate various customer responses to an STK Push prompt. This allows you to test how your application handles different scenarios, such as success, failure, or timeouts, without needing a real device.
+
+When an STK Push is initiated via the API, an interactive prompt appears in the Pesa Playground user interface. You can use this prompt to simulate the following outcomes:
+
+![Stk Prompt](/docs/stk-push-dialog.png)
+
+### Correct PIN (Success)
+
+This simulates a successful payment where the customer enters their PIN correctly and authorizes the transaction.
+
+- **Action:** Click the "Approve" button and enter the correct user PIN when prompted.
+- **Result:** Your `CallBackURL` will receive a successful callback with `ResultCode: 0` and the full transaction details, including the M-Pesa receipt number.
+
+### Invalid PIN
+
+This simulates a scenario where the customer enters the wrong PIN.
+
+- **Action:** Click the "Approve" button and enter an incorrect user PIN.
+- **Result:** Your `CallBackURL` will receive a failure callback. The `ResultCode` will be non-zero, and the `ResultDesc` will indicate an authentication failure.
+
+### Timeout
+
+This simulates the scenario where the customer does not respond to the prompt in time.
+
+- **Action:** Click the "Simulate Timeout" button on the STK prompt.
+- **Result:** Your `CallBackURL` will receive a failure callback with a `ResultCode` indicating a timeout. The `ResultDesc` will typically be "Request timeout."
+
+### User Cancelled
+
+This simulates the customer explicitly cancelling the transaction from the M-Pesa menu.
+
+- **Action:** Click the "Cancel" button on the STK prompt.
+- **Result:** Your `CallBackURL` will receive a failure callback. The `ResultCode` will be non-zero, and the `ResultDesc` will indicate that the request was cancelled by the user.
+
+### Phone Offline
+
+This simulates the scenario where the STK Push cannot be delivered to the customer because their phone is offline.
+
+- **Action:** Click the "Simulate Offline" button on the STK prompt.
+- **Result:** Your `CallBackURL` will receive a failure callback with a `ResultCode` indicating that the user is unavailable or their device is unreachable.
