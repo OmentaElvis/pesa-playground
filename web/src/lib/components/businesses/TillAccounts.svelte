@@ -1,285 +1,203 @@
 <script lang="ts">
-  import { Button } from "$lib/components/ui/button";
-  import * as Dialog from "$lib/components/ui/dialog/index.js";
-  import * as Select from "$lib/components/ui/select/index.js";
-  import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-  } from "$lib/components/ui/card";
-  import { Input } from "$lib/components/ui/input";
-  import { Label } from "$lib/components/ui/label";
-  import { createEventDispatcher } from "svelte";
-  import {
-    C2BResponseType,
-    createTillAccount,
-    updateTillAccount,
-    type CreateTillAccountData,
-    type TillAccountDetails,
-    type UpdateTillAccountData,
-  } from "$lib/api";
-  import { PlusCircle, Save } from "lucide-svelte";
+	import { Button } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import {
+		Card,
+		CardContent,
+		CardDescription,
+		CardHeader,
+		CardTitle
+	} from '$lib/components/ui/card';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import {
+		C2BResponseType,
+		createTillAccount,
+		updateTillAccount,
+		type CreateTillAccountData,
+		type TillAccountDetails,
+		type UpdateTillAccountData
+	} from '$lib/api';
+	import { PlusCircle, Save, LoaderCircle } from 'lucide-svelte';
+	import { toast } from 'svelte-sonner';
+	import C2BParametersForm from './C2BParametersForm.svelte';
 
-  export let tillAccounts: TillAccountDetails[] = [];
-  export let businessId: number;
+	let { tillAccounts, businessId, isCreating, editingId, refresh, create, edit, cancel } = $props<{
+		tillAccounts: TillAccountDetails[];
+		businessId: number;
+		isCreating: boolean;
+		editingId: string | null;
+		refresh: () => void,
+		create: () => void,
+		edit: (params: {id: number}) => void,
+		cancel: () => void,
+	}>();
 
-  let showCreateTillDialog = false;
-  let showEditTillDialog = false;
+	let saving = $state(false);
+	let formData: (CreateTillAccountData & { account_id?: number }) | null = $state(null);
 
-  let selectedTillAccount: any = null;
+	$effect(() => {
+		if (isCreating) {
+			formData = {
+				business_id: businessId,
+				initial_balance: 0,
+				store_number: 0,
+				till_number: 0,
+				location_description: '',
+				response_type: C2BResponseType.Completed,
+				validation_url: '',
+				confirmation_url: ''
+			};
+		} else if (editingId) {
+			const account = tillAccounts.find((acc: TillAccountDetails) => acc.account_id === parseInt(editingId!));
+			if (account) {
+				formData = { ...account, initial_balance: 0 };
+			}
+		} else {
+			formData = null;
+		}
+	});
 
-  let newTill: CreateTillAccountData = {
-    business_id: 0,
-    initial_balance: 0,
-    store_number: 0,
-    till_number: 0,
-    location_description: "",
-  };
+	async function handleSubmit() {
+		if (!formData) return;
 
-  const dispatch = createEventDispatcher();
-
-  async function handleCreateTillAccount() {
-    if (businessId) {
-      newTill.business_id = businessId;
-      await createTillAccount({
-        ...newTill,
-        location_description: newTill.location_description || undefined,
-        validation_url: newTill.validation_url || undefined,
-        confirmation_url: newTill.confirmation_url || undefined,
-      });
-      newTill = {
-        business_id: 0,
-        initial_balance: 0,
-        store_number: 0,
-        till_number: 0,
-        location_description: "",
-      };
-      dispatch("refresh");
-      showCreateTillDialog = false;
-    }
-  }
-
-  async function handleUpdateTillAccount() {
-    if (selectedTillAccount) {
-      const data: UpdateTillAccountData = {
-        till_number: selectedTillAccount.till_number,
-        store_number: selectedTillAccount.store_number,
-        location_description: selectedTillAccount.location_description || undefined,
-        response_type: selectedTillAccount.response_type,
-        confirmation_url: selectedTillAccount.confirmation_url || undefined,
-        validation_url: selectedTillAccount.validation_url || undefined,
-      };
-      await updateTillAccount(selectedTillAccount.id, data);
-      dispatch("refresh");
-      showEditTillDialog = false;
-    }
-  }
+		saving = true;
+		try {
+			if (editingId) {
+				const data: UpdateTillAccountData = {
+					till_number: formData.till_number,
+					store_number: formData.store_number,
+					location_description: formData.location_description || undefined,
+					response_type: formData.response_type,
+					confirmation_url: formData.confirmation_url || undefined,
+					validation_url: formData.validation_url || undefined
+				};
+				await updateTillAccount(parseInt(editingId), data);
+				toast.success('Till account updated successfully.');
+			} else {
+				await createTillAccount({
+					...formData,
+					business_id: businessId
+				});
+				toast.success('Till account created successfully.');
+			}
+			refresh();
+		} catch (err) {
+			toast.error(`Failed: ${err}`);
+		} finally {
+			saving = false;
+		}
+	}
 </script>
 
 <Card>
-  <CardHeader class="flex flex-row items-center justify-between">
-    <div class="space-y-1">
-      <CardTitle>Till Accounts</CardTitle>
-      <CardDescription>Till accounts associated with this business.</CardDescription>
-    </div>
-    <Dialog.Root bind:open={showCreateTillDialog}>
-      <Dialog.Trigger>
-        <Button><PlusCircle class="mr-2 h-4 w-4" /> Add</Button>
-      </Dialog.Trigger>
-      <Dialog.Content>
-        <Dialog.Header>
-          <Dialog.Title>Add New Till Account</Dialog.Title>
-        </Dialog.Header>
-        <div class="grid gap-4 py-4">
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label for="newTillNumber" class="text-right">Till Number</Label>
-            <Input
-              id="newTillNumber"
-              type="number"
-              class="col-span-3"
-              bind:value={newTill.till_number}
-            />
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label for="newTillInitialBalance" class="text-right">Initial Balance</Label>
-            <Input
-              id="newTillInitialBalance"
-              type="number"
-              class="col-span-3"
-              bind:value={newTill.initial_balance}
-            />
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label for="newTillStoreNumber" class="text-right">Store Number</Label>
-            <Input
-              id="newTillStoreNumber"
-              type="number"
-              class="col-span-3"
-              bind:value={newTill.store_number}
-            />
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label for="newTillLocationDescription" class="text-right">Location Description</Label>
-            <Input
-              id="newTillLocationDescription"
-              type="text"
-              class="col-span-3"
-              bind:value={newTill.location_description}
-            />
-          </div>
-          <span class="font-bold text-lg mt-4">
-            C2B parameters
-          </span>
-          <span class="text-sm">
-            These can be modified using c2b <pre>/mpesa/c2b/v1/registerurl</pre>
-          </span>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label for="newTillResponseType" class="text-right">Response Type</Label>
-            <Select.Root type="single" bind:value={newTill.response_type}>
-              <Select.Trigger>{newTill.response_type}</Select.Trigger>
-              <Select.Content>
-                <Select.Item value={C2BResponseType.Completed}>Completed</Select.Item>
-                <Select.Item value={C2BResponseType.Canceled}>Canceled</Select.Item>
-              </Select.Content>
-            </Select.Root>
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label for="newTillConfirmationUrl" class="text-right">Confirmation URL</Label>
-            <Input
-              id="newTillConfirmationUrl"
-              type="text"
-              class="col-span-3"
-              bind:value={newTill.confirmation_url}
-            />
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label for="newTillValidationUrl" class="text-right">Validation URL</Label>
-            <Input
-              id="newTillValidationUrl"
-              type="text"
-              class="col-span-3"
-              bind:value={newTill.validation_url}
-            />
-          </div>
-        </div>
-        <Dialog.Footer>
-          <Button onclick={handleCreateTillAccount}>
-            <PlusCircle class="mr-2 h-4 w-4" /> Add Till Account
-          </Button>
-        </Dialog.Footer>
-      </Dialog.Content>
-    </Dialog.Root>
-  </CardHeader>
-  <CardContent>
-    {#if tillAccounts.filter((acc) => acc.business_id === businessId).length > 0}
-      <div class="space-y-4">
-        {#each tillAccounts.filter((acc) => acc.business_id === businessId) as account}
-          <Dialog.Root bind:open={showEditTillDialog}>
-            <Dialog.Trigger
-              onclick={() => (selectedTillAccount = account)} class="w-full p-2 hover:bg-muted cursor-pointer">
-              <div class="flex justify-between items-center w-full">
-                <div class="text-left">
-                  <p class="text-sm font-medium">
-                    {account.till_number}
-                  </p>
-                  <p class="text-xs text-muted-foreground">
-                    Created: {new Date(account.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-                <div>
-                  <p class="text-lg font-bold">
-                    {new Intl.NumberFormat("en-US", {
-                      style: "currency",
-                      currency: "KES",
-                    }).format(account.balance / 100)}
-                  </p>
-                </div>
-              </div>
-            </Dialog.Trigger>
-            <Dialog.Content>
-              <Dialog.Header>
-                <Dialog.Title>Edit Till Account</Dialog.Title>
-              </Dialog.Header>
-              {#if selectedTillAccount}
-                <div class="grid gap-4 py-4">
-                  <div class="grid grid-cols-4 items-center gap-4">
-                    <Label for="editTillNumber" class="text-right">Till Number</Label>
-                    <Input
-                      id="editTillNumber"
-                      type="number"
-                      class="col-span-3"
-                      bind:value={selectedTillAccount.till_number}
-                    />
-                  </div>
-                  <div class="grid grid-cols-4 items-center gap-4">
-                    <Label for="editTillStoreNumber" class="text-right">Store Number</Label>
-                    <Input
-                      id="editTillStoreNumber"
-                      type="number"
-                      class="col-span-3"
-                      bind:value={selectedTillAccount.store_number}
-                    />
-                  </div>
-                  <div class="grid grid-cols-4 items-center gap-4">
-                    <Label for="editTillLocationDescription" class="text-right"
-                      >Location Description</Label
-                    >
-                    <Input
-                      id="editTillLocationDescription"
-                      type="text"
-                      class="col-span-3"
-                      bind:value={selectedTillAccount.location_description}
-                    />
-                  </div>
-                  <span class="font-bold text-lg mt-4">
-                    C2B parameters
-                  </span>
-                  <span class="text-sm">
-                    These can be modified using c2b <pre>/mpesa/c2b/v1/registerurl</pre>
-                  </span>
-                  <div class="grid grid-cols-4 items-center gap-4">
-                    <Label for="newTillResponseType" class="text-right">Response Type</Label>
-                    <Select.Root type="single" bind:value={selectedTillAccount.response_type}>
-                      <Select.Trigger>{selectedTillAccount.response_type}</Select.Trigger>
-                      <Select.Content>
-                        <Select.Item value={C2BResponseType.Completed}>Completed</Select.Item>
-                        <Select.Item value={C2BResponseType.Canceled}>Canceled</Select.Item>
-                      </Select.Content>
-                    </Select.Root>
-                  </div>
-                  <div class="grid grid-cols-4 items-center gap-4">
-                    <Label for="newTillConfirmationUrl" class="text-right">Confirmation URL</Label>
-                    <Input
-                      id="newTillConfirmationUrl"
-                      type="text"
-                      class="col-span-3"
-                      bind:value={selectedTillAccount.confirmation_url}
-                    />
-                  </div>
-                  <div class="grid grid-cols-4 items-center gap-4">
-                    <Label for="newTillValidationUrl" class="text-right">Validation URL</Label>
-                    <Input
-                      id="newTillValidationUrl"
-                      type="text"
-                      class="col-span-3"
-                      bind:value={selectedTillAccount.validation_url}
-                    />
-                  </div>
-                </div>
-                <Dialog.Footer>
-                  <Button onclick={handleUpdateTillAccount}>
-                    <Save class="mr-2 h-4 w-4" /> Update Till Account
-                  </Button>
-                </Dialog.Footer>
-              {/if}
-            </Dialog.Content>
-          </Dialog.Root>
-        {/each}
-      </div>
-    {:else}
-      <p>No till accounts found for this business.</p>
-    {/if}
-  </CardContent>
+	<CardHeader class="flex flex-row items-center justify-between">
+		<div class="space-y-1">
+			<CardTitle>Till Accounts</CardTitle>
+			<CardDescription>Till accounts associated with this business.</CardDescription>
+		</div>
+		<Button onclick={() => create()}><PlusCircle class="mr-2 h-4 w-4" /> Add</Button>
+	</CardHeader>
+	<CardContent>
+		{#if tillAccounts.filter((acc: TillAccountDetails) => acc.business_id === businessId).length > 0}
+			<div class="space-y-4">
+				{#each tillAccounts.filter((acc: TillAccountDetails) => acc.business_id === businessId) as account}
+					<div
+						onclick={() => edit({ id: account.account_id })}
+						class="w-full p-2 hover:bg-muted cursor-pointer rounded-md"
+						role="button"
+						tabindex="0"
+						onkeydown={(e) => e.key === 'Enter' && edit({ id: account.account_id })}
+					>
+						<div class="flex justify-between items-center w-full">
+							<div class="text-left">
+								<p class="text-sm font-medium">
+									{account.till_number}
+								</p>
+								<p class="text-xs text-muted-foreground">
+									Created: {new Date(account.created_at).toLocaleDateString()}
+								</p>
+							</div>
+							<div>
+								<p class="text-lg font-bold">
+									{new Intl.NumberFormat('en-US', {
+										style: 'currency',
+										currency: 'KES'
+									}).format(account.balance / 100)}
+								</p>
+							</div>
+						</div>
+					</div>
+				{/each}
+			</div>
+		{:else}
+			<p>No till accounts found for this business.</p>
+		{/if}
+	</CardContent>
 </Card>
+
+{#if formData}
+	<Dialog.Root open={isCreating || !!editingId} onOpenChange={(open) => !open && cancel()}>
+		<Dialog.Content>
+			<Dialog.Header>
+				<Dialog.Title>{!!editingId ? 'Edit' : 'Add New'} Till Account</Dialog.Title>
+			</Dialog.Header>
+			<div class="grid gap-4 py-4">
+				<div class="grid grid-cols-4 items-center gap-4">
+					<Label for="tillNumber" class="text-right">Till Number</Label>
+					<Input
+						id="tillNumber"
+						type="number"
+						class="col-span-3"
+						bind:value={formData.till_number}
+					/>
+				</div>
+				{#if !editingId}
+					<div class="grid grid-cols-4 items-center gap-4">
+						<Label for="initialBalance" class="text-right">Initial Balance</Label>
+						<Input
+							id="initialBalance"
+							type="number"
+							class="col-span-3"
+							bind:value={formData.initial_balance}
+						/>
+					</div>
+				{/if}
+				<div class="grid grid-cols-4 items-center gap-4">
+					<Label for="storeNumber" class="text-right">Store Number</Label>
+					<Input
+						id="storeNumber"
+						type="number"
+						class="col-span-3"
+						bind:value={formData.store_number}
+					/>
+				</div>
+				<div class="grid grid-cols-4 items-center gap-4">
+					<Label for="locationDescription" class="text-right">Location Description</Label>
+					<Input
+						id="locationDescription"
+						type="text"
+						class="col-span-3"
+						bind:value={formData.location_description}
+					/>
+				</div>
+				<C2BParametersForm
+					bind:response_type={formData.response_type}
+					bind:validation_url={formData.validation_url}
+					bind:confirmation_url={formData.confirmation_url}
+				/>
+			</div>
+			<Dialog.Footer>
+				<Button onclick={handleSubmit} disabled={saving}>
+					{#if saving}
+						<LoaderCircle class="animate-spin h-3 w-4 mr-2" />
+					{:else if editingId}
+						<Save class="mr-2 h-4 w-4" /> Update
+					{:else}
+						<PlusCircle class="mr-2 h-4 w-4" /> Add
+					{/if}
+				</Button>
+			</Dialog.Footer>
+		</Dialog.Content>
+	</Dialog.Root>
+{/if}
