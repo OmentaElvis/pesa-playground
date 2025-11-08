@@ -98,7 +98,7 @@ pub fn generate_tauri_wrappers(input: TokenStream) -> TokenStream {
             ) -> std::result::Result<serde_json::Value, String> {
                 match #core_fn(#state_pass #(#arg_names),*).await {
                     Ok(value) => serde_json::to_value(value).map_err(|e| e.to_string()),
-                    Err(err) => Err(err.to_string()),
+                    Err(err) => Err(format!("{:?}", err)),
                 }
             }
         }
@@ -184,7 +184,9 @@ pub fn generate_axum_rpc_handler(input: TokenStream) -> TokenStream {
 
                         let res = match #function_call.await {
                           Ok(val) => val,
-                          Err(e) => return Err(anyhow::anyhow!(e.to_string())),
+                          Err(e) => {
+                              return Err(anyhow::anyhow!(e));
+                          },
                         };
                         Ok(serde_json::to_value(res)?)
                     }.await;
@@ -195,9 +197,10 @@ pub fn generate_axum_rpc_handler(input: TokenStream) -> TokenStream {
                             );
                         },
                         Err(e) => {
+                            log::error!(target: "core", "{:?}", e);
                             status_code = axum::http::StatusCode::INTERNAL_SERVER_ERROR;
                             response = serde_json::json!(
-                                {"jsonrpc": "2.0", "error": {"code": -32700, "message": format!("Invalid params: {}", e)}, "id": payload.id}
+                                {"jsonrpc": "2.0", "error": {"code": -32700, "message": format!("Invalid params: {:?}", e)}, "id": payload.id}
                             );
                         }
                     }

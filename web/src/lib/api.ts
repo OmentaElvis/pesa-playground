@@ -4,6 +4,10 @@
  * The actual implementation of `invoke` is provided by the specific application
  */
 
+import { writable } from "svelte/store";
+
+export const isApiReady = writable(false);
+
 export type Invoke = <T>(cmd: string, args?: any) => Promise<T>;
 
 const defaultInvoke: Invoke = (cmd) => {

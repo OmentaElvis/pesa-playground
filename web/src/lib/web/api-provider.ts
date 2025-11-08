@@ -1,4 +1,4 @@
-import { provideInvoke, type Invoke } from '../api';
+import { provideInvoke, type Invoke, isApiReady } from '../api';
 
 console.log('Providing Web API providers (fetch & WebSocket)');
 
@@ -32,3 +32,4 @@ const webInvoke: Invoke = async (cmd, args) => {
 };
 
 provideInvoke(webInvoke);
+isApiReady.set(true);
