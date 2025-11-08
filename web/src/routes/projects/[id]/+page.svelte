@@ -54,6 +54,7 @@
     countTransactionLogs,
   } from "$lib/api";
   import { page } from "$app/state";
+  import { goto } from "$app/navigation";
   import { listen, type UnlistenFn } from "$lib/api";
   import { onDestroy, onMount } from "svelte";
   import { toast } from "svelte-sonner";
@@ -140,10 +141,13 @@
       paybills = await getPaybillAccountsByBusinessId(business.id);
       tills = await getTillAccountsByBusinessId(business.id);
 
-      let paybill_transaction_cost = await countTransactionLogs(paybills.map((p) => p.account_id));
-      let till_transaction_count = await countTransactionLogs(tills.map((t)=> t.account_id));
+      let paybill_transaction_cost = await countTransactionLogs(
+        paybills.map((p) => p.account_id),
+      );
+      let till_transaction_count = await countTransactionLogs(
+        tills.map((t) => t.account_id),
+      );
       transactions = paybill_transaction_cost + till_transaction_count;
-
     }
   }
 
@@ -177,8 +181,23 @@
     if (unlisten) unlisten();
   });
 
+  let currentTab = $state("overview");
+
+  $effect(() => {
+    const url = new URL(page.url);
+    if (url.searchParams.get("tab") !== currentTab) {
+      url.searchParams.set("tab", currentTab);
+      goto(url, { replaceState: true, keepFocus: true, noScroll: true });
+    }
+  });
+
   onMount(async () => {
-    $effect(()=> {
+    const tab = page.url.searchParams.get("tab");
+    if (tab) {
+      currentTab = tab;
+    }
+
+    $effect(() => {
       async function get(id: number) {
         project = await getProject(Number(id));
         users = await getUsers();
@@ -189,7 +208,7 @@
       }
 
       get(Number(id));
-    })
+    });
   });
 </script>
 
@@ -248,7 +267,10 @@
             <Activity class="text-muted-foreground" />
             <div>
               <p class="text-sm text-muted-foreground">Total Transactions</p>
-              <a class="text-2xl font-bold" href="/businesses/{project.business_id}?tab=transactions">
+              <a
+                class="text-2xl font-bold"
+                href="/businesses/{project.business_id}?tab=transactions"
+              >
                 {transactions}
               </a>
             </div>
@@ -266,7 +288,10 @@
             <Wallet class="text-muted-foreground" />
             <div>
               <p class="text-sm text-muted-foreground">Accounts</p>
-              <a class="text-2xl font-bold" href="/businesses/{project.business_id}?tab=accounts">
+              <a
+                class="text-2xl font-bold"
+                href="/businesses/{project.business_id}?tab=accounts"
+              >
                 {paybills.length + tills.length}
               </a>
             </div>
@@ -276,7 +301,7 @@
     </div>
 
     <!-- Main Content Tabs -->
-    <Tabs value="overview" class="w-full">
+    <Tabs bind:value={currentTab} class="w-full">
       <TabsList class="grid w-full grid-cols-4">
         <TabsTrigger value="overview">Overview</TabsTrigger>
         <TabsTrigger value="api-keys">API Keys</TabsTrigger>
@@ -550,10 +575,17 @@
                       <div
                         class="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center"
                       >
-                        <DiceBearAvatar seed={`${user.id}-${user.name}`} fallback={getInitials(user.name)} />
+                        <DiceBearAvatar
+                          seed={`${user.id}-${user.name}`}
+                          fallback={getInitials(user.name)}
+                        />
                       </div>
                       <div>
-                        <h4 class="font-medium"><a href="/users/{user.id}" class="hover:underline">{user.name}</a></h4>
+                        <h4 class="font-medium">
+                          <a href="/users/{user.id}" class="hover:underline"
+                            >{user.name}</a
+                          >
+                        </h4>
                         <div
                           class="flex items-center gap-4 text-sm text-muted-foreground"
                         >
