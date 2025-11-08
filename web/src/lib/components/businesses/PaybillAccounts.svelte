@@ -22,16 +22,17 @@
 	import { toast } from 'svelte-sonner';
 	import C2BParametersForm from './C2BParametersForm.svelte';
 
-	let { paybillAccounts, businessId, isCreating, editingId, refresh, create, edit, cancel } = $props<{
-		paybillAccounts: PaybillAccountDetails[];
-		businessId: number;
-		isCreating: boolean;
-		editingId: string | null;
-		refresh: () => void,
-		create: () => void,
-		edit: (params: {id: number}) => void,
-		cancel: () => void,
-	}>();
+	let { paybillAccounts, businessId, isCreating, editingId, refresh, create, edit, cancel } =
+		$props<{
+			paybillAccounts: PaybillAccountDetails[];
+			businessId: number;
+			isCreating: boolean;
+			editingId: string | null;
+			refresh: () => void;
+			create: () => void;
+			edit: (params: { id: number }) => void;
+			cancel: () => void;
+		}>();
 
 	let saving = $state(false);
 	let formData: (CreatePaybillAccountData & { account_id?: number }) | null = $state(null);
@@ -48,7 +49,9 @@
 				response_type: C2BResponseType.Completed
 			};
 		} else if (editingId) {
-			const account = paybillAccounts.find((acc: PaybillAccountDetails) => acc.account_id === parseInt(editingId!));
+			const account = paybillAccounts.find(
+				(acc: PaybillAccountDetails) => acc.account_id === parseInt(editingId!)
+			);
 			if (account) {
 				formData = { ...account, initial_balance: 0 };
 			}
@@ -105,12 +108,12 @@
 				{#each paybillAccounts.filter((acc: PaybillAccountDetails) => acc.business_id === businessId) as account}
 					<div
 						onclick={() => edit({ id: account.account_id })}
-						class="w-full cursor-pointer hover:bg-muted p-2 rounded-md"
+						class="w-full cursor-pointer rounded-md p-2 hover:bg-muted"
 						role="button"
 						tabindex="0"
 						onkeydown={(e) => e.key === 'Enter' && edit({ id: account.account_id })}
 					>
-						<div class="flex justify-between items-center w-full">
+						<div class="flex w-full items-center justify-between">
 							<div class="text-left">
 								<p class="text-sm font-medium">
 									{account.paybill_number}

@@ -1,5 +1,5 @@
 export const errorHelp: Record<string, string> = {
-AUTH_ERROR: `
+	AUTH_ERROR: `
 **Missing Authorization Header**
 
 This error occurs because the \`Authorization\` header is missing in your request to the \`/oauth/v1/generate\` endpoint.
@@ -15,8 +15,7 @@ Authorization: Basic <base64(consumer_key:consumer_secret)>
 Make sure the credentials are correctly base64-encoded and included in the request.
 `,
 
-INVALID_GRANT_TYPE:
-`
+	INVALID_GRANT_TYPE: `
 **Invalid \`grant_type\` Parameter**
 
 This error occures when the \`grant_type\` parameter is provided with an invalid value.
@@ -30,8 +29,7 @@ grant_type=client_credentials
 Ensure the query string includes \`grant_type=client_credentials\` **exactly** as required.
 `,
 
-MISSING_GRANT_TYPE:
-`
+	MISSING_GRANT_TYPE: `
 **Missing \`grant_type\` Parameter**
 
 This error occured because the \`grant_type\` parameter is missing in the query string.
@@ -45,8 +43,7 @@ Append the following to your request URL:
 ?grant_type=client_credentials
 `,
 
-INVALID_ACCESS_TOKEN:
-`
+	INVALID_ACCESS_TOKEN: `
 **Invalid Access Token**
 
 This error occurs when the access token provided in the \`Authorization\` header is missing, expired, malformed, or does not match any active session.
@@ -60,8 +57,7 @@ Authorization: Bearer <access_token>
 
 3. Ensure the token is not expired. Tokens are typically valid for **1 hour**.
 `,
-INVALID_CREDENTIALS:
-`
+	INVALID_CREDENTIALS: `
 **Invalid Credentials**
 
 This error occurs when the \`Password\` field in your STK Push request is invalid or incorrectly formatted.

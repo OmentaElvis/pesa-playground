@@ -1,0 +1,47 @@
+# Node
+node_modules
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+bun.lock
+bun.lockb
+
+# Build output
+build
+dist
+.svelte-kit
+vite.config.ts.timestamp-*
+vite.config.js.timestamp-*
+
+# Static output (for adapters)
+output/
+.vercel/
+.netlify/
+.cloudflare/
+tmp/
+temp/
+
+# Coverage & test
+coverage/
+.vitest/
+test-results/
+*.log
+
+# Local dev & misc
+.DS_Store
+*.local
+.env
+.env.*
+!.env.example
+
+# IDE/editor stuff
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Generated assets
+/static/
+
+#misc
+src/styles/prism-atom-dark.css

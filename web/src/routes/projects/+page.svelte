@@ -1,30 +1,25 @@
 <script lang="ts">
-	import { Button } from "$lib/components/ui/button";
-	import {
-		Card,
-		CardContent,
-		CardHeader,
-		CardTitle,
-	} from "$lib/components/ui/card";
-	import { Badge } from "$lib/components/ui/badge";
-	import { Settings, Building, FileDigit, SearchIcon } from "lucide-svelte";
+	import { Button } from '$lib/components/ui/button';
+	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Settings, Building, FileDigit, SearchIcon } from 'lucide-svelte';
 	import {
 		getProjects,
 		type ProjectSummary,
 		getBusinesses,
 		type BusinessSummary,
-		SimulationMode,
-	} from "$lib/api";
-	import { onMount } from "svelte";
-	import { getSimulationModeColor } from "$lib/utils";
-	import * as Select from "$lib/components/ui/select";
-	import * as InputGroup from "$lib/components/ui/input-group/index.js";
+		SimulationMode
+	} from '$lib/api';
+	import { onMount } from 'svelte';
+	import { getSimulationModeColor } from '$lib/utils';
+	import * as Select from '$lib/components/ui/select';
+	import * as InputGroup from '$lib/components/ui/input-group/index.js';
 
 	let projects: ProjectSummary[] = $state([]);
 	let businesses: BusinessSummary[] = $state([]);
-	let searchText = $state("");
-	let selectedBusiness: string = $state("");
-	let selectedSimMode: string = $state("");
+	let searchText = $state('');
+	let selectedBusiness: string = $state('');
+	let selectedSimMode: string = $state('');
 
 	let filteredProjects: ProjectSummary[] = $derived.by(() => {
 		let filtered = projects;
@@ -34,14 +29,12 @@
 				(p) =>
 					p.name.toLowerCase().includes(searchText.toLowerCase()) ||
 					p.business_name.toLowerCase().includes(searchText.toLowerCase()) ||
-					p.short_code.toLowerCase().includes(searchText.toLowerCase()),
+					p.short_code.toLowerCase().includes(searchText.toLowerCase())
 			);
 		}
 
 		if (selectedBusiness) {
-			filtered = filtered.filter(
-				(p) => p.business_id === parseInt(selectedBusiness!),
-			);
+			filtered = filtered.filter((p) => p.business_id === parseInt(selectedBusiness!));
 		}
 
 		if (selectedSimMode) {
@@ -57,16 +50,12 @@
 	});
 </script>
 
-<main class="container mx-auto p-6 space-y-6">
+<main class="container mx-auto space-y-6 p-6">
 	<!-- Header -->
-	<div class="flex justify-between items-center">
+	<div class="flex items-center justify-between">
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight text-foreground">
-				All Projects
-			</h1>
-			<p class="text-muted-foreground mt-1">
-				Manage all your M-Pesa testing environments
-			</p>
+			<h1 class="text-3xl font-bold tracking-tight text-foreground">All Projects</h1>
+			<p class="mt-1 text-muted-foreground">Manage all your M-Pesa testing environments</p>
 		</div>
 	</div>
 
@@ -90,9 +79,7 @@
 			<Select.Content>
 				<Select.Item value="">All Businesses</Select.Item>
 				{#each businesses as business}
-					<Select.Item value={business.id.toString()}
-						>{business.name}</Select.Item
-					>
+					<Select.Item value={business.id.toString()}>{business.name}</Select.Item>
 				{/each}
 			</Select.Content>
 		</Select.Root>
@@ -107,23 +94,16 @@
 		</Select.Root>
 	</div>
 
-	<div
-		class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-	>
+	<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 		{#each filteredProjects as project (project.id)}
-			<Card class="hover:shadow-lg transition-shadow duration-200">
+			<Card class="transition-shadow duration-200 hover:shadow-lg">
 				<CardHeader class="pb-3">
-					<div class="flex justify-between items-start">
+					<div class="flex items-start justify-between">
 						<div class="space-y-1">
-							<CardTitle class="text-lg font-semibold">{project.name}</CardTitle
-							>
+							<CardTitle class="text-lg font-semibold">{project.name}</CardTitle>
 						</div>
 						<div class="flex gap-1">
-							<Button
-								size="sm"
-								variant="ghost"
-								href={`/projects/${project.id}/settings`}
-							>
+							<Button size="sm" variant="ghost" href={`/projects/${project.id}/settings`}>
 								<Settings class="h-4 w-4" />
 							</Button>
 						</div>
@@ -131,28 +111,21 @@
 				</CardHeader>
 				<CardContent class="space-y-4">
 					<div class="flex items-center gap-2">
-						<Badge
-							class={getSimulationModeColor(project.simulation_mode)}
-							variant="outline"
-						>
-							{project.simulation_mode.replace("-", " ")}
+						<Badge class={getSimulationModeColor(project.simulation_mode)} variant="outline">
+							{project.simulation_mode.replace('-', ' ')}
 						</Badge>
 					</div>
-					<a
-						class="flex gap-2 items-center"
-						href="/businesses/{project.business_id}"
-					>
+					<a class="flex items-center gap-2" href="/businesses/{project.business_id}">
 						<Building size={20} />
 						{project.business_name}
 					</a>
-					<spawn class="text-muted-foreground flex items-center gap-2"
-						><FileDigit size={20} /> {project.short_code}</spawn
-					>
+					<spawn class="flex items-center gap-2 text-muted-foreground">
+						<FileDigit size={20} />
+						{project.short_code}
+					</spawn>
 					<!-- Actions -->
 					<div class="flex gap-2 pt-2">
-						<Button size="sm" href={`/projects/${project.id}`} class="flex-1">
-							View project
-						</Button>
+						<Button size="sm" href={`/projects/${project.id}`} class="flex-1">View project</Button>
 					</div>
 				</CardContent>
 			</Card>

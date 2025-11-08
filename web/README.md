@@ -14,10 +14,10 @@ The application has two primary build modes:
 
 ## Key Technologies & Libraries
 
-*   **Framework**: [SvelteKit](https://kit.svelte.dev/)
-*   **UI Components**: [Shadcn-Svelte](https://www.shadcn-svelte.com/)
-*   **Icons**: [Lucide Svelte](https://lucide.dev/guide/packages/lucide-svelte)
-*   **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **Framework**: [SvelteKit](https://kit.svelte.dev/)
+- **UI Components**: [Shadcn-Svelte](https://www.shadcn-svelte.com/)
+- **Icons**: [Lucide Svelte](https://lucide.dev/guide/packages/lucide-svelte)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
 
 ## Available Scripts
 
@@ -25,19 +25,19 @@ The following scripts are available in `package.json` to manage the development 
 
 ### Development
 
-*   `pnpm tauri dev`: Starts the Tauri development environment. This is the primary command for desktop app development. It automatically handles starting the SvelteKit dev server.
-*   `pnpm vite:web`: Runs the SvelteKit development server in **Web mode** for browser-based development.
-*   `pnpm dev:backend`: Starts the Axum backend server and watches for changes in the Rust crates.
-*   `pnpm dev:web`: A convenience script that runs both the frontend (`vite:web`) and the backend (`dev:backend`) concurrently for web-only development.
+- `pnpm tauri dev`: Starts the Tauri development environment. This is the primary command for desktop app development. It automatically handles starting the SvelteKit dev server.
+- `pnpm vite:web`: Runs the SvelteKit development server in **Web mode** for browser-based development.
+- `pnpm dev:backend`: Starts the Axum backend server and watches for changes in the Rust crates.
+- `pnpm dev:web`: A convenience script that runs both the frontend (`vite:web`) and the backend (`dev:backend`) concurrently for web-only development.
 
 ### Building
 
-*   `pnpm tauri build`: Creates a production build of the Tauri application.
-*   `pnpm build:web`: Creates a production build of the application in **Web mode** for browser/docker deployment.
+- `pnpm tauri build`: Creates a production build of the Tauri application.
+- `pnpm build:web`: Creates a production build of the application in **Web mode** for browser/docker deployment.
 
 ### Other
 
-*   `pnpm preview`: Starts a local server to preview the latest production build.
-*   `pnpm check`: Runs Svelte's type checker to validate the code.
-*   `pnpm check:watch`: Runs the type checker in watch mode.
-*   `pnpm tauri <command>`: A wrapper for the Tauri CLI. Use this to run other Tauri commands (e.g., `pnpm tauri info`).
+- `pnpm preview`: Starts a local server to preview the latest production build.
+- `pnpm check`: Runs Svelte's type checker to validate the code.
+- `pnpm check:watch`: Runs the type checker in watch mode.
+- `pnpm tauri <command>`: A wrapper for the Tauri CLI. Use this to run other Tauri commands (e.g., `pnpm tauri info`).

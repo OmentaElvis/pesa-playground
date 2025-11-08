@@ -27,10 +27,10 @@
 		businessId: number;
 		isCreating: boolean;
 		editingId: string | null;
-		refresh: () => void,
-		create: () => void,
-		edit: (params: {id: number}) => void,
-		cancel: () => void,
+		refresh: () => void;
+		create: () => void;
+		edit: (params: { id: number }) => void;
+		cancel: () => void;
 	}>();
 
 	let saving = $state(false);
@@ -49,7 +49,9 @@
 				confirmation_url: ''
 			};
 		} else if (editingId) {
-			const account = tillAccounts.find((acc: TillAccountDetails) => acc.account_id === parseInt(editingId!));
+			const account = tillAccounts.find(
+				(acc: TillAccountDetails) => acc.account_id === parseInt(editingId!)
+			);
 			if (account) {
 				formData = { ...account, initial_balance: 0 };
 			}
@@ -104,12 +106,12 @@
 				{#each tillAccounts.filter((acc: TillAccountDetails) => acc.business_id === businessId) as account}
 					<div
 						onclick={() => edit({ id: account.account_id })}
-						class="w-full p-2 hover:bg-muted cursor-pointer rounded-md"
+						class="w-full cursor-pointer rounded-md p-2 hover:bg-muted"
 						role="button"
 						tabindex="0"
 						onkeydown={(e) => e.key === 'Enter' && edit({ id: account.account_id })}
 					>
-						<div class="flex justify-between items-center w-full">
+						<div class="flex w-full items-center justify-between">
 							<div class="text-left">
 								<p class="text-sm font-medium">
 									{account.till_number}
@@ -190,7 +192,7 @@
 			<Dialog.Footer>
 				<Button onclick={handleSubmit} disabled={saving}>
 					{#if saving}
-						<LoaderCircle class="animate-spin h-3 w-4 mr-2" />
+						<LoaderCircle class="mr-2 h-3 w-4 animate-spin" />
 					{:else if editingId}
 						<Save class="mr-2 h-4 w-4" /> Update
 					{:else}

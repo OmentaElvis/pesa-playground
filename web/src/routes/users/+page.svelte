@@ -1,8 +1,9 @@
 <script>
-  import UserEmptyState from "$lib/components/users/UserEmptyState.svelte";
+	import UserEmptyState from '$lib/components/users/UserEmptyState.svelte';
 </script>
+
 <div class="">
-  <UserEmptyState />
+	<UserEmptyState />
 </div>
 
 <style>

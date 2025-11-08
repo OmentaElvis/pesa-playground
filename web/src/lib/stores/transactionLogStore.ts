@@ -1,6 +1,6 @@
 import { writable, get } from 'svelte/store';
 import { browser } from '$app/environment';
-import { type FullTransactionLog } from '$lib/api'
+import { type FullTransactionLog } from '$lib/api';
 import { activeUserPageId } from './activePageStore';
 
 export type TransactionDirection = 'Credit' | 'Debit';
@@ -34,7 +34,8 @@ function createTransactionLogStore() {
 		 */
 		add: (log: FullTransactionLog) => {
 			const currentActiveId = get(activeUserPageId);
-			const isRelatedToActivePage = log.to_id === currentActiveId || log.from_id === currentActiveId;
+			const isRelatedToActivePage =
+				log.to_id === currentActiveId || log.from_id === currentActiveId;
 
 			if (isRelatedToActivePage) {
 				// If the user is on the page related to this transaction, don't add it to unread notifications.
