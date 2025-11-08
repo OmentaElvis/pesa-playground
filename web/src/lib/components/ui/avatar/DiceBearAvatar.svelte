@@ -15,9 +15,9 @@
 	const avatarUri = avatar.toDataUri();
 </script>
 
-<Avatar.Root class="h-full w-full border border-foreground bg-green-800 bg-muted">
+<Avatar.Root class="h-full w-full border border-foreground bg-muted">
 	<div
-		class="flex h-full w-full items-center justify-center overflow-hidden rounded-full border-2 border-transparent"
+		class="flex h-full w-full items-center justify-center overflow-hidden rounded-full border-2 border-transparent bg-green-800"
 	>
 		<Avatar.Image src={avatarUri} alt="User Avatar" />
 		<Avatar.Fallback>{fallback}</Avatar.Fallback>
