@@ -1,7 +1,7 @@
 use std::{env, fs, path::Path};
 
 use anyhow::Context;
-use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend, Schema};
+use sea_orm::{ConnectOptions, ConnectionTrait, DatabaseConnection, DbBackend, Schema};
 use sqlx::{sqlite::SqliteConnectOptions, Connection, SqliteConnection};
 
 use crate::{
@@ -31,7 +31,10 @@ impl Database {
         let connection_url = format!("sqlite://{}?mode=rwc", db_path.display());
         env::set_var("DATABASE_URL", &connection_url);
 
-        let db: DatabaseConnection = sea_orm::Database::connect(connection_url).await?;
+        let mut opt = ConnectOptions::new(connection_url);
+        opt.sqlx_logging(false);
+
+        let db: DatabaseConnection = sea_orm::Database::connect(opt).await?;
 
         Ok(Self { conn: db })
     }

@@ -27,6 +27,7 @@ impl RelationTrait for Relation {
             Self::Project => Entity::belongs_to(crate::projects::db::Entity)
                 .from(Column::ProjectId)
                 .to(crate::projects::db::Column::Id)
+                .on_delete(sea_query::ForeignKeyAction::Cascade)
                 .into(),
         }
     }

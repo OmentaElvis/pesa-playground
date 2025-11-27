@@ -11,9 +11,15 @@ pub struct Model {
 
 #[derive(Clone, Copy, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "crate::accounts::paybill_accounts::db::Entity")]
+    #[sea_orm(
+        has_many = "crate::accounts::paybill_accounts::db::Entity",
+        on_delete = "Cascade"
+    )]
     PaybillAccounts,
-    #[sea_orm(has_many = "crate::accounts::till_accounts::db::Entity")]
+    #[sea_orm(
+        has_many = "crate::accounts::till_accounts::db::Entity",
+        on_delete = "Cascade"
+    )]
     TillAccounts,
 }
 

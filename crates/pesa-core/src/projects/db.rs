@@ -31,6 +31,7 @@ impl RelationTrait for Relation {
             Relation::Business => Entity::belongs_to(crate::business::db::Entity)
                 .from(Column::BusinessId)
                 .to(crate::business::db::Column::Id)
+                .on_delete(sea_query::ForeignKeyAction::Cascade)
                 .into(),
         }
     }
