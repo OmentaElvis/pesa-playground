@@ -1,0 +1,29 @@
+[package]
+name = "pesa-lua"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+cli = ["dep:clap", "dep:tracing-subscriber", "dirs"]
+
+[dependencies]
+pesa-core = { path = "../pesa-core" }
+mlua = { version = "0.11.4", features = ["macros", "async", "vendored", "lua54", "serde", "anyhow", "send"] }
+anyhow = "1.0"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+futures = "0.3"
+tracing = "0.1"
+pesa-macros = { path = "../pesa-macros" }
+
+# CLI dependencies
+clap = { version = "4.5.4", features = ["derive"], optional = true }
+tracing-subscriber = { version = "0.3", optional = true }
+dirs = { version = "5.0.1", optional = true }
+
+
+[[bin]]
+name = "ppg-script"
+path = "src/main.rs"
+required-features = ["cli"]
