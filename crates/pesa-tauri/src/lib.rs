@@ -1,6 +1,3 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-
 use pesa_core::{
     accounts::{
         paybill_accounts::{CreatePaybillAccount, UpdatePaybillAccount},
@@ -17,9 +14,14 @@ use pesa_core::{
     },
     AppContext, AppEventManager,
 };
+use pesa_lua::ScriptManager;
 use pesa_macros::generate_tauri_wrappers;
-use tauri::{Emitter, Manager, Runtime};
-use tokio::sync::Mutex;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tauri::{Emitter, Manager, Runtime, State};
+use tokio::sync::{broadcast, Mutex};
+
+const WEBSOCKET_CHANNEL_CAPACITY: usize = 100;
 
 #[tauri::command]
 async fn close_splashscreen(window: tauri::Window) {
@@ -31,16 +33,33 @@ async fn close_splashscreen(window: tauri::Window) {
     window.get_webview_window("main").unwrap().show().unwrap();
 }
 
-pub struct TauriEventManager<R: Runtime>(pub tauri::AppHandle<R>);
+pub struct TauriEventManager<R: Runtime> {
+    pub app_handle: tauri::AppHandle<R>,
+    pub sender: broadcast::Sender<serde_json::Value>,
+}
 
 impl<R: Runtime> AppEventManager for TauriEventManager<R> {
     fn emit_all(&self, event: &str, payload: serde_json::Value) -> anyhow::Result<()> {
-        self.0.emit(event, payload)?;
+        // Emit to Tauri frontend
+        self.app_handle.emit(event, payload.clone())?;
+        // Broadcast internally
+        self.sender.send(serde_json::json!({
+            "event": event,
+            "payload": payload,
+        }))?;
         Ok(())
     }
 }
 
+// Define the Tauri application state
+pub struct TauriAppState {
+    pub context: AppContext,
+    pub script_manager: Arc<Mutex<ScriptManager>>,
+}
+
 generate_tauri_wrappers! {
+    TauriAppState,
+    // Existing commands
     start_sandbox(project_id: u32) => pesa_core::sandboxes::ui::start_sandbox,
     stop_sandbox(project_id: u32) => pesa_core::sandboxes::ui::stop_sandbox,
     sandbox_status(project_id: u32) => pesa_core::sandboxes::ui::sandbox_status,
@@ -120,6 +139,57 @@ generate_tauri_wrappers! {
     get_app_info() => pesa_core::info::get_app_info
 }
 
+#[tauri::command]
+async fn scripts_list(
+    state: State<'_, TauriAppState>,
+) -> Result<Vec<String>, String> {
+    let manager = state.script_manager.lock().await;
+    manager.list_scripts().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn scripts_read(
+    name: String,
+    state: State<'_, TauriAppState>,
+) -> Result<String, String> {
+    let manager = state.script_manager.lock().await;
+    manager.read_script(&name).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn scripts_save(
+    name: String,
+    content: String,
+    state: State<'_, TauriAppState>,
+) -> Result<(), String> {
+    let manager = state.script_manager.lock().await;
+    manager
+        .save_script(&name, &content)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn scripts_delete(
+    name: String,
+    state: State<'_, TauriAppState>,
+) -> Result<(), String> {
+    let manager = state.script_manager.lock().await;
+    manager.delete_script(&name).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn scripts_execute(
+    content: String,
+    state: State<'_, TauriAppState>,
+) -> Result<String, String> {
+    let manager = state.script_manager.lock().await;
+    manager
+        .execute_script(&content)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
@@ -137,15 +207,55 @@ pub fn run() {
                     eprintln!("Database error: {:?}", err);
                 }
 
-                let event_manager = Arc::new(TauriEventManager(handle.clone()));
+                let (event_sender, _event_receiver) =
+                    broadcast::channel(WEBSOCKET_CHANNEL_CAPACITY);
+                let event_manager = Arc::new(TauriEventManager {
+                    app_handle: handle.clone(),
+                    sender: event_sender.clone(),
+                });
 
                 let context = AppContext {
                     db: db.conn.clone(),
-                    event_manager,
+                    event_manager: event_manager.clone(),
                     running: Arc::new(Mutex::new(HashMap::new())),
                 };
 
-                app.manage(context);
+                // Initialize ScriptManager
+                let script_manager = ScriptManager::new(context.clone(), &app_dir)
+                    .expect("Failed to initialize script manager");
+
+                let script_manager_clone = script_manager.clone();
+                let mut script_event_receiver = event_sender.subscribe();
+
+                tauri::async_runtime::spawn(async move {
+                    loop {
+                        match script_event_receiver.recv().await {
+                            Ok(event_payload) => {
+                                if let (Some(event_name), Some(payload)) = (
+                                    event_payload["event"].as_str(),
+                                    event_payload["payload"].as_object(),
+                                ) {
+                                    let sm = script_manager_clone.lock().await;
+                                    sm.emit_event(
+                                        event_name,
+                                        serde_json::Value::Object(payload.clone()),
+                                    )
+                                    .await;
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("Error receiving event in script manager: {:?}", e);
+                                break;
+                            }
+                        }
+                    }
+                });
+
+                // Manage the combined state
+                app.manage(TauriAppState {
+                    context,
+                    script_manager,
+                });
             });
 
             Ok(())
@@ -153,6 +263,13 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             close_splashscreen,
+            // Scripting Commands
+            scripts_list,
+            scripts_read,
+            scripts_save,
+            scripts_delete,
+            scripts_execute,
+            // Core Commands
             start_sandbox,
             stop_sandbox,
             sandbox_status,

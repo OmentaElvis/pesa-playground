@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -32,6 +33,7 @@ use pesa_core::{
     },
     AppContext, AppEventManager,
 };
+use pesa_lua::ScriptManager;
 use pesa_macros::generate_axum_rpc_handler;
 use tokio::sync::{broadcast, Mutex};
 use tower_http::cors::CorsLayer;
@@ -62,6 +64,7 @@ impl AppEventManager for AxumEventManager {
 pub struct AxumAppState {
     pub core_context: AppContext,
     pub event_manager: Arc<AxumEventManager>,
+    pub script_manager: Arc<Mutex<ScriptManager>>,
 }
 
 async fn ws_handler(ws: WebSocketUpgrade, State(state): State<AxumAppState>) -> Response {
@@ -102,7 +105,9 @@ async fn handle_socket(socket: WebSocket, event_manager: Arc<AxumEventManager>) 
     }
 }
 
+// The original macro-generated handler is renamed to `rpc_handler_inner`
 generate_axum_rpc_handler! {
+    rpc_handler_inner,
     start_sandbox(project_id: u32) => pesa_core::sandboxes::ui::start_sandbox,
     stop_sandbox(project_id: u32) => pesa_core::sandboxes::ui::stop_sandbox,
     sandbox_status(project_id: u32) => pesa_core::sandboxes::ui::sandbox_status,
@@ -182,6 +187,131 @@ generate_axum_rpc_handler! {
     get_app_info() => pesa_core::info::get_app_info
 }
 
+pub async fn rpc_handler(
+    State(state): State<AxumAppState>,
+    axum::Json(payload): axum::Json<RpcRequest>,
+) -> (axum::http::StatusCode, axum::Json<serde_json::Value>) {
+    let mut status_code = axum::http::StatusCode::OK;
+    let params_val = payload.params.clone().unwrap_or(serde_json::Value::Null);
+
+    let response = match payload.method.as_str() {
+        "scripts_list" => {
+            let call_result: Result<serde_json::Value, anyhow::Error> = async {
+                let manager = state.script_manager.lock().await;
+                let scripts = manager.list_scripts()?;
+                Ok(serde_json::to_value(scripts)?)
+            }
+            .await;
+
+            match call_result {
+                Ok(data) => {
+                    serde_json::json!({"jsonrpc": "2.0", "result": data, "id": payload.id})
+                }
+                Err(e) => {
+                    status_code = axum::http::StatusCode::INTERNAL_SERVER_ERROR;
+                    serde_json::json!({"jsonrpc": "2.0", "error": {"code": -32700, "message": format!("Invalid params: {:?}", e)}, "id": payload.id})
+                }
+            }
+        }
+        "scripts_read" => {
+            #[derive(Deserialize)]
+            struct Args {
+                name: String,
+            }
+            let call_result: Result<serde_json::Value, anyhow::Error> = async {
+                let args: Args = serde_json::from_value(params_val)?;
+                let manager = state.script_manager.lock().await;
+                let content = manager.read_script(&args.name)?;
+                Ok(serde_json::to_value(content)?)
+            }
+            .await;
+            match call_result {
+                Ok(data) => {
+                    serde_json::json!({"jsonrpc": "2.0", "result": data, "id": payload.id})
+                }
+                Err(e) => {
+                    status_code = axum::http::StatusCode::INTERNAL_SERVER_ERROR;
+                    serde_json::json!({"jsonrpc": "2.0", "error": {"code": -32700, "message": format!("Invalid params: {:?}", e)}, "id": payload.id})
+                }
+            }
+        }
+        "scripts_save" => {
+            #[derive(Deserialize)]
+            struct Args {
+                name: String,
+                content: String,
+            }
+            let call_result: Result<serde_json::Value, anyhow::Error> = async {
+                let args: Args = serde_json::from_value(params_val)?;
+                let manager = state.script_manager.lock().await;
+                manager.save_script(&args.name, &args.content)?;
+                Ok(serde_json::Value::Null)
+            }
+            .await;
+            match call_result {
+                Ok(data) => {
+                    serde_json::json!({"jsonrpc": "2.0", "result": data, "id": payload.id})
+                }
+                Err(e) => {
+                    status_code = axum::http::StatusCode::INTERNAL_SERVER_ERROR;
+                    serde_json::json!({"jsonrpc": "2.0", "error": {"code": -32700, "message": format!("Invalid params: {:?}", e)}, "id": payload.id})
+                }
+            }
+        }
+        "scripts_delete" => {
+            #[derive(Deserialize)]
+            struct Args {
+                name: String,
+            }
+            let call_result: Result<serde_json::Value, anyhow::Error> = async {
+                let args: Args = serde_json::from_value(params_val)?;
+                let manager = state.script_manager.lock().await;
+                manager.delete_script(&args.name)?;
+                Ok(serde_json::Value::Null)
+            }
+            .await;
+            match call_result {
+                Ok(data) => {
+                    serde_json::json!({"jsonrpc": "2.0", "result": data, "id": payload.id})
+                }
+                Err(e) => {
+                    status_code = axum::http::StatusCode::INTERNAL_SERVER_ERROR;
+                    serde_json::json!({"jsonrpc": "2.0", "error": {"code": -32700, "message": format!("Invalid params: {:?}", e)}, "id": payload.id})
+                }
+            }
+        }
+        "scripts_execute" => {
+            #[derive(Deserialize)]
+            struct Args {
+                content: String,
+            }
+            let call_result: Result<serde_json::Value, anyhow::Error> = async {
+                let args: Args = serde_json::from_value(params_val)?;
+                let manager = state.script_manager.lock().await;
+                let result = manager.execute_script(&args.content).await?;
+                Ok(serde_json::to_value(result)?)
+            }
+            .await;
+            match call_result {
+                Ok(data) => {
+                    serde_json::json!({"jsonrpc": "2.0", "result": data, "id": payload.id})
+                }
+                Err(e) => {
+                    status_code = axum::http::StatusCode::INTERNAL_SERVER_ERROR;
+                    serde_json::json!({"jsonrpc": "2.0", "error": {"code": -32700, "message": format!("Invalid params: {:?}", e)}, "id": payload.id})
+                }
+            }
+        }
+        _ => {
+            let (s, r) = rpc_handler_inner(State(state), axum::Json(payload)).await;
+            status_code = s;
+            r.0
+        }
+    };
+
+    (status_code, axum::Json(response))
+}
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct CliArgs {
@@ -250,25 +380,22 @@ async fn main() {
 
     let cli_args = CliArgs::parse();
 
-    let db_path = if let Some(mut data_dir) = dirs::data_dir() {
-        data_dir.push(TAURI_APP_ID);
-        if !data_dir.exists() {
-            if let Err(e) = std::fs::create_dir_all(&data_dir) {
-                error!("Failed to create data directory: {}", e);
-                // Fallback to current directory
-                PathBuf::from("database.sqlite")
-            } else {
-                data_dir.push("database.sqlite");
-                data_dir
-            }
-        } else {
-            data_dir.push("database.sqlite");
-            data_dir
-        }
+    let data_dir = if let Some(mut dir) = dirs::data_dir() {
+        dir.push(TAURI_APP_ID);
+        dir
     } else {
-        // Fallback to current directory
-        PathBuf::from("database.sqlite")
+        PathBuf::from(".")
     };
+
+    if !data_dir.exists() {
+        if let Err(e) = std::fs::create_dir_all(&data_dir) {
+            error!("Failed to create data directory: {}", e);
+            // In a real app, you might want to handle this more gracefully
+            panic!("Failed to create data directory: {}", e);
+        }
+    }
+
+    let db_path = data_dir.join("database.sqlite");
 
     let db = pesa_core::db::Database::new(&db_path)
         .await
@@ -289,9 +416,37 @@ async fn main() {
         running: Arc::new(Mutex::new(HashMap::new())),
     };
 
+    let script_manager = ScriptManager::new(core_context.clone(), &data_dir)
+        .expect("Failed to initialize script manager");
+
+    let script_manager_clone = script_manager.clone();
+    let mut script_event_receiver = event_sender.subscribe();
+
+    tokio::spawn(async move {
+        loop {
+            match script_event_receiver.recv().await {
+                Ok(event_payload) => {
+                    if let (Some(event_name), Some(payload)) = (
+                        event_payload["event"].as_str(),
+                        event_payload["payload"].as_object(),
+                    ) {
+                        let sm = script_manager_clone.lock().await;
+                        sm.emit_event(event_name, serde_json::Value::Object(payload.clone()))
+                            .await;
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error receiving event in script manager: {:?}", e);
+                    break;
+                }
+            }
+        }
+    });
+
     let app_state = AxumAppState {
         core_context,
         event_manager: axum_event_manager,
+        script_manager,
     };
 
     let app = Router::new()

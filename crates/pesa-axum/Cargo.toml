@@ -16,6 +16,7 @@ log = "0.4"
 env_logger = "0.10"
 pesa-core = { path = "../pesa-core" }
 pesa-macros = { path = "../pesa-macros" }
+pesa-lua = { path = "../pesa-lua" }
 futures-util = "0.3.31"
 dirs = "5.0"
 bytes = "1.0"
