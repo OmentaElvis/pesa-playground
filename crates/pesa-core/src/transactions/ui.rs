@@ -15,6 +15,7 @@ use sea_orm::EntityTrait;
 use sea_orm::PaginatorTrait;
 use sea_orm::QueryFilter;
 use sea_orm::QuerySelect;
+use sea_query::ExprTrait;
 use serde::Deserialize;
 
 use crate::accounts::paybill_accounts::PaybillAccount;
@@ -65,6 +66,29 @@ pub async fn get_transaction(
         .context("Failed to get transaction")?;
 
     Ok(transaction.map(|t| t.into()))
+}
+
+pub async fn list_system_transactions(
+    ctx: &AppContext,
+    limit: Option<u32>,
+    offset: Option<u32>,
+) -> Result<Vec<Transaction>> {
+    let db = &ctx.db;
+    let mut query = crate::transactions::db::Entity::find();
+
+    if let Some(limit) = limit {
+        query = query.limit(limit as u64);
+    }
+
+    if let Some(offset) = offset {
+        query = query.offset(offset as u64);
+    }
+
+    query = query.filter(Condition::any().and(crate::transactions::db::Column::From.is_null()));
+
+    let transactions = query.all(db).await.context("Failed to list transactions")?;
+
+    Ok(transactions.into_iter().map(|t| t.into()).collect())
 }
 
 pub async fn list_transactions(
@@ -132,6 +156,36 @@ pub async fn count_transactions(ctx: &AppContext, filter: TransactionFilter) -> 
         .count(db)
         .await
         .context("Failed to count transactions")
+}
+
+async fn total_transaction_volume(ctx: &AppContext) -> Result<i64> {
+    let db = &ctx.db;
+    let res: i64 = crate::transactions::db::Entity::find()
+        .select_only()
+        .column_as(crate::transactions::db::Column::Amount.sum(), "sum")
+        .into_tuple()
+        .one(db)
+        .await?
+        .map(|val: (Option<i64>,)| val.0)
+        .unwrap_or_default()
+        .unwrap_or_default();
+
+    Ok(res)
+}
+
+async fn total_transaction_fees(ctx: &AppContext) -> Result<i64> {
+    let db = &ctx.db;
+    let res: i64 = crate::transactions::db::Entity::find()
+        .select_only()
+        .column_as(crate::transactions::db::Column::Fee.sum(), "sum")
+        .into_tuple()
+        .one(db)
+        .await?
+        .map(|val: (Option<i64>,)| val.0)
+        .unwrap_or_default()
+        .unwrap_or_default();
+
+    Ok(res)
 }
 
 pub async fn get_transaction_by_checkout_request(
@@ -223,11 +277,16 @@ pub async fn get_transaction_stats(ctx: &AppContext) -> Result<TransactionStats>
         .await
         .context("Failed to get failed count")?;
 
+    let total_volume = total_transaction_volume(ctx).await?;
+    let total_fees = total_transaction_fees(ctx).await?;
+
     Ok(TransactionStats {
         total_count,
         successful_count,
         pending_count,
         failed_count,
+        total_volume,
+        total_fees,
     })
 }
 
@@ -263,6 +322,8 @@ pub struct TransactionStats {
     pub successful_count: u64,
     pub pending_count: u64,
     pub failed_count: u64,
+    pub total_volume: i64,
+    pub total_fees: i64,
 }
 
 #[derive(Deserialize)]

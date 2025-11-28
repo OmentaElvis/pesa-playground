@@ -105,6 +105,7 @@ generate_tauri_wrappers! {
 
     get_transaction(transaction_id: String) => pesa_core::transactions::ui::get_transaction,
     list_transactions(filter: TransactionFilter) => pesa_core::transactions::ui::list_transactions,
+    list_system_transactions(limit: Option<u32>, offset: Option<u32>) => pesa_core::transactions::ui::list_system_transactions,
     count_transactions(filter: TransactionFilter) => pesa_core::transactions::ui::count_transactions,
     get_transaction_by_checkout_request(checkout_request_id: String) => pesa_core::transactions::ui::get_transaction_by_checkout_request,
     get_user_transactions(user_id: u32, limit: Option<u32>, offset: Option<u32>) => pesa_core::transactions::ui::get_user_transactions,
@@ -136,22 +137,20 @@ generate_tauri_wrappers! {
 
     resolve_stk_prompt(checkout_id: String, result: UserResponse) => pesa_core::callbacks::stk::ui::resolve_stk_prompt,
     #[no_context]
-    get_app_info() => pesa_core::info::get_app_info
+    get_app_info() => pesa_core::info::get_app_info,
+
+    get_account(id: u32) => pesa_core::accounts::ui::get_account,
+    create_account(account_type: pesa_core::accounts::AccountType, initial_balance: i64) => pesa_core::accounts::ui::create_account,
 }
 
 #[tauri::command]
-async fn scripts_list(
-    state: State<'_, TauriAppState>,
-) -> Result<Vec<String>, String> {
+async fn scripts_list(state: State<'_, TauriAppState>) -> Result<Vec<String>, String> {
     let manager = state.script_manager.lock().await;
     manager.list_scripts().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn scripts_read(
-    name: String,
-    state: State<'_, TauriAppState>,
-) -> Result<String, String> {
+async fn scripts_read(name: String, state: State<'_, TauriAppState>) -> Result<String, String> {
     let manager = state.script_manager.lock().await;
     manager.read_script(&name).map_err(|e| e.to_string())
 }
@@ -169,10 +168,7 @@ async fn scripts_save(
 }
 
 #[tauri::command]
-async fn scripts_delete(
-    name: String,
-    state: State<'_, TauriAppState>,
-) -> Result<(), String> {
+async fn scripts_delete(name: String, state: State<'_, TauriAppState>) -> Result<(), String> {
     let manager = state.script_manager.lock().await;
     manager.delete_script(&name).map_err(|e| e.to_string())
 }
@@ -188,7 +184,6 @@ async fn scripts_execute(
         .await
         .map_err(|e| e.to_string())
 }
-
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

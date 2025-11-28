@@ -78,6 +78,7 @@ generate_lua_bindings! {
 
     get_transaction(transaction_id: String) => pesa_core::transactions::ui::get_transaction,
     list_transactions(#[wrap] filter: TransactionFilter) => pesa_core::transactions::ui::list_transactions,
+    list_system_transactions(limit: Option<u32>, offset: Option<u32>) => pesa_core::transactions::ui::list_system_transactions,
     count_transactions(#[wrap] filter: TransactionFilter) => pesa_core::transactions::ui::count_transactions,
     get_transaction_by_checkout_request(checkout_request_id: String) => pesa_core::transactions::ui::get_transaction_by_checkout_request,
     get_user_transactions(user_id: u32, limit: Option<u32>, offset: Option<u32>) => pesa_core::transactions::ui::get_user_transactions,
@@ -109,7 +110,10 @@ generate_lua_bindings! {
 
     resolve_stk_prompt(checkout_id: String, #[wrap] result: UserResponse) => pesa_core::callbacks::stk::ui::resolve_stk_prompt,
     #[no_context]
-    get_app_info() => pesa_core::info::get_app_info
+    get_app_info() => pesa_core::info::get_app_info,
+
+    get_account(id: u32) => pesa_core::accounts::ui::get_account,
+    create_account(#[wrap] account_type: AccountType, initial_balance: i64) => pesa_core::accounts::ui::create_account,
 }
 
 type ListenerMap = Arc<Mutex<HashMap<String, Vec<RegistryKey>>>>;

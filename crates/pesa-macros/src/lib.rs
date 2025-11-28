@@ -392,7 +392,10 @@ impl Parse for TypeWrapping {
         let struct_name: Ident = input.parse()?;
         let from_keyword: Ident = input.parse()?; // Parse 'from' as an Ident
         if from_keyword != "from" {
-            return Err(syn::Error::new(from_keyword.span(), "expected `from` keyword"));
+            return Err(syn::Error::new(
+                from_keyword.span(),
+                "expected `from` keyword",
+            ));
         }
         let core_path: Path = input.parse()?;
         Ok(TypeWrapping {
