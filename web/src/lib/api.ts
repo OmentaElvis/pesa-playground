@@ -14,7 +14,7 @@ const defaultInvoke: Invoke = (cmd) => {
 	throw new Error(`'invoke' function has not been provided. Called with: ${cmd}`);
 };
 
-let invoke: Invoke = defaultInvoke;
+export let invoke: Invoke = defaultInvoke;
 
 export const provideInvoke = (implementation: Invoke) => {
 	invoke = implementation;
@@ -529,6 +529,8 @@ export interface TransactionStats {
 	successful_count: number;
 	pending_count: number;
 	failed_count: number;
+	total_fees: number;
+	total_volume: number;
 }
 
 export async function transfer(
@@ -555,6 +557,12 @@ export async function getTransaction(transaction_id: string): Promise<Transactio
 
 export async function listTransactions(filter: TransactionFilter = {}): Promise<Transaction[]> {
 	return await invoke('list_transactions', { filter });
+}
+export async function listSystemTransactions(
+	limit: number | null = null,
+	offset: number | null = null
+): Promise<Transaction[]> {
+	return await invoke('list_system_transactions', { limit, offset });
 }
 
 export async function countTransactions(filter: TransactionFilter = {}): Promise<number> {
