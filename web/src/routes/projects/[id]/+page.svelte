@@ -4,71 +4,66 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Badge } from '$lib/components/ui/badge';
-	import SandboxToggle from '$lib/components/SandboxToggle.svelte';
 	import LogSheet from '$lib/components/LogSheet.svelte';
-
-	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
+	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import {
 		Copy,
 		Key,
 		Activity,
-		Users,
 		Plus,
 		Settings,
 		CheckCircle,
 		XCircle,
-		Globe,
 		AlertCircle,
-		Phone,
-		CreditCard,
 		RefreshCw,
 		LoaderCircle,
 		ChevronRight,
-		Wallet
+		Building,
+		Users,
+		Phone,
+		CreditCard
 	} from 'lucide-svelte';
 	import {
 		getProject,
-		getUsers,
-		generateUser,
-		createUser,
 		type ProjectDetails,
 		type ApiLog,
 		getProjectApiLogs,
 		type Business,
 		getBusiness,
-		type UserDetails,
 		getPaybillAccountsByBusinessId,
+		type PaybillAccountDetails,
 		getTillAccountsByBusinessId,
-		type PaybillAccount,
-		type TillAccount,
-		countTransactionLogs
+		type TillAccountDetails,
+		getUsers,
+		type UserDetails,
+		createUser,
+		generateUser
 	} from '$lib/api';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { listen, type UnlistenFn } from '$lib/api';
 	import { onDestroy, onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
+	import HelpPopover from '$lib/components/ui/helppopover/HelpPopover.svelte';
+	import TransactionList from '$lib/components/TransactionList.svelte';
+	import SandboxToggle from '$lib/components/SandboxToggle.svelte';
 	import DiceBearAvatar from '$lib/components/ui/avatar/DiceBearAvatar.svelte';
 	import { getInitials } from '$lib/utils';
-	import HelpPopover from '$lib/components/ui/helppopover/HelpPopover.svelte';
 
-	// Mock project data
 	let id = $derived(page.params.id);
 	let project: ProjectDetails | null = $state(null);
-	let users: UserDetails[] = $state([]);
 	let apiLogs: ApiLog[] = $state([]);
 	let business: Business | null = $state(null);
+	let users: UserDetails[] = $state([]);
 
-	let creatingUser = $state(false);
 	let selectedLog: ApiLog | null = $state(null);
 	let logSidebarOpen: boolean = $state(false);
 	let apiLogsLoading: boolean = $state(false);
-	let paybills: PaybillAccount[] = $state([]);
-	let tills: TillAccount[] = $state([]);
-
-	let transactions: number = $state(0);
+	let paybills: PaybillAccountDetails[] = $state([]);
+	let tills: TillAccountDetails[] = $state([]);
 
 	// New user form
+	let creatingUser = $state(false);
 	let newUser = $state({
 		name: '',
 		phone: '',
@@ -80,13 +75,7 @@
 		creatingUser = true;
 		try {
 			await createUser(newUser.name, newUser.phone, newUser.balance, newUser.pin);
-			newUser = {
-				name: '',
-				phone: '',
-				balance: 10000,
-				pin: '0000'
-			};
-
+			newUser = { name: '', phone: '', balance: 10000, pin: '0000' };
 			users = await getUsers();
 		} catch (err) {
 			toast(`Failed to create user: ${err}`);
@@ -95,9 +84,13 @@
 		}
 	}
 
+	async function generateRandomUser() {
+		newUser = await generateUser();
+	}
+
 	function copyToClipboard(text: String = '') {
 		navigator.clipboard.writeText(text as string);
-		toast(`Copied "${text}" to clipboard`);
+		toast(`Copied to clipboard`);
 	}
 
 	function getStatusColor(status: number) {
@@ -113,24 +106,51 @@
 		return AlertCircle;
 	}
 
-	async function generateRandomUser() {
-		newUser = await generateUser();
-	}
-
 	async function refreshLogs() {
-		apiLogs = await getProjectApiLogs(Number(id), { limit: 20 });
+		apiLogsLoading = true;
+		try {
+			apiLogs = await getProjectApiLogs(Number(id), { limit: 20 });
+		} finally {
+			apiLogsLoading = false;
+		}
 	}
 
-	async function loadTransactions() {
+	async function loadBusinessAccounts() {
 		if (business) {
 			paybills = await getPaybillAccountsByBusinessId(business.id);
 			tills = await getTillAccountsByBusinessId(business.id);
-
-			let paybill_transaction_cost = await countTransactionLogs(paybills.map((p) => p.account_id));
-			let till_transaction_count = await countTransactionLogs(tills.map((t) => t.account_id));
-			transactions = paybill_transaction_cost + till_transaction_count;
 		}
 	}
+
+	const debouncedRefresh = debounce(() => {
+		refreshLogs();
+		loadBusinessAccounts();
+	}, 10000);
+
+	let unlisten: UnlistenFn;
+
+	listen('new-api-log', (event) => {
+		let project_id = event.payload;
+		if (project_id == Number(id)) {
+			debouncedRefresh();
+		}
+	}).then((un) => {
+		unlisten = un;
+	});
+
+	onDestroy(() => {
+		if (unlisten) unlisten();
+	});
+
+	let currentTab = $state('transactions');
+
+	$effect(() => {
+		const url = new URL(page.url);
+		if (url.searchParams.get('tab') !== currentTab) {
+			url.searchParams.set('tab', currentTab);
+			goto(url, { replaceState: true, keepFocus: true, noScroll: true });
+		}
+	});
 
 	function debounce(func: Function, wait: number) {
 		let timeout: any;
@@ -141,131 +161,110 @@
 		};
 	}
 
-	const debouncedRefreshLogs = debounce(async () => {
-		if (!project) return;
-		await refreshLogs();
-		await loadTransactions();
-	}, 10000);
-
-	let unlisten: UnlistenFn;
-
-	listen('new-api-log', (event) => {
-		let project_id = event.payload;
-		if (project_id == Number(id)) {
-			debouncedRefreshLogs();
-		}
-	}).then((un) => {
-		unlisten = un;
-	});
-
-	onDestroy(() => {
-		if (unlisten) unlisten();
-	});
-
-	let currentTab = $state('overview');
-
-	$effect(() => {
-		const url = new URL(page.url);
-		if (url.searchParams.get('tab') !== currentTab) {
-			url.searchParams.set('tab', currentTab);
-			goto(url, { replaceState: true, keepFocus: true, noScroll: true });
-		}
-	});
-
 	onMount(async () => {
 		const tab = page.url.searchParams.get('tab');
 		if (tab) {
 			currentTab = tab;
 		}
 
-		$effect(() => {
-			async function get(id: number) {
-				project = await getProject(Number(id));
-				users = await getUsers();
-				business = await getBusiness(project.business_id);
-				await loadTransactions();
+		async function loadData(projectId: number) {
+			project = await getProject(projectId);
+			business = await getBusiness(project.business_id);
+			users = await getUsers();
+			await loadBusinessAccounts();
+			await refreshLogs();
+		}
 
-				apiLogs = await getProjectApiLogs(Number(id), { limit: 20 });
-			}
-
-			get(Number(id));
-		});
+		loadData(Number(id));
 	});
 </script>
 
 <main class="container mx-auto space-y-6 p-6">
-	<!-- Header -->
-	{#if !project}
-		<div class="flex size-full items-center justify-center">
-			<div>
-				<LoaderCircle class="animate-spin" />
-				<span>Loading items</span>
-			</div>
+	{#if !project || !business}
+		<div class="flex size-full items-center justify-center p-10">
+			<LoaderCircle class="animate-spin" />
+			<span class="ml-2">Loading project...</span>
 		</div>
 	{:else}
 		<div class="flex flex-col gap-4">
 			<div class="flex items-center justify-between">
 				<div>
-					<div class="flex gap-2">
-						<h1 class="text-3xl font-bold tracking-tight text-foreground">
-							{project.name}
-						</h1>
-						<h3>
-							#{project.id}
-						</h3>
+					<div class="flex items-center gap-2">
+						<h1 class="text-3xl font-bold tracking-tight text-foreground">{project.name}</h1>
+						<Badge variant="outline">#{project.id}</Badge>
 					</div>
-					<div class="mt-2 flex items-center gap-2">
-						<Badge
-							class="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300"
-							variant="outline"
-						>
-							{project.simulation_mode}
-						</Badge>
+					<div class="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+						<span>
+							Business:
+							<a
+								href="/businesses/{project.business_id}"
+								class="font-semibold text-primary hover:underline"
+							>
+								{business.name}
+							</a>
+						</span>
 						<span class="text-muted-foreground">•</span>
-						<span class="text-sm text-muted-foreground">Shortcode: {business?.short_code}</span>
+						<span>Shortcode: {business?.short_code}</span>
 					</div>
 				</div>
-				<Button href={`/projects/${id}/settings`} variant="outline" class="gap-2">
-					<Settings class="h-4 w-4" />
-					Settings
-				</Button>
+				<div class="flex gap-2">
+					<Button href={`/projects/${id}/settings`} variant="outline" class="gap-2">
+						<Settings class="h-4 w-4" />
+						Settings
+					</Button>
+				</div>
 			</div>
-			<div>
-				<SandboxToggle id={Number(id)} />
-			</div>
+			<SandboxToggle id={Number(id)} />
 		</div>
-		<!-- Stats Overview -->
-		<div class="">
+
+		<!-- Key Information -->
+		<div>
 			<Card>
-				<CardContent class="grid gap-4 p-4 md:grid-cols-4">
-					<div class="flex items-center gap-2">
-						<Activity class="text-muted-foreground" />
-						<div>
-							<p class="text-sm text-muted-foreground">Total Transactions</p>
-							<a
-								class="text-2xl font-bold"
-								href="/businesses/{project.business_id}?tab=transactions"
+				<CardHeader>
+					<CardTitle class="flex items-center gap-2">
+						<Key class="h-5 w-5" />
+						API Credentials
+						<HelpPopover slug="daraja-auth" />
+					</CardTitle>
+				</CardHeader>
+				<CardContent class="space-y-4 font-mono">
+					<div class="space-y-1">
+						<Label class="text-sm">Client Key</Label>
+						<div class="flex items-center gap-2">
+							<Input type="text" value={project.consumer_key} readonly class="flex-1" />
+							<Button
+								size="icon"
+								variant="outline"
+								onclick={() => copyToClipboard(project?.consumer_key)}
 							>
-								{transactions}
-							</a>
+								<Copy class="h-4 w-4" />
+							</Button>
 						</div>
 					</div>
-					<div class="flex items-center gap-2">
-						<Users class="text-muted-foreground" />
-						<div>
-							<p class="text-sm text-muted-foreground">Test Users</p>
-							<p class="text-2xl font-bold">
-								{users.length}
-							</p>
+					<div class="space-y-1">
+						<Label class="text-sm">Client Secret</Label>
+						<div class="flex items-center gap-2">
+							<Input value={project.consumer_secret} readonly class="flex-1" />
+							<Button
+								size="icon"
+								variant="outline"
+								onclick={() => copyToClipboard(project?.consumer_secret)}
+							>
+								<Copy class="h-4 w-4" />
+							</Button>
 						</div>
 					</div>
-					<div class="flex items-center gap-2">
-						<Wallet class="text-muted-foreground" />
-						<div>
-							<p class="text-sm text-muted-foreground">Accounts</p>
-							<a class="text-2xl font-bold" href="/businesses/{project.business_id}?tab=accounts">
-								{paybills.length + tills.length}
-							</a>
+					<div class="space-y-1">
+						<Label class="text-sm">Passkey</Label>
+						<div class="flex items-center gap-2">
+							<Input value={project.passkey} readonly class="flex-1" />
+							<Button
+								size="icon"
+								variant="outline"
+								onclick={() => copyToClipboard(project?.passkey)}
+							>
+								<Copy class="h-4 w-4" />
+							</Button>
 						</div>
 					</div>
 				</CardContent>
@@ -273,124 +272,76 @@
 		</div>
 
 		<!-- Main Content Tabs -->
-		<Tabs bind:value={currentTab} class="w-full">
-			<TabsList class="grid w-full grid-cols-4">
-				<TabsTrigger value="overview">Overview</TabsTrigger>
-				<TabsTrigger value="api-keys">API Keys</TabsTrigger>
-				<TabsTrigger value="logs">API Logs</TabsTrigger>
-				<TabsTrigger value="users">Test Users</TabsTrigger>
-			</TabsList>
+		<Tabs.Root bind:value={currentTab} class="w-full">
+			<Tabs.List class="grid w-full grid-cols-4">
+				<Tabs.Trigger value="transactions">Transactions</Tabs.Trigger>
+				<Tabs.Trigger value="accounts">Business Accounts</Tabs.Trigger>
+				<Tabs.Trigger value="api-logs">API Logs</Tabs.Trigger>
+				<Tabs.Trigger value="users">Test Users</Tabs.Trigger>
+			</Tabs.List>
 
-			<!-- Overview Tab -->
-			<TabsContent value="overview" class="space-y-6">
-				<div class="">
-					<!-- Project Info -->
-					<Card>
-						<CardHeader>
-							<CardTitle class="flex items-center gap-2">
-								<Globe class="h-5 w-5" />
-								Project Configuration
-							</CardTitle>
-						</CardHeader>
-						<CardContent class="space-y-4">
-							<div>
-								<Label class="text-sm font-medium">Callback URL</Label>
-								<div class="mt-1 flex items-center gap-2">
-									<Input value={project.callback_url} readonly class="flex-1" />
-									{#if project?.callback_url}
-										<Button
-											size="sm"
-											variant="outline"
-											onclick={() => copyToClipboard(project?.callback_url)}
-										>
-											<Copy class="h-4 w-4" />
-										</Button>
-									{/if}
-								</div>
-							</div>
-							<div>
-								<Label class="text-sm font-medium">Business Shortcode</Label>
-								<div class="mt-1 flex items-center gap-2">
-									<Input value={business?.short_code} readonly class="flex-1" />
-									{#if business?.short_code}
-										<Button
-											size="sm"
-											variant="outline"
-											onclick={() => copyToClipboard(business?.short_code)}
-										>
-											<Copy class="h-4 w-4" />
-										</Button>
-									{/if}
-								</div>
-							</div>
-						</CardContent>
-					</Card>
-				</div>
-			</TabsContent>
+			<!-- Transactions Tab -->
+			<Tabs.Content value="transactions">
+				<TransactionList {paybills} {tills} />
+			</Tabs.Content>
 
-			<!-- API Keys Tab -->
-			<TabsContent value="api-keys" class="space-y-6">
+			<!-- Business Accounts Tab -->
+			<Tabs.Content value="accounts">
 				<Card>
-					<CardHeader>
+					<CardHeader class="flex flex-row items-center justify-between">
 						<CardTitle class="flex items-center gap-2">
-							<Key class="h-5 w-5" />
-							API Credentials
-							<HelpPopover slug="daraja-auth" />
+							<Building class="h-5 w-5" />
+							Business Accounts ({business.name})
 						</CardTitle>
-						<p class="text-sm text-muted-foreground">
-							Use these credentials to authenticate your API requests
-						</p>
+						<Button size="sm" variant="outline" href={`/businesses/${business.id}?tab=accounts`}>
+							<Plus class="mr-2 h-4 w-4" />
+							Add Account
+						</Button>
 					</CardHeader>
-					<CardContent class="space-y-6">
-						<!-- API Key -->
-						<div class="space-y-2">
-							<Label class="text-sm font-medium">Client Key</Label>
-							<div class="flex items-center gap-2">
-								<Input type="text" value={project.consumer_key} readonly class="flex-1 font-mono" />
-								<Button
-									size="sm"
-									variant="outline"
-									onclick={() => copyToClipboard(project?.consumer_key)}
-								>
-									<Copy class="h-4 w-4" />
-								</Button>
-							</div>
-						</div>
-
-						<!-- Secret Key -->
-						<div class="space-y-2">
-							<Label class="text-sm font-medium">Client Secret</Label>
-							<div class="flex items-center gap-2">
-								<Input value={project.consumer_secret} readonly class="flex-1 font-mono" />
-								<Button
-									size="sm"
-									variant="outline"
-									onclick={() => copyToClipboard(project?.consumer_secret)}
-								>
-									<Copy class="h-4 w-4" />
-								</Button>
-							</div>
-						</div>
-						<!-- PassKey -->
-						<div class="space-y-2">
-							<Label class="text-sm font-medium">PassKey</Label>
-							<div class="flex items-center gap-2">
-								<Input value={project.passkey} readonly class="flex-1 font-mono" />
-								<Button
-									size="sm"
-									variant="outline"
-									onclick={() => copyToClipboard(project?.passkey)}
-								>
-									<Copy class="h-4 w-4" />
-								</Button>
-							</div>
+					<CardContent class="overflow-x-auto">
+						<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+							{#each paybills as account}
+								<div class="flex items-center justify-between rounded-md border p-3">
+									<a
+										class="cursor-pointer text-sm text-muted-foreground hover:underline"
+										href="/businesses/{business.id}?collapsed=true&biz_tab=accounts&biz_action=edit_paybill&biz_edit_paybill={account.account_id}"
+									>
+										Paybill: {account.paybill_number}
+									</a>
+									<div class="font-mono text-lg">
+										{account.balance.toLocaleString('en-US', {
+											style: 'currency',
+											currency: 'KES'
+										})}
+									</div>
+								</div>
+							{/each}
+							{#each tills as account}
+								<div class="flex items-center justify-between rounded-md border p-3">
+									<div>
+										<div class="font-semibold">{account.location_description || 'Till'}</div>
+										<a
+											class="cursor-pointer text-sm text-muted-foreground hover:underline"
+											href="/businesses/{business.id}?collapsed=true&biz_tab=accounts&biz_action=edit_paybill&biz_edit_till={account.account_id}"
+										>
+											Till: {account.till_number}
+										</a>
+									</div>
+									<div class="font-mono text-lg">
+										{account.balance.toLocaleString('en-US', {
+											style: 'currency',
+											currency: 'KES'
+										})}
+									</div>
+								</div>
+							{/each}
 						</div>
 					</CardContent>
 				</Card>
-			</TabsContent>
+			</Tabs.Content>
 
 			<!-- API Logs Tab -->
-			<TabsContent value="logs" class="space-y-6">
+			<Tabs.Content value="api-logs">
 				<Card>
 					<CardHeader>
 						<div class="flex items-center justify-between">
@@ -398,53 +349,52 @@
 								<Activity class="h-5 w-5" />
 								Recent API Activity
 							</CardTitle>
-							{#if apiLogsLoading}
-								<Button size="sm" variant="outline" disabled>
-									<RefreshCw class="mr-2 h-4 w-4 animate-spin" />
-									Refresh
-								</Button>
-							{:else}
-								<Button size="sm" variant="outline" onclick={refreshLogs}>
+							<Button size="sm" variant="outline" onclick={refreshLogs} disabled={apiLogsLoading}>
+								{#if apiLogsLoading}
+									<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+								{:else}
 									<RefreshCw class="mr-2 h-4 w-4" />
-									Refresh
-								</Button>
-							{/if}
+								{/if}
+								Refresh
+							</Button>
 						</div>
 					</CardHeader>
 					<CardContent>
-						<div class="space-y-4">
+						<div class="space-y-2">
 							{#each apiLogs as log (log.id)}
 								{@const StatusIcon = getStatusIcon(log.status_code)}
-								<div class="space-y-2 rounded-lg border p-4">
+								<button
+									class="w-full space-y-2 rounded-lg border p-3 text-left hover:bg-muted/50"
+									onclick={() => {
+										selectedLog = log;
+										logSidebarOpen = true;
+									}}
+								>
 									<div class="flex items-center justify-between">
 										<div class="flex items-center gap-2">
-											<StatusIcon class="h-4 w-4 {getStatusColor(log.status_code)}"></StatusIcon>
+											<StatusIcon class="h-4 w-4 {getStatusColor(log.status_code)}" />
 											<span class="font-mono text-sm font-medium">{log.method}</span>
 											<span class="font-mono text-sm">{log.path}</span>
 											<Badge variant="outline" class={getStatusColor(log.status_code)}>
 												{log.status_code}
 											</Badge>
 										</div>
-										<Button
-											variant="outline"
-											onclick={() => {
-												selectedLog = log;
-												logSidebarOpen = true;
-											}}
-										>
-											<ChevronRight />
-										</Button>
+										<ChevronRight class="h-4 w-4 text-muted-foreground" />
 									</div>
-									<span class="font-mono text-sm">{log.created_at}</span>
-								</div>
+									<div class="text-xs text-muted-foreground">
+										{new Date(log.created_at).toLocaleString()}
+									</div>
+								</button>
+							{:else}
+								<div class="py-8 text-center text-muted-foreground">No API logs yet.</div>
 							{/each}
 						</div>
 					</CardContent>
 				</Card>
-			</TabsContent>
+			</Tabs.Content>
 
 			<!-- Test Users Tab -->
-			<TabsContent value="users" class="space-y-6">
+			<Tabs.Content value="users" class="space-y-6">
 				<!-- Add New User Card -->
 				<Card>
 					<CardHeader>
@@ -520,6 +470,14 @@
 													<span class="flex items-center gap-1">
 														<Phone class="h-3 w-3" />
 														{user.phone}
+														<Button
+															size="icon"
+															variant="ghost"
+															class="h-6 w-6"
+															onclick={() => copyToClipboard(user.phone)}
+														>
+															<Copy class="h-3 w-3" />
+														</Button>
 													</span>
 													<span class="flex items-center gap-1">
 														<CreditCard class="h-3 w-3" />
@@ -531,7 +489,7 @@
 									</div>
 								</div>
 							{:else}
-								<div class="text-center py-8 text-muted-foreground">
+								<div class="py-8 text-center text-muted-foreground">
 									<Users class="h-12 w-12 mx-auto mb-4 opacity-50" />
 									<p>No test users yet. Add your first user above.</p>
 								</div>
@@ -539,8 +497,8 @@
 						</div>
 					</CardContent>
 				</Card>
-			</TabsContent>
-		</Tabs>
+			</Tabs.Content>
+		</Tabs.Root>
 	{/if}
 
 	{#if selectedLog}

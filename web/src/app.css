@@ -121,3 +121,24 @@
 		@apply bg-background text-foreground;
 	}
 }
+
+@font-face {
+	font-family: 'JetBrainsMonoNL-Medium';
+	src: url('/fonts/JetBrainsMonoNL-Medium.ttf') format('truetype');
+	font-weight: 500;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: 'JetBrainsMonoNL';
+	src: url('/fonts/JetBrainsMonoNL-Regular.ttf') format('truetype');
+	font-weight: 500;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: 'JetBrainsMonoNL-SemiBold';
+	src: url('/fonts/JetBrainsMonoNL-SemiBold.ttf') format('truetype');
+	font-weight: 500;
+	font-style: normal;
+}

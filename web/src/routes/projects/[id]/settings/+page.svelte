@@ -5,16 +5,26 @@
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select/index';
 	import { Slider } from '$lib/components/ui/slider';
-	import { Globe, Code, Timer, Tag, CheckCircle, LoaderCircle, ArrowLeft } from 'lucide-svelte';
-	import { getProject, SimulationMode, updateProject } from '$lib/api';
+	import {
+		Globe,
+		Code,
+		Timer,
+		Tag,
+		CheckCircle,
+		LoaderCircle,
+		ArrowLeft,
+		Trash
+	} from 'lucide-svelte';
+	import { getProject, SimulationMode, updateProject, deleteProject } from '$lib/api';
 	import type { ProjectDetails, UpdateProjectData } from '$lib/api';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { toast } from 'svelte-sonner';
+	import { goto } from '$app/navigation';
 
 	let id = $derived(Number(page.params.id));
-	let data: ProjectDetails = $derived({
-		id: id,
+	let data: ProjectDetails = $state({
+		id: Number(page.params.id || ''),
 		consumer_key: '',
 		consumer_secret: '',
 		name: '',
@@ -80,7 +90,7 @@
 			}
 
 			toast.success('Project updated.');
-			window.history.back();
+			goto(`/projects/${id}`);
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to update project';
 		} finally {
@@ -88,8 +98,20 @@
 		}
 	}
 
+	async function handleDelete() {
+		if (confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
+			try {
+				await deleteProject(id);
+				toast.success('Project deleted successfully.');
+				goto('/projects');
+			} catch (err) {
+				toast.error(err instanceof Error ? err.message : 'Failed to delete project');
+			}
+		}
+	}
+
 	function back() {
-		window.history.back();
+		goto(`/projects/${id}`);
 	}
 
 	// Check if form has unsaved changes
@@ -219,6 +241,27 @@
 						</Label>
 						<Input id="custom-prefix" bind:value={data.prefix} placeholder="test_" class="w-full" />
 						<p class="text-xs text-muted-foreground">Prefix for generated transaction IDs</p>
+					</div>
+				</CardContent>
+			</Card>
+
+			<!-- Danger Zone -->
+			<Card class="border-destructive shadow-lg">
+				<CardHeader>
+					<CardTitle class="text-destructive">Danger Zone</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<div class="flex items-center justify-between">
+						<div>
+							<p class="font-medium">Delete this project</p>
+							<p class="text-sm text-muted-foreground">
+								Once you delete a project, there is no going back. Please be certain.
+							</p>
+						</div>
+						<Button variant="destructive" onclick={handleDelete}>
+							<Trash class="mr-2 h-4 w-4" />
+							Delete Project
+						</Button>
 					</div>
 				</CardContent>
 			</Card>
