@@ -1,5 +1,9 @@
 packages:
-  - 'web'
+  - web
 
 onlyBuiltDependencies:
   - esbuild
+
+overrides:
+  cookie@<0.7.0: '>=0.7.0'
+  valibot@>=0.31.0 <1.2.0: '>=1.2.0'
