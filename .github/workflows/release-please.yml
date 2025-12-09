@@ -19,9 +19,6 @@ jobs:
       - uses: googleapis/release-please-action@v4
         id: release
         with:
-          release-type: simple
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-          # Explicitly set the target branch to master
-          # Otherwise, it defaults to 'main'
           target-branch: master
