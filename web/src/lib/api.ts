@@ -843,3 +843,17 @@ export interface AppInfo {
 export async function getAppInfo(): Promise<AppInfo> {
 	return await invoke('get_app_info');
 }
+
+export async function forwardLspRequest(body: String) {
+	return await invoke('forward_lsp_request', {
+		lspRequest: body
+	});
+}
+
+export async function lspStart() {
+	return await invoke('lsp_start');
+}
+
+export async function lspStop() {
+	return await invoke('lsp_stop');
+}

@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
+import { visualizer } from 'rollup-plugin-visualizer';
+
 import path from 'path';
 
 const host = process.env.TAURI_DEV_HOST;
@@ -10,7 +12,16 @@ export default defineConfig(async ({ mode }) => {
 	const target = mode === 'tauri' ? 'tauri' : 'web';
 
 	return {
-		plugins: [sveltekit(), tailwindcss()],
+		plugins: [
+			sveltekit(),
+			tailwindcss(),
+			visualizer({
+				filename: 'build/monaco-bundle-report.html',
+				brotliSize: true,
+				gzipSize: true,
+				open: false
+			})
+		],
 		resolve: {
 			alias: {
 				'$runtime/api-provider': path.resolve(`src/lib/${target}/api-provider.ts`),

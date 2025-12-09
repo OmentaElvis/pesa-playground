@@ -57,6 +57,106 @@ pub struct TauriAppState {
     pub script_manager: Arc<Mutex<ScriptManager>>,
 }
 
+// Define the LSP State
+pub struct LspState {
+    pub sender: Option<pesa_lsp::LspSender>,
+    pub server_handle: Arc<Mutex<Option<pesa_lsp::ServerHandle>>>,
+}
+
+#[tauri::command]
+async fn forward_lsp_request(
+    lsp_request: String,
+    state: State<'_, Arc<Mutex<LspState>>>,
+) -> Result<(), String> {
+    let lsp_state = state.inner().lock().await;
+
+    if lsp_state.sender.is_none() {
+        return Err("LSP server not running.".to_string());
+    };
+
+    let sender = lsp_state.sender.as_ref().unwrap();
+
+    match serde_json::from_str::<pesa_lsp::lsp::LspMessage>(&lsp_request) {
+        Ok(message) => {
+            if let Err(e) = sender.send(message).await {
+                let error_message = format!("Failed to send LSP message to server: {}", e);
+                tracing::error!(target:"lsp", "{}", error_message);
+                return Err(error_message);
+            }
+            Ok(())
+        }
+        Err(e) => {
+            let error_message = format!("Failed to parse LSP request: {}", e);
+            tracing::error!(target:"lsp", "{}", error_message);
+            Err(error_message)
+        }
+    }
+}
+
+#[tauri::command]
+async fn lsp_start(
+    app_handle: tauri::AppHandle, // To emit notifications
+    state: State<'_, Arc<Mutex<LspState>>>,
+) -> Result<(), String> {
+    let mut lsp_state = state.inner().lock().await;
+
+    if lsp_state.sender.is_some() {
+        tracing::info!(target: "lsp", "LSP server is already running.");
+        return Ok(());
+    }
+
+    tracing::info!(target: "lsp", "Starting LSP server...");
+
+    let lsp_server = pesa_lsp::LspServer::new();
+    match lsp_server.start().await {
+        Ok((to_server_tx, mut from_server_rx, server_handle)) => {
+            // Store the sender and server handle
+            *lsp_state = LspState {
+                sender: Some(to_server_tx),
+                server_handle: Arc::new(Mutex::new(Some(server_handle))),
+            };
+
+            // Spawn a task to listen for messages from the LSP server and emit them to the frontend
+            tauri::async_runtime::spawn(async move {
+                while let Some(message) = from_server_rx.recv().await {
+                    if let Ok(payload) = serde_json::to_string(&message) {
+                        if let Err(e) = app_handle.emit("lsp_notification", payload) {
+                            tracing::error!(target: "lsp", "Failed to emit LSP notification: {}", e);
+                        }
+                    }
+                }
+                tracing::info!(target: "lsp", "LSP notification emitter task stopped.");
+            });
+
+            tracing::info!(target: "lsp", "LSP server started successfully.");
+            Ok(())
+        }
+        Err(e) => {
+            let error_message = format!("Failed to start LSP server: {}", e);
+            tracing::error!(target: "lsp", "{}", error_message);
+            Err(error_message)
+        }
+    }
+}
+
+#[tauri::command]
+async fn lsp_stop(state: State<'_, Arc<Mutex<LspState>>>) -> Result<(), String> {
+    let mut lsp_state = state.inner().lock().await;
+
+    if lsp_state.sender.is_none() {
+        return Ok(());
+    }
+    lsp_state.sender = None;
+
+    if let Some(server_handle) = lsp_state.server_handle.lock().await.take() {
+        tracing::info!(target: "lsp", "Stopping LSP server...");
+        server_handle.stop().await;
+        tracing::info!(target: "lsp", "LSP server stopped.");
+    }
+
+    Ok(())
+}
+
 generate_tauri_wrappers! {
     TauriAppState,
     // Existing commands
@@ -246,6 +346,12 @@ pub fn run() {
                     }
                 });
 
+                // ---- LSP Server State Initialization (without starting server) ----
+                app.manage(Arc::new(Mutex::new(LspState {
+                    sender: None,
+                    server_handle: Arc::new(Mutex::new(None)),
+                })));
+
                 // Manage the combined state
                 app.manage(TauriAppState {
                     context,
@@ -264,6 +370,10 @@ pub fn run() {
             scripts_save,
             scripts_delete,
             scripts_execute,
+            // LSP Commands
+            forward_lsp_request,
+            lsp_start,
+            lsp_stop,
             // Core Commands
             start_sandbox,
             stop_sandbox,
@@ -328,7 +438,9 @@ pub fn run() {
             delete_transaction_cost,
             calculate_transaction_fee,
             resolve_stk_prompt,
-            get_app_info
+            get_app_info,
+            get_account,
+            create_account,
         ]);
 
     app.run(tauri::generate_context!())

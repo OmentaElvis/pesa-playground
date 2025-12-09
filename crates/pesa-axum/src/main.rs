@@ -33,6 +33,7 @@ use pesa_core::{
     },
     AppContext, AppEventManager,
 };
+use pesa_lsp::lsp::LspMessage;
 use pesa_lua::ScriptManager;
 use pesa_macros::generate_axum_rpc_handler;
 use tokio::sync::{broadcast, Mutex};
@@ -59,12 +60,20 @@ impl AppEventManager for AxumEventManager {
     }
 }
 
+// Define the LSP State
+#[derive(Clone)]
+pub struct LspState {
+    pub sender: pesa_lsp::LspSender,
+    pub server_handle: Arc<Mutex<Option<pesa_lsp::ServerHandle>>>,
+}
+
 // AxumAppState will hold the core context and the Axum-specific event manager
 #[derive(Clone)]
 pub struct AxumAppState {
     pub core_context: AppContext,
     pub event_manager: Arc<AxumEventManager>,
     pub script_manager: Arc<Mutex<ScriptManager>>,
+    pub lsp_state: Arc<Mutex<Option<LspState>>>,
 }
 
 async fn ws_handler(ws: WebSocketUpgrade, State(state): State<AxumAppState>) -> Response {
@@ -191,6 +200,63 @@ generate_axum_rpc_handler! {
     create_account(account_type: pesa_core::accounts::AccountType, initial_balance: i64) => pesa_core::accounts::ui::create_account,
 }
 
+// Helper function to stop the LSP server
+async fn handle_lsp_stop(state: &AxumAppState) {
+    if let Some(lsp_state) = state.lsp_state.lock().await.take() {
+        if let Some(server_handle) = lsp_state.server_handle.lock().await.take() {
+            tracing::info!(target: "lsp", "Stopping LSP server...");
+            server_handle.stop().await;
+        }
+    }
+}
+
+// Helper function to start the LSP server
+async fn handle_lsp_start(state: &AxumAppState) {
+    let mut lsp_state = state.lsp_state.lock().await;
+
+    if lsp_state.is_some() {
+        tracing::info!(target: "lsp", "LSP server is already running.");
+        return;
+    }
+
+    tracing::info!(target: "lsp", "Starting LSP server...");
+
+    let lsp_server = pesa_lsp::LspServer::new();
+    let event_manager_sender = state.event_manager.sender.clone(); // Clone sender for broadcast task
+
+    match lsp_server.start().await {
+        Ok((to_server_tx, mut from_server_rx, server_handle)) => {
+            // Store the sender and server handle
+            *lsp_state = Some(LspState {
+                sender: to_server_tx,
+                server_handle: Arc::new(Mutex::new(Some(server_handle))),
+            });
+
+            // Spawn a task to listen for messages from the LSP server and broadcast them
+            tokio::spawn(async move {
+                while let Some(message) = from_server_rx.recv().await {
+                    if let Ok(payload) = serde_json::to_string(&message) {
+                        let event_payload = serde_json::json!({
+                            "event": "lsp_notification",
+                            "payload": payload,
+                        });
+                        if event_manager_sender.send(event_payload).is_err() {
+                            tracing::error!(target: "lsp", "Failed to broadcast LSP notification: channel is closed.");
+                            break;
+                        }
+                    }
+                }
+                tracing::info!(target: "lsp", "LSP notification broadcast task stopped.");
+            });
+
+            tracing::info!(target: "lsp", "LSP server started successfully.");
+        }
+        Err(e) => {
+            tracing::error!(target: "lsp", "Failed to start LSP server: {}", e);
+        }
+    }
+}
+
 pub async fn rpc_handler(
     State(state): State<AxumAppState>,
     axum::Json(payload): axum::Json<RpcRequest>,
@@ -305,6 +371,40 @@ pub async fn rpc_handler(
                     serde_json::json!({"jsonrpc": "2.0", "error": {"code": -32700, "message": format!("Invalid params: {:?}", e)}, "id": payload.id})
                 }
             }
+        }
+        "forward_lsp_request" => {
+            #[derive(Deserialize)]
+            struct Args {
+                #[serde(rename = "lspRequest")]
+                lsp_request: String,
+            }
+            let call_result: Result<serde_json::Value, anyhow::Error> = async {
+                let args: Args = serde_json::from_value(params_val)?;
+                let lsp_state = state.lsp_state.lock().await;
+                let message: LspMessage = serde_json::from_str(&args.lsp_request)?;
+                if let Some(lsp_state) = &*lsp_state {
+                    lsp_state.sender.send(message).await?;
+                }
+                Ok(serde_json::Value::Null)
+            }
+            .await;
+            match call_result {
+                Ok(data) => {
+                    serde_json::json!({"jsonrpc": "2.0", "result": data, "id": payload.id})
+                }
+                Err(e) => {
+                    status_code = axum::http::StatusCode::INTERNAL_SERVER_ERROR;
+                    serde_json::json!({"jsonrpc": "2.0", "error": {"code": -32700, "message": format!("Failed to forward LSP request: {:?}", e)}, "id": payload.id})
+                }
+            }
+        }
+        "lsp_start" => {
+            handle_lsp_start(&state).await;
+            serde_json::json!({"jsonrpc": "2.0", "result": null, "id": payload.id})
+        }
+        "lsp_stop" => {
+            handle_lsp_stop(&state).await;
+            serde_json::json!({"jsonrpc": "2.0", "result": null, "id": payload.id})
         }
         _ => {
             let (s, r) = rpc_handler_inner(State(state), axum::Json(payload)).await;
@@ -447,10 +547,14 @@ async fn main() {
         }
     });
 
+    // ---- LSP Server State Initialization (without starting server) ----
+    let lsp_state = Arc::new(Mutex::new(None));
+
     let app_state = AxumAppState {
         core_context,
         event_manager: axum_event_manager,
         script_manager,
+        lsp_state,
     };
 
     let app = Router::new()

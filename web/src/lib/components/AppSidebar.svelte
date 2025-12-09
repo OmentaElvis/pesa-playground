@@ -46,9 +46,9 @@
 					<Sidebar.MenuItem>
 						<Sidebar.MenuButton>
 							{#snippet child({ props })}
-								<a {...props} href="/users">
-									<Users size={20} />
-									<span>Users</span>
+								<a {...props} href="/scripts">
+									<Zap class="size-4" />
+									<span>Scripts</span>
 								</a>
 							{/snippet}
 						</Sidebar.MenuButton>

@@ -6,5 +6,6 @@ members = [
     "crates/pesa-macros",
     "crates/pesa-axum",
     "crates/pesa-lua",
+    "crates/pesa-lsp",
     # "crates/pesa-ratatui",
 ]

@@ -44,6 +44,8 @@ tower = "0.5.2"
 pesa-core = { path = "../pesa-core" }
 pesa-macros = { path = "../pesa-macros" }
 pesa-lua = { path = "../pesa-lua" }
+pesa-lsp = { version = "0.1.0", path = "../pesa-lsp" }
+tracing = "0.1.43"
 
 [dev-dependencies]
 mockito = "1.4.0"
