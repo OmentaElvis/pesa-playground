@@ -1,0 +1,35 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "separate-pull-requests": true,
+  "bootstrap-sha": "c6438ae",
+  "packages": {
+    "web": {
+      "release-type": "node",
+      "package-name": "web"
+    },
+    "crates/pesa-axum": {
+      "release-type": "rust",
+      "package-name": "pesa-axum"
+    },
+    "crates/pesa-core": {
+      "release-type": "rust",
+      "package-name": "pesa-core"
+    },
+    "crates/pesa-lua": {
+      "release-type": "rust",
+      "package-name": "pesa-lua"
+    },
+    "crates/pesa-macros": {
+      "release-type": "rust",
+      "package-name": "pesa-macros"
+    },
+    "crates/pesa-ratatui": {
+      "release-type": "rust",
+      "package-name": "pesa-ratatui"
+    },
+    "crates/pesa-tauri": {
+      "release-type": "rust",
+      "package-name": "pesa-tauri"
+    }
+  }
+}

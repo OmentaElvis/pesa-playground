@@ -1,0 +1,25 @@
+{
+  "name": "pesa-playground-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Root for the Pesa Playground monorepo, containing shared tooling and scripts.",
+  "scripts": {
+    "vite:web": "pnpm --filter pesa-playground vite:web",
+    "build:web": "pnpm --filter pesa-playground build:web",
+    "dev": "pnpm --filter pesa-playground dev",
+    "dev:backend": "pnpm --filter pesa-playground dev:backend",
+    "dev:web": "pnpm --filter pesa-playground dev:web",
+    "build": "pnpm --filter pesa-playground build",
+    "preview": "pnpm --filter pesa-playground preview",
+    "check": "pnpm --filter pesa-playground check",
+    "check:watch": "pnpm --filter pesa-playground check:watch",
+    "tauri": "pnpm --filter pesa-playground tauri",
+    "format": "pnpm --filter pesa-playground format",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.2.0",
+    "@commitlint/config-conventional": "^20.2.0",
+    "husky": "^9.1.7"
+  }
+}
