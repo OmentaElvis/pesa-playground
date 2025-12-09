@@ -1,0 +1,23 @@
+{
+  "name": "pesa-playground-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Root for the Pesa Playground monorepo, containing shared tooling and scripts.",
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "build:web": "pnpm --filter web build",
+    "preview:web": "pnpm --filter web preview",
+    "check:web": "pnpm --filter web check",
+    "check:watch:web": "pnpm --filter web check:watch",
+    "tauri:dev": "pnpm --filter web tauri dev",
+    "tauri:build": "pnpm --filter web tauri build",
+    "dev:backend": "cargo run -p pesa-axum",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.8",
+    "@commitlint/cli": "^20.2.0",
+    "@commitlint/config-conventional": "^20.2.0",
+    "husky": "^9.1.7"
+  }
+}
