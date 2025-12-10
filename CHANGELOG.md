@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.1](https://github.com/OmentaElvis/pesa-playground/compare/v1.1.0...v1.1.1) (2025-12-10)
+
+
+### Bug Fixes
+
+* **ci:** set release-type to simple for PR-based releases ([5c2e8b6](https://github.com/OmentaElvis/pesa-playground/commit/5c2e8b6dc39d6acd4e15b73553a8c842d96ef09f))
+* **docker:** correctly handle pnpm workspace setup ([eebcc91](https://github.com/OmentaElvis/pesa-playground/commit/eebcc91ec6bef564a2ca6e3ddd2e0548bfe32dbf))
+
 ## [1.1.0](https://github.com/OmentaElvis/pesa-playground/compare/v1.0.0...v1.1.0) (2025-12-10)
 
 
