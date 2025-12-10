@@ -68,7 +68,7 @@ jobs:
         env:
           CC_x86_64_pc_windows_msvc: clang
           CXX_x86_64_pc_windows_msvc: clang
-        run: pnpm tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis
+        run: pnpm tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc
 
       - name: Find generated installer
         id: find_installer
