@@ -1,0 +1,47 @@
+name: Build Tauri Linux Artifacts
+
+on:
+  workflow_call:
+    inputs:
+      tag_name:
+        required: true
+        type: string
+
+jobs:
+  build-tauri:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install frontend dependencies
+        run: pnpm install
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Tauri prerequisites (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils librsvg2-dev
+
+      - name: Build Tauri application
+        run: pnpm tauri build --bundles 'deb' 'appimage'
+
+      - name: Upload release artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          gh release upload ${{ inputs.tag_name }}
+          target/release/bundle/**/*.{AppImage,deb}
+          --clobber
