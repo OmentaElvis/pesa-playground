@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.3](https://github.com/OmentaElvis/pesa-playground/compare/v1.1.2...v1.1.3) (2025-12-10)
+
+
+### Bug Fixes
+
+* **ci:** fixed windows and linux tauri builds ([2a07abd](https://github.com/OmentaElvis/pesa-playground/commit/2a07abdddc1bb0a66d71252cdaa5dec8ae8b9973))
+* **ci:** fixed windows and linux tauri builds ([50466d5](https://github.com/OmentaElvis/pesa-playground/commit/50466d533b9a96b76b24909ba160cd88f0cb28d5))
+
 ## [1.1.2](https://github.com/OmentaElvis/pesa-playground/compare/v1.1.1...v1.1.2) (2025-12-10)
 
 
