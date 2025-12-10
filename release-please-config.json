@@ -2,34 +2,37 @@
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "separate-pull-requests": false,
   "bootstrap-sha": "c6438ae",
-  "packages": {
-    "web": {
-      "release-type": "node",
-      "package-name": "web"
+  "release-type": "rust",
+  "extra-files": [
+    {
+      "type": "json",
+      "path": "web/package.json",
+      "jsonpath": "$.version"
     },
-    "crates/pesa-axum": {
-      "release-type": "rust",
-      "package-name": "pesa-axum"
+    {
+      "type": "toml",
+      "path": "crates/pesa-axum/Cargo.toml",
+      "toml-path": "package.version"
     },
-    "crates/pesa-core": {
-      "release-type": "rust",
-      "package-name": "pesa-core"
+    {
+      "type": "toml",
+      "path": "crates/pesa-core/Cargo.toml",
+      "toml-path": "package.version"
     },
-    "crates/pesa-lua": {
-      "release-type": "rust",
-      "package-name": "pesa-lua"
+    {
+      "type": "toml",
+      "path": "crates/pesa-lua/Cargo.toml",
+      "toml-path": "package.version"
     },
-    "crates/pesa-macros": {
-      "release-type": "rust",
-      "package-name": "pesa-macros"
+    {
+      "type": "toml",
+      "path": "crates/pesa-macros/Cargo.toml",
+      "toml-path": "package.version"
     },
-    "crates/pesa-ratatui": {
-      "release-type": "rust",
-      "package-name": "pesa-ratatui"
-    },
-    "crates/pesa-tauri": {
-      "release-type": "rust",
-      "package-name": "pesa-tauri"
+    {
+      "type": "toml",
+      "path": "crates/pesa-tauri/Cargo.toml",
+      "toml-path": "package.version"
     }
-  }
+  ]
 }

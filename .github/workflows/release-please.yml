@@ -12,6 +12,9 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -19,6 +22,7 @@ jobs:
       - uses: googleapis/release-please-action@v4
         id: release
         with:
+          release-type: simple
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           target-branch: master
@@ -60,14 +64,14 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Build Tauri application
-        run: pnpm tauri build
+        run: pnpm tauri build --bundles 'deb' 'appimage' 'msi'
 
       - name: Upload release artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >
           gh release upload ${{ needs.release-please.outputs.tag_name }}
-          src-tauri/target/release/bundle/**/*.{AppImage,deb,msi,zip}
+          target/release/bundle/**/*.{AppImage,deb,msi}
           --clobber
 
   docker-build:
