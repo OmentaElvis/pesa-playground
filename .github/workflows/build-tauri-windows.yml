@@ -1,0 +1,86 @@
+name: Build Tauri Windows MSI (Linux Runner)
+
+on:
+  workflow_call:
+    inputs:
+      tag_name:
+        required: true
+        type: string
+
+jobs:
+  build-tauri-windows:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Cache pnpm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          target: x86_64-pc-windows-msvc # Cross-compile target
+
+      - name: Cache Cargo registry and target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install Windows build dependencies (lld, llvm, clang)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lld llvm clang
+
+      - name: Install NSIS
+        run: |
+          sudo apt-get install -y nsis
+
+      - name: Install cargo xwin
+        run: cargo install cargo-xwin
+
+      - name: Build Tauri application for Windows
+        env:
+          CC_x86_64_pc_windows_msvc: clang
+          CXX_x86_64_pc_windows_msvc: clang
+        run: pnpm tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis
+
+      - name: Find generated installer
+        id: find_installer
+        run: echo "::set-output name=installer_path::$(find target/x86_64-pc-windows-msvc/release/bundle/nsis -name '*.exe' -print -quit)"
+
+      - name: Upload release artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -f "${{ steps.find_installer.outputs.installer_path }}" ]; then
+            gh release upload ${{ inputs.tag_name }} "${{ steps.find_installer.outputs.installer_path }}" --clobber
+          else
+            echo "::error::Installer not found at ${{ steps.find_installer.outputs.installer_path }}"
+            exit 1
+          fi

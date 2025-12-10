@@ -15,6 +15,9 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,53 +29,20 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           target-branch: master
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
 
-  tauri-build:
+  call-tauri-linux-build:
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    uses: ./.github/workflows/build-tauri-linux.yml
+    with:
+      tag_name: ${{ needs.release-please.outputs.tag_name }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install pnpm
-        run: npm install -g pnpm
-
-      - name: Install frontend dependencies
-        run: pnpm install
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install Tauri prerequisites (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
-      - name: Build Tauri application
-        run: pnpm tauri build --bundles 'deb' 'appimage' 'msi'
-
-      - name: Upload release artifacts
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: >
-          gh release upload ${{ needs.release-please.outputs.tag_name }}
-          target/release/bundle/**/*.{AppImage,deb,msi}
-          --clobber
+  call-tauri-windows-build:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    uses: ./.github/workflows/build-tauri-windows.yml
+    with:
+      tag_name: ${{ needs.release-please.outputs.tag_name }}
 
   docker-build:
     needs: release-please
