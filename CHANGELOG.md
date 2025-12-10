@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0](https://github.com/OmentaElvis/pesa-playground/compare/v1.0.0...v1.1.0) (2025-12-10)
+
+
+### Features
+
+* **ci:** configure release-please with build jobs ([82f52ec](https://github.com/OmentaElvis/pesa-playground/commit/82f52ec07501c15ca812ac997891be8f0dc66b1b))
+* **ci:** implement unified release with artifact builds ([8aecf94](https://github.com/OmentaElvis/pesa-playground/commit/8aecf941bc5d1d97fa84eece59dd6786e1ec8d7a))
+* **ci:** implement unified release with artifact builds ([5b2f370](https://github.com/OmentaElvis/pesa-playground/commit/5b2f3705d7b50944f947455b58ba67ca37221443))
+
+
+### Bug Fixes
+
+* **ci:** remove release-type simple from release-please workflow ([b2bde49](https://github.com/OmentaElvis/pesa-playground/commit/b2bde49854d4279e187cb0d8385042304277f7f0))
+
 ## 1.0.0 (2025-12-09)
 
 
