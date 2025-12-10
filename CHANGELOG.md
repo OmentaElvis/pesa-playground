@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.2](https://github.com/OmentaElvis/pesa-playground/compare/v1.1.1...v1.1.2) (2025-12-10)
+
+
+### Bug Fixes
+
+* **ci:** correct Docker image tagging with release version ([a9af96a](https://github.com/OmentaElvis/pesa-playground/commit/a9af96a91d59d83bfbc4abe1e1f240d88602edc0))
+* **ci:** correct Docker image tagging with release version ([df519ba](https://github.com/OmentaElvis/pesa-playground/commit/df519ba10108b518d92a5d0e21dee93d0a9d1485))
+
 ## [1.1.1](https://github.com/OmentaElvis/pesa-playground/compare/v1.1.0...v1.1.1) (2025-12-10)
 
 
