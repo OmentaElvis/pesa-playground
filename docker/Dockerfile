@@ -2,8 +2,11 @@ FROM node:23-slim AS frontend
 RUN npm install -g pnpm
 WORKDIR /app
 
-COPY web/package.json web/pnpm-lock.yaml ./web/
-RUN mkdir -p web && cd web && pnpm install --frozen-lockfile
+COPY pnpm-workspace.yaml .
+COPY package.json .
+COPY web/package.json ./web/
+COPY pnpm-lock.yaml .
+RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY web/ ./web/
 RUN cd web && pnpm run build:web
 
@@ -15,6 +18,7 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates/pesa-axum/Cargo.toml ./crates/pesa-axum/
 COPY crates/pesa-core/Cargo.toml ./crates/pesa-core/
 COPY crates/pesa-macros/Cargo.toml ./crates/pesa-macros/
+COPY crates/pesa-lua/Cargo.toml ./crates/pesa-lua/
 
 # still copy tauri but we will not be building it.
 COPY crates/pesa-tauri/Cargo.toml ./crates/pesa-tauri/
@@ -32,6 +36,7 @@ RUN cargo build --release --bin pesa-axum
 COPY crates/pesa-axum/src ./crates/pesa-axum/src
 COPY crates/pesa-core/src ./crates/pesa-core/src
 COPY crates/pesa-macros/src ./crates/pesa-macros/src
+COPY crates/pesa-lua/src ./crates/pesa-lua/src
 
 # Build the specific binary again. This will be fast as deps are cached.
 # We use touch to ensure the final crate gets recompiled with its new source.

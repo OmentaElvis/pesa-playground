@@ -1,5 +1,43 @@
 # Changelog
 
+## [1.1.3](https://github.com/OmentaElvis/pesa-playground/compare/v1.1.2...v1.1.3) (2025-12-10)
+
+
+### Bug Fixes
+
+* **ci:** fixed windows and linux tauri builds ([2a07abd](https://github.com/OmentaElvis/pesa-playground/commit/2a07abdddc1bb0a66d71252cdaa5dec8ae8b9973))
+* **ci:** fixed windows and linux tauri builds ([50466d5](https://github.com/OmentaElvis/pesa-playground/commit/50466d533b9a96b76b24909ba160cd88f0cb28d5))
+
+## [1.1.2](https://github.com/OmentaElvis/pesa-playground/compare/v1.1.1...v1.1.2) (2025-12-10)
+
+
+### Bug Fixes
+
+* **ci:** correct Docker image tagging with release version ([a9af96a](https://github.com/OmentaElvis/pesa-playground/commit/a9af96a91d59d83bfbc4abe1e1f240d88602edc0))
+* **ci:** correct Docker image tagging with release version ([df519ba](https://github.com/OmentaElvis/pesa-playground/commit/df519ba10108b518d92a5d0e21dee93d0a9d1485))
+
+## [1.1.1](https://github.com/OmentaElvis/pesa-playground/compare/v1.1.0...v1.1.1) (2025-12-10)
+
+
+### Bug Fixes
+
+* **ci:** set release-type to simple for PR-based releases ([5c2e8b6](https://github.com/OmentaElvis/pesa-playground/commit/5c2e8b6dc39d6acd4e15b73553a8c842d96ef09f))
+* **docker:** correctly handle pnpm workspace setup ([eebcc91](https://github.com/OmentaElvis/pesa-playground/commit/eebcc91ec6bef564a2ca6e3ddd2e0548bfe32dbf))
+
+## [1.1.0](https://github.com/OmentaElvis/pesa-playground/compare/v1.0.0...v1.1.0) (2025-12-10)
+
+
+### Features
+
+* **ci:** configure release-please with build jobs ([82f52ec](https://github.com/OmentaElvis/pesa-playground/commit/82f52ec07501c15ca812ac997891be8f0dc66b1b))
+* **ci:** implement unified release with artifact builds ([8aecf94](https://github.com/OmentaElvis/pesa-playground/commit/8aecf941bc5d1d97fa84eece59dd6786e1ec8d7a))
+* **ci:** implement unified release with artifact builds ([5b2f370](https://github.com/OmentaElvis/pesa-playground/commit/5b2f3705d7b50944f947455b58ba67ca37221443))
+
+
+### Bug Fixes
+
+* **ci:** remove release-type simple from release-please workflow ([b2bde49](https://github.com/OmentaElvis/pesa-playground/commit/b2bde49854d4279e187cb0d8385042304277f7f0))
+
 ## 1.0.0 (2025-12-09)
 
 
