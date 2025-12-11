@@ -328,7 +328,9 @@ pub fn run() {
             delete_transaction_cost,
             calculate_transaction_fee,
             resolve_stk_prompt,
-            get_app_info
+            get_app_info,
+            get_account,
+            create_account
         ]);
 
     app.run(tauri::generate_context!())
