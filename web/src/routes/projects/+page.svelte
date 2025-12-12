@@ -10,7 +10,7 @@
 		type BusinessSummary,
 		SimulationMode
 	} from '$lib/api';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { getSimulationModeColor } from '$lib/utils';
 	import * as Select from '$lib/components/ui/select';
 	import * as InputGroup from '$lib/components/ui/input-group/index.js';
@@ -18,6 +18,15 @@
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import PesaPlaygroundLogo from '$lib/components/logo/PesaPlaygroundLogo.svelte';
 	import * as Kbd from '$lib/components/ui/kbd/index.js';
+	import { getKeymapManager } from '$lib/keymap';
+	import { goto } from '$app/navigation';
+	import { globalKeymapActions } from '$lib/actions/keymapActions';
+
+	const keymapManager = getKeymapManager();
+
+	const displayedKeymapActions = globalKeymapActions.filter((action) =>
+		['project.create', 'users.manage', 'businesses.manage', 'settings.open'].includes(action.id)
+	);
 
 	let projects: ProjectSummary[] = $state([]);
 	let businesses: BusinessSummary[] = $state([]);
@@ -27,13 +36,6 @@
 	let activeTab = $state('all-projects');
 	let loading = $state(true);
 	let isHoveringCreateProjectButton = $state(false);
-
-	const keymapActions = [
-		{ label: 'Create new project', keys: ['CTRL', 'SHIFT', 'P'] },
-		{ label: 'Manage Users', keys: ['CTRL', 'SHIFT', 'U'] },
-		{ label: 'Manage Businesses', keys: ['CTRL', 'SHIFT', 'B'] },
-		{ label: 'Open Settings', keys: ['CTRL', ','] }
-	];
 
 	let projectsByBusiness: Map<number, ProjectSummary[]> = $derived(
 		projects.reduce((acc, project) => {
@@ -68,22 +70,27 @@
 		return filtered;
 	});
 
-	onMount(async () => {
-		try {
-			projects = (await getProjects()) as ProjectSummary[];
-			businesses = await getBusinesses();
-		} finally {
-			loading = false;
-		}
+	onMount(() => {
+		const loadData = async () => {
+			try {
+				projects = (await getProjects()) as ProjectSummary[];
+				businesses = await getBusinesses();
+			} finally {
+				loading = false;
+			}
+		};
+
+		loadData();
 	});
 </script>
 
-{#snippet keymapRow(label: string, keys: string[])}
-	<p class="text-right text-sm">{label}</p>
+{#snippet keymapRow(name: string, shortcut: string)}
+	{@const keys = shortcut.split('+')}
+	<p class="text-right text-sm">{name}</p>
 	<div class="text-left">
 		<Kbd.Root>
 			{#each keys as key, i}
-				<span>{key}</span>
+				<span class="uppercase">{key}</span>
 				{#if i < keys.length - 1}
 					+
 				{/if}
@@ -117,8 +124,8 @@
 			</div>
 
 			<div class="mt-8 grid w-full max-w-md grid-cols-2 gap-x-4 gap-y-2 text-muted-foreground">
-				{#each keymapActions as action}
-					{@render keymapRow(action.label, action.keys)}
+				{#each displayedKeymapActions as action}
+					{@render keymapRow(action.name, action.shortcut)}
 				{/each}
 			</div>
 		</div>

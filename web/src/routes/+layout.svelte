@@ -29,6 +29,10 @@
 	import { footerWidgetStore } from '$lib/stores/footerWidgetStore';
 	import SplashScreen from '$lib/components/SplashScreen.svelte';
 	import { closeSplashscreen, isApiReady } from '$lib/api';
+	import { createKeymapManager, type KeymapManager } from '$lib/keymap';
+	import { globalKeymapActions, back, forward } from '$lib/actions/keymapActions';
+
+	const keymapManager: KeymapManager = createKeymapManager();
 
 	let WindowControls: any = $state(null);
 	if (import.meta.env.MODE === 'tauri') {
@@ -58,6 +62,7 @@
 	let showSplash = $state(true); // State for splash screen visibility
 
 	onMount(() => {
+		keymapManager.register(globalKeymapActions);
 		// Hide splash screen after a delay
 		setTimeout(() => {
 			showSplash = false;
@@ -173,14 +178,6 @@
 		unlistenFunctions.forEach((unlisten) => unlisten());
 	});
 
-	function forward() {
-		window.history.forward();
-	}
-
-	function back() {
-		window.history.back();
-	}
-
 	function getTransactionLogDescription(log: FullTransactionLog): string {
 		if (log.transaction_type === 'Deposit') {
 			return 'Deposit';
@@ -220,7 +217,7 @@
 	}
 </script>
 
-<svelte:window bind:innerWidth />
+<svelte:window bind:innerWidth on:keydown={keymapManager.handleKeyDown} />
 
 {#if showSplash}
 	<SplashScreen show={showSplash} />
