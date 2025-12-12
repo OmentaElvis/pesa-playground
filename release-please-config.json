@@ -4,7 +4,7 @@
   "bootstrap-sha": "c871db0",
   "packages": {
     ".": {
-      "release-type": "generic",
+      "release-type": "simple",
       "extra-files": [
         {
           "type": "json",
