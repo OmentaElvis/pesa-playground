@@ -20,6 +20,7 @@
         "visible": false
       },
       {
+        "title": "pesa-playground",
         "label": "splashscreen",
         "url": "splashscreen.html",
         "decorations": false
