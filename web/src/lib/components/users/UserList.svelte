@@ -80,7 +80,7 @@
 				<Popover.Content class="w-80">
 					<div class="grid gap-4">
 						<div class="">
-							<h3 class="mb-2 font-medium text-gray-900">Settings</h3>
+							<h3 class="mb-2 font-medium">Settings</h3>
 							<div class="space-y-2">
 								<Button
 									variant="outline"
