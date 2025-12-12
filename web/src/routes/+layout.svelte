@@ -30,7 +30,12 @@
 	import SplashScreen from '$lib/components/SplashScreen.svelte';
 	import { closeSplashscreen, isApiReady } from '$lib/api';
 	import { createKeymapManager, type KeymapManager } from '$lib/keymap';
-	import { globalKeymapActions, back, forward } from '$lib/actions/keymapActions';
+	import {
+		generateProjectSandboxKeymaps,
+		globalKeymapActions,
+		back,
+		forward
+	} from '$lib/actions/keymapActions';
 
 	const keymapManager: KeymapManager = createKeymapManager();
 
@@ -61,8 +66,10 @@
 	const unlistenFunctions: UnlistenFn[] = [];
 	let showSplash = $state(true); // State for splash screen visibility
 
-	onMount(() => {
-		keymapManager.register(globalKeymapActions);
+	onMount(async () => {
+		const projectSandboxKeymaps = await generateProjectSandboxKeymaps();
+		const allAppKeymapActions = [...globalKeymapActions, ...projectSandboxKeymaps];
+		keymapManager.initialize(allAppKeymapActions);
 		// Hide splash screen after a delay
 		setTimeout(() => {
 			showSplash = false;

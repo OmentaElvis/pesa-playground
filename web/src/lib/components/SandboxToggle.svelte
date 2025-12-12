@@ -3,6 +3,7 @@
 	import { getSandboxes, sandboxStatus } from '$lib/stores/sandboxStatus';
 	import { sandboxStatus as apiSandboxStatus, startSandbox, stopSandbox } from '$lib/api';
 	import { onDestroy, onMount } from 'svelte';
+	import * as Kbd from '$lib/components/ui/kbd';
 
 	export let id: number;
 	let status: 'off' | 'starting' | 'on' | 'error' = 'off';
@@ -109,4 +110,5 @@
 	{:else if status === 'error' || error}
 		<div class="text-xs text-red-700">Error: {error}</div>
 	{/if}
+	<Kbd.Root>Ctrl+Shift+{id}</Kbd.Root>
 </div>

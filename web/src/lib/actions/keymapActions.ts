@@ -1,5 +1,13 @@
 import { goto } from '$app/navigation';
 import type { KeymapAction } from '$lib/keymap';
+import {
+	getProjects,
+	startSandbox,
+	type ProjectSummary,
+	listRunningSandboxes,
+	stopSandbox
+} from '$lib/api';
+import { toast } from 'svelte-sonner';
 
 export function back() {
 	window.history.back();
@@ -9,46 +17,89 @@ export function forward() {
 	window.history.forward();
 }
 
-export const globalKeymapActions: KeymapAction[] = [
+export const globalKeymapActions: Omit<KeymapAction, 'shortcut'>[] = [
 	// Navigation
 	{
 		id: 'navigation.back',
 		name: 'Go Back',
-		shortcut: 'alt+arrowleft',
+		defaultShortcut: 'alt+left',
 		callback: back
 	},
 	{
 		id: 'navigation.forward',
 		name: 'Go Forward',
-		shortcut: 'alt+arrowright',
+		defaultShortcut: 'alt+right',
 		callback: forward
 	},
 	// Project
 	{
 		id: 'project.create',
 		name: 'Create new project',
-		shortcut: 'ctrl+shift+p',
+		defaultShortcut: 'ctrl+shift+p',
 		callback: () => goto('/projects/new')
 	},
 	// User
 	{
 		id: 'users.manage',
 		name: 'Manage Users',
-		shortcut: 'ctrl+shift+u',
+		defaultShortcut: 'ctrl+shift+u',
 		callback: () => goto('/users')
 	},
 	// Business
 	{
 		id: 'businesses.manage',
 		name: 'Manage Businesses',
-		shortcut: 'ctrl+shift+b',
+		defaultShortcut: 'ctrl+shift+b',
 		callback: () => goto('/businesses')
 	},
 	// Settings
 	{
 		id: 'settings.open',
 		name: 'Open Settings',
-		shortcut: 'ctrl+,',
+		defaultShortcut: 'ctrl+,',
 		callback: () => goto('/settings')
 	}
 ];
+
+/**
+ * Dynamically generates keymap actions for toggling project sandboxes.
+ * Assigns shortcuts like Ctrl+Shift+1, Ctrl+Shift+2, etc., to the first 9 projects.
+ * @returns An array of dynamically generated KeymapAction objects.
+ */
+export async function generateProjectSandboxKeymaps(): Promise<Omit<KeymapAction, 'shortcut'>[]> {
+	const projectKeymaps: Omit<KeymapAction, 'shortcut'>[] = [];
+	try {
+		const projects = (await getProjects()) as ProjectSummary[];
+		projects.slice(0, 9).forEach((project, index) => {
+			const numberKey = (index + 1).toString(); // 1-9
+			projectKeymaps.push({
+				id: `project.sandbox.toggle.${project.id}`,
+				name: `Toggle Sandbox: ${project.name}`,
+				defaultShortcut: `ctrl+shift+${numberKey}`,
+				callback: async () => {
+					try {
+						const runningSandboxes = await listRunningSandboxes();
+						const isRunning = runningSandboxes.some(
+							(sandbox: any) => sandbox.project_id === project.id
+						);
+
+						if (isRunning) {
+							await stopSandbox(project.id);
+							toast.success(`Sandbox for "${project.name}" stopped!`);
+						} else {
+							await startSandbox(project.id);
+							toast.success(`Sandbox for "${project.name}" started!`);
+						}
+					} catch (error) {
+						toast.error(`Failed to toggle sandbox for "${project.name}": ${error}`);
+						console.error(`Error toggling sandbox for project ${project.id}:`, error);
+					}
+				}
+			});
+		});
+	} catch (error) {
+		console.error('Failed to load projects for sandbox keymaps:', error);
+		toast.error('Failed to load projects for sandbox keymaps.');
+	}
+	return projectKeymaps;
+}

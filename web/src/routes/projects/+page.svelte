@@ -125,7 +125,7 @@
 
 			<div class="mt-8 grid w-full max-w-md grid-cols-2 gap-x-4 gap-y-2 text-muted-foreground">
 				{#each displayedKeymapActions as action}
-					{@render keymapRow(action.name, action.shortcut)}
+					{@render keymapRow(action.name, action.defaultShortcut)}
 				{/each}
 			</div>
 		</div>
