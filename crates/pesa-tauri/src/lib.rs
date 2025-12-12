@@ -141,6 +141,8 @@ generate_tauri_wrappers! {
 
     get_account(id: u32) => pesa_core::accounts::ui::get_account,
     create_account(account_type: pesa_core::accounts::AccountType, initial_balance: i64) => pesa_core::accounts::ui::create_account,
+
+    clear_all_data() => pesa_core::system::ui::clear_all_data,
 }
 
 #[tauri::command]
@@ -330,7 +332,8 @@ pub fn run() {
             resolve_stk_prompt,
             get_app_info,
             get_account,
-            create_account
+            create_account,
+            clear_all_data
         ]);
 
     app.run(tauri::generate_context!())

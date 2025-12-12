@@ -843,3 +843,7 @@ export interface AppInfo {
 export async function getAppInfo(): Promise<AppInfo> {
 	return await invoke('get_app_info');
 }
+
+export async function clearAllData(): Promise<void> {
+	return await invoke('clear_all_data');
+}

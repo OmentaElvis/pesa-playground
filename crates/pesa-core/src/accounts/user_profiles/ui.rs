@@ -144,7 +144,7 @@ pub async fn create_user(
         .map_err(|err| format!("Failed to complete transaction: {}", err))?;
 
     let _ = ctx.event_manager.emit_all(
-        "new_user",
+        "user_created",
         serde_json::to_value(UserDetails {
             id: user_model.account_id,
             name: user_model.name,
