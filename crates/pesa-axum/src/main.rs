@@ -189,6 +189,7 @@ generate_axum_rpc_handler! {
 
     get_account(id: u32) => pesa_core::accounts::ui::get_account,
     create_account(account_type: pesa_core::accounts::AccountType, initial_balance: i64) => pesa_core::accounts::ui::create_account,
+    clear_all_data() => pesa_core::system::ui::clear_all_data,
 }
 
 pub async fn rpc_handler(

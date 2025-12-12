@@ -10,7 +10,7 @@ pub struct RunningSandbox {
 
 #[derive(Serialize)]
 pub struct Status {
-    project_id: u32,
+    pub project_id: u32,
     port: u16,
     error: Option<String>,
     status: String,

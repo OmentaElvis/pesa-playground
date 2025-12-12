@@ -16,6 +16,7 @@ pub mod info;
 pub mod projects;
 pub mod sandboxes;
 pub mod server;
+pub mod system;
 pub mod transaction_costs;
 pub mod transactions;
 pub mod transactions_log;
