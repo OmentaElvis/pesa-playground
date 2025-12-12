@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.0](https://github.com/OmentaElvis/pesa-playground/compare/v0.0.1...v0.1.0) (2025-12-12)
+
+
+### Features
+
+* added configurable logo component ([8434e1c](https://github.com/OmentaElvis/pesa-playground/commit/8434e1ca339a6d0a591b7883d7dc995127592bd7))
+* added customizable keymap system. Added shortcuts to start and stop sandboxes ([2e1e7a0](https://github.com/OmentaElvis/pesa-playground/commit/2e1e7a0642ef1bd566716c23be0ae7d6a2e23d62))
+* added keymap system ([2649e2a](https://github.com/OmentaElvis/pesa-playground/commit/2649e2a90733b220c8919f8e2a7fa7315a524ba5))
+* added projects welcome page ([be76d44](https://github.com/OmentaElvis/pesa-playground/commit/be76d440b55350563f8edec05de8b9fca8e6d504))
+* **app-reset:** implement app data purge and reset functionality ([f081db8](https://github.com/OmentaElvis/pesa-playground/commit/f081db8e6296e7de9388a1ba29cbbe2862c77a7e))
+
+
+### Bug Fixes
+
+* **tauri:** allow minimization of app window ([05faaa9](https://github.com/OmentaElvis/pesa-playground/commit/05faaa9d3262608577e90512c773314240bf9358))
+* **users:** fixed wrong dropdown menu text color ([fc97f2f](https://github.com/OmentaElvis/pesa-playground/commit/fc97f2f17f83253b642d5ce23095ffb62ae31fa9))
+* **users:** ui now reacts to generated users ([6c4b58f](https://github.com/OmentaElvis/pesa-playground/commit/6c4b58fa07eae5e71891b42d28e75054af9975ad))
+
 ## [0.0.1](https://github.com/OmentaElvis/pesa-playground/compare/v1.1.3...v0.0.1) (2025-12-11)
 
 
