@@ -1,7 +1,14 @@
 <script lang="ts">
-	import { Phone, Wallet, Settings, User as UserIcon } from 'lucide-svelte';
+	import {
+		Phone,
+		Wallet,
+		Settings,
+		User as UserIcon,
+		Plus,
+		LoaderCircle
+	} from 'lucide-svelte';
 	import { formatAmount, getInitials } from '$lib/utils';
-	import { getUsers, type UserDetails } from '$lib/api';
+	import { getUsers, type UserDetails, generateUsers, createUser } from '$lib/api';
 	import { onDestroy, onMount } from 'svelte';
 	import DiceBearAvatar from '$lib/components/ui/avatar/DiceBearAvatar.svelte';
 	import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
@@ -9,8 +16,10 @@
 	import { toast } from 'svelte-sonner';
 	import { listen, type UnlistenFn } from '$lib/api';
 	import { transactionLogStore } from '$lib/stores/transactionLogStore';
+	import { Button } from '../ui/button';
 
 	let users: UserDetails[] = $state([]);
+	let generating = $state(false);
 	const unlistenFunctions: UnlistenFn[] = [];
 
 	async function fetchUsers() {
@@ -18,6 +27,20 @@
 			users = await getUsers();
 		} catch (err) {
 			toast(`Failed to fetch users: ${err}`);
+		}
+	}
+
+	async function genUsers(count: number) {
+		generating = true;
+		try {
+			let new_users = await generateUsers(count);
+			for (let user of new_users) {
+				await createUser(user.name, user.phone, user.balance, user.pin);
+			}
+		} catch (err) {
+			toast(`Failed to create user: ${err}`);
+		} finally {
+			generating = false;
 		}
 	}
 
@@ -59,12 +82,19 @@
 						<div class="">
 							<h3 class="mb-2 font-medium text-gray-900">Settings</h3>
 							<div class="space-y-2">
-								<button
-									class="w-full rounded-md px-3 py-2 text-left text-sm transition-colors duration-200"
-									onclick={() => {}}
+								<Button
+									variant="outline"
+									class="w-full justify-start gap-2"
+									onclick={() => genUsers(5)}
+									disabled={generating}
 								>
+									{#if generating}
+										<LoaderCircle class="animate-spin" />
+									{:else}
+										<Plus size={20} />
+									{/if}
 									Generate 5 More Users
-								</button>
+								</Button>
 							</div>
 						</div>
 					</div>
