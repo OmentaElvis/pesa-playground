@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { mode } from 'mode-watcher';
-	
+
 	type ColorMap = {
 		outline?: string;
 		letter_p?: string;
@@ -24,7 +24,7 @@
 		width?: string;
 		height?: string;
 		class?: string;
-		variant: "mono" | "color"
+		variant: 'mono' | 'color';
 	};
 
 	let {
@@ -33,7 +33,7 @@
 		width = '875',
 		height = '311',
 		class: className = '',
-		variant = "color"
+		variant = 'color'
 	}: Props = $props();
 
 	const defaultColors: Required<ColorMap> = {
@@ -53,21 +53,21 @@
 		letter_u: '#549c0e'
 	};
 
-	let strokeColor = $derived.by(()=> {
-		if (selectedStroke !== "#1a1a1a") {
+	let strokeColor = $derived.by(() => {
+		if (selectedStroke !== '#1a1a1a') {
 			return selectedStroke;
 		} else {
-			if (mode.current == "light") {
-				return "oklch(92.9% 0.013 255.508)"
+			if (mode.current == 'light') {
+				return 'oklch(92.9% 0.013 255.508)';
 			} else {
-				return "#181818"
+				return '#181818';
 			}
 		}
 	});
 
-	const monoColors: Required<ColorMap> = $derived.by(()=> {
-	   if(mode.current == "light") {
-	    return {
+	const monoColors: Required<ColorMap> = $derived.by(() => {
+		if (mode.current == 'light') {
+			return {
 				outline: 'oklch(92.9% 0.013 255.508)',
 				letter_p: 'oklch(96.8% 0.007 247.896)',
 				letter_l: 'oklch(96.8% 0.007 247.896)',
@@ -82,9 +82,9 @@
 				letter_s: 'oklch(96.8% 0.007 247.896)',
 				letter_a2: 'oklch(96.8% 0.007 247.896)',
 				letter_u: 'oklch(96.8% 0.007 247.896)'
-			}
-	   } else {
-	    return {
+			};
+		} else {
+			return {
 				outline: '#181818',
 				letter_p: '#2f2f2f',
 				letter_l: '#2f2f2f',
@@ -99,11 +99,11 @@
 				letter_s: '#2f2f2f',
 				letter_a2: '#2f2f2f',
 				letter_u: '#2f2f2f'
-			}
+			};
 		}
 	});
 
-	let def = $derived(variant == "color" ? defaultColors : monoColors);
+	let def = $derived(variant == 'color' ? defaultColors : monoColors);
 	let finalColors = $derived({ ...def, ...colors });
 </script>
 
@@ -117,8 +117,10 @@
 >
 	<title>Pesa playground</title>
 	<g transform="translate(-17.060614,-19.831327)">
-		<g transform="matrix(0.99492211,0,0,0.98324934,1.4399903,1.3759319)"
-			style="display:inline;fill:#1a1a1a;stroke-width:8.90535;stroke-dasharray:none">
+		<g
+			transform="matrix(0.99492211,0,0,0.98324934,1.4399903,1.3759319)"
+			style="display:inline;fill:#1a1a1a;stroke-width:8.90535;stroke-dasharray:none"
+		>
 			<path
 				id="outline"
 				fill={finalColors.outline}

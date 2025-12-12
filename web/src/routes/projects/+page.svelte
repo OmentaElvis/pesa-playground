@@ -17,7 +17,7 @@
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import PesaPlaygroundLogo from '$lib/components/logo/PesaPlaygroundLogo.svelte';
-	import * as Kbd from "$lib/components/ui/kbd/index.js";
+	import * as Kbd from '$lib/components/ui/kbd/index.js';
 
 	let projects: ProjectSummary[] = $state([]);
 	let businesses: BusinessSummary[] = $state([]);
@@ -76,7 +76,6 @@
 			loading = false;
 		}
 	});
-
 </script>
 
 {#snippet keymapRow(label: string, keys: string[])}
@@ -189,11 +188,7 @@
 										<CardTitle class="text-lg font-semibold">{project.name}</CardTitle>
 									</div>
 									<div class="flex gap-1">
-										<Button
-											size="sm"
-											variant="ghost"
-											href={`/projects/${project.id}/settings`}
-										>
+										<Button size="sm" variant="ghost" href={`/projects/${project.id}/settings`}>
 											<Settings class="h-4 w-4" />
 										</Button>
 									</div>
@@ -201,10 +196,7 @@
 							</CardHeader>
 							<CardContent class="space-y-4">
 								<div class="flex items-center gap-2">
-									<Badge
-										class={getSimulationModeColor(project.simulation_mode)}
-										variant="outline"
-									>
+									<Badge class={getSimulationModeColor(project.simulation_mode)} variant="outline">
 										{project.simulation_mode.replace('-', ' ')}
 									</Badge>
 								</div>
@@ -238,9 +230,7 @@
 							</h2>
 							<Separator class="my-4" />
 							{#if businessProjects.length > 0}
-								<div
-									class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-								>
+								<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 									{#each businessProjects as project (project.id)}
 										<Card class="transition-shadow duration-200 hover:shadow-lg">
 											<CardHeader class="pb-3">

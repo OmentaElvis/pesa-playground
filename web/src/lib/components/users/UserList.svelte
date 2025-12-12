@@ -1,12 +1,5 @@
 <script lang="ts">
-	import {
-		Phone,
-		Wallet,
-		Settings,
-		User as UserIcon,
-		Plus,
-		LoaderCircle
-	} from 'lucide-svelte';
+	import { Phone, Wallet, Settings, User as UserIcon, Plus, LoaderCircle } from 'lucide-svelte';
 	import { formatAmount, getInitials } from '$lib/utils';
 	import { getUsers, type UserDetails, generateUsers, createUser } from '$lib/api';
 	import { onDestroy, onMount } from 'svelte';

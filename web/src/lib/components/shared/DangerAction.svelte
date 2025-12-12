@@ -35,7 +35,9 @@
 	}
 </script>
 
-<div class="flex items-start justify-between rounded-lg border border-destructive/50 bg-destructive/5 p-4">
+<div
+	class="flex items-start justify-between rounded-lg border border-destructive/50 bg-destructive/5 p-4"
+>
 	<div class="flex items-start gap-4">
 		<AlertTriangle class="h-6 w-6 text-destructive" />
 		<div>
