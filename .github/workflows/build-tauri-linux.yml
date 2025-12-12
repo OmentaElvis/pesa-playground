@@ -43,5 +43,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >
           gh release upload ${{ inputs.tag_name }}
-          target/release/bundle/**/*.{AppImage,deb}
+          target/release/bundle/**/*.{AppImage,deb,rpm}
           --clobber
