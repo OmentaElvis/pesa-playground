@@ -19,27 +19,27 @@
         {
           "type": "toml",
           "path": "crates/pesa-axum/Cargo.toml",
-          "jsonpath": "package.version"
+          "jsonpath": "$.package.version"
         },
         {
           "type": "toml",
           "path": "crates/pesa-core/Cargo.toml",
-          "jsonpath": "package.version"
+          "jsonpath": "$.package.version"
         },
         {
           "type": "toml",
           "path": "crates/pesa-lua/Cargo.toml",
-          "jsonpath": "package.version"
+          "jsonpath": "$.package.version"
         },
         {
           "type": "toml",
           "path": "crates/pesa-macros/Cargo.toml",
-          "jsonpath": "package.version"
+          "jsonpath": "$.package.version"
         },
         {
           "type": "toml",
           "path": "crates/pesa-tauri/Cargo.toml",
-          "jsonpath": "package.version"
+          "jsonpath": "$.package.version"
         }
       ]
     }
