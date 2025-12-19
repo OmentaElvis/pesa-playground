@@ -4,6 +4,7 @@ use super::db;
 use super::Ledger;
 use super::Transaction;
 use super::TransactionEngineError;
+use super::TransactionNote;
 use super::TransactionType;
 use anyhow::bail;
 use anyhow::Context;
@@ -21,6 +22,8 @@ use serde::Deserialize;
 use crate::accounts::paybill_accounts::PaybillAccount;
 use crate::accounts::till_accounts::TillAccount;
 use crate::accounts::user_profiles::User;
+use crate::accounts::utility_accounts;
+use crate::accounts::utility_accounts::UtilityAccount;
 use crate::accounts::Account;
 use crate::api_logs::ApiLog;
 use crate::events::DomainEventDispatcher;
@@ -296,10 +299,18 @@ pub async fn transfer(
     destination: u32,
     amount: i64,
     txn_type: TransactionType,
+    notes: Option<TransactionNote>,
 ) -> Result<Transaction> {
-    let (txn, events) = Ledger::transfer(&ctx.db, source, destination, amount, &txn_type)
-        .await
-        .context("Transfer Error")?;
+    let (txn, events) = Ledger::transfer(
+        &ctx.db,
+        source,
+        destination,
+        amount,
+        &txn_type,
+        notes.as_ref(),
+    )
+    .await
+    .context("Transfer Error")?;
 
     DomainEventDispatcher::dispatch_events(ctx, events)?;
 
@@ -367,7 +378,7 @@ pub async fn c2b_lipa_logic(ctx: &AppContext, args: LipaArgs) -> Result<()> {
 
     let user = user.unwrap();
 
-    let (account_id, validation_url, confirmation_url, response_type, business_id) =
+    let (validation_url, confirmation_url, response_type, business_id, notes) =
         match args.payment_type {
             LipaPaymentType::Paybill => {
                 let paybill = PaybillAccount::get_by_paybill_number(conn, args.business_number)
@@ -389,11 +400,14 @@ pub async fn c2b_lipa_logic(ctx: &AppContext, args: LipaArgs) -> Result<()> {
                 let paybill = paybill.unwrap();
 
                 (
-                    paybill.account_id,
                     paybill.validation_url,
                     paybill.confirmation_url,
                     paybill.response_type,
                     paybill.business_id,
+                    TransactionNote::PaybillPayment {
+                        paybill_number: paybill.paybill_number,
+                        bill_ref_number: args.account_number.clone().unwrap_or_default(),
+                    },
                 )
             }
             LipaPaymentType::Till => {
@@ -414,26 +428,23 @@ pub async fn c2b_lipa_logic(ctx: &AppContext, args: LipaArgs) -> Result<()> {
                 let till = till.unwrap();
 
                 (
-                    till.account_id,
                     till.validation_url,
                     till.confirmation_url,
                     till.response_type,
                     till.business_id,
+                    TransactionNote::TillPayment {
+                        till_number: till.till_number,
+                    },
                 )
             }
         };
-    let account = Account::get_account(conn, account_id)
-        .await
+
+    let destination = utility_accounts::UtilityAccount::find_by_business_id(conn, business_id)
+        .await?
         .context(format!(
-            "An error occured gettint account with id {}.",
-            account_id
+            "Failed to get utility account for business id: {}",
+            business_id
         ))?;
-
-    if account.is_none() {
-        bail!("Account {} not found", account_id);
-    }
-
-    let destination = account.unwrap();
 
     let user_account = Account::get_account(conn, user.account_id)
         .await
@@ -476,6 +487,7 @@ pub async fn c2b_lipa_logic(ctx: &AppContext, args: LipaArgs) -> Result<()> {
             payment_type: args.payment_type,
             bill_ref_number: args.account_number,
             business_id,
+            notes,
         },
         ctx.clone(),
     ));
@@ -490,7 +502,7 @@ pub async fn lipa(ctx: &AppContext, args: LipaArgs) -> Result<()> {
 struct ProcessLipaArgs {
     user: User,
     source: Account,
-    destination: Account,
+    destination: UtilityAccount,
     amount: i64,
     confirmation_url: Option<String>,
     validation_url: Option<String>,
@@ -498,6 +510,7 @@ struct ProcessLipaArgs {
     payment_type: LipaPaymentType,
     bill_ref_number: Option<String>,
     business_id: u32,
+    notes: TransactionNote,
 }
 
 async fn process_lipa<C: ConnectionTrait>(conn: C, args: ProcessLipaArgs, ctx: AppContext) {
@@ -612,12 +625,13 @@ async fn process_lipa<C: ConnectionTrait>(conn: C, args: ProcessLipaArgs, ctx: A
     let txn_res = match Ledger::transfer(
         &conn,
         Some(args.source.id),
-        args.destination.id,
+        args.destination.account_id,
         args.amount,
         match args.payment_type {
             LipaPaymentType::Paybill => &TransactionType::Paybill,
             LipaPaymentType::Till => &TransactionType::BuyGoods,
         },
+        Some(&args.notes),
     )
     .await
     {

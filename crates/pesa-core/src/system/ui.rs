@@ -39,6 +39,10 @@ pub async fn clear_all_data(context: &AppContext) -> anyhow::Result<()> {
         api_keys::db::Entity.table_name().to_string(),
         accounts::user_profiles::db::Entity.table_name().to_string(),
         accounts::till_accounts::db::Entity.table_name().to_string(),
+        accounts::mmf_accounts::db::Entity.table_name().to_string(),
+        accounts::utility_accounts::db::Entity
+            .table_name()
+            .to_string(),
         accounts::paybill_accounts::db::Entity
             .table_name()
             .to_string(),

@@ -76,9 +76,7 @@ async fn test_register_url_success() -> anyhow::Result<()> {
 
     assert_eq!(register_response["ResponseCode"], "000000");
 
-    let fetched_paybill = PaybillEntity::find_by_id(paybill.account_id)
-        .one(&app.db)
-        .await?;
+    let fetched_paybill = PaybillEntity::find_by_id(paybill.id).one(&app.db).await?;
 
     assert!(fetched_paybill.is_some());
     let fetched_paybill = fetched_paybill.unwrap();
@@ -434,7 +432,7 @@ async fn test_register_url_success_for_till() -> anyhow::Result<()> {
 
     assert_eq!(register_response["ResponseCode"], "000000");
 
-    let fetched_till = TillEntity::find_by_id(till.account_id).one(&app.db).await?;
+    let fetched_till = TillEntity::find_by_id(till.id).one(&app.db).await?;
 
     assert!(fetched_till.is_some());
     let fetched_till = fetched_till.unwrap();

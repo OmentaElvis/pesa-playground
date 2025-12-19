@@ -2,7 +2,16 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Settings, Building, FileDigit, SearchIcon, PlusCircle } from 'lucide-svelte';
+	import {
+		Settings,
+		Building,
+		FileDigit,
+		SearchIcon,
+		PlusCircle,
+		ArrowRight,
+		HashIcon,
+		LandmarkIcon
+	} from 'lucide-svelte';
 	import {
 		getProjects,
 		type ProjectSummary,
@@ -10,7 +19,7 @@
 		type BusinessSummary,
 		SimulationMode
 	} from '$lib/api';
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { getSimulationModeColor } from '$lib/utils';
 	import * as Select from '$lib/components/ui/select';
 	import * as InputGroup from '$lib/components/ui/input-group/index.js';
@@ -18,11 +27,7 @@
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import PesaPlaygroundLogo from '$lib/components/logo/PesaPlaygroundLogo.svelte';
 	import * as Kbd from '$lib/components/ui/kbd/index.js';
-	import { getKeymapManager } from '$lib/keymap';
-	import { goto } from '$app/navigation';
 	import { globalKeymapActions } from '$lib/actions/keymapActions';
-
-	const keymapManager = getKeymapManager();
 
 	const displayedKeymapActions = globalKeymapActions.filter((action) =>
 		['project.create', 'users.manage', 'businesses.manage', 'settings.open'].includes(action.id)
@@ -147,7 +152,7 @@
 		<Tabs.Root bind:value={activeTab}>
 			<Tabs.List>
 				<Tabs.Trigger value="all-projects">All Projects</Tabs.Trigger>
-				<Tabs.Trigger value="by-business">By Business</Tabs.Trigger>
+				<Tabs.Trigger value="by-business"><LandmarkIcon /> By Business</Tabs.Trigger>
 			</Tabs.List>
 
 			<Tabs.Content value="all-projects">
@@ -232,9 +237,15 @@
 					{#each businesses as business (business.id)}
 						{@const businessProjects = projectsByBusiness.get(business.id) || []}
 						<section>
-							<h2 class="text-2xl font-semibold tracking-tight text-foreground">
-								{business.name}
-							</h2>
+							<div class="flex items-center">
+								<h2 class="flex-1 text-2xl font-semibold tracking-tight text-foreground">
+									{business.name}
+									<Badge variant="outline" class="ml-4"><HashIcon /> {business.short_code}</Badge>
+								</h2>
+								<Button href="/businesses/{business.id}" variant="outline">
+									View {business.name}<ArrowRight />
+								</Button>
+							</div>
 							<Separator class="my-4" />
 							{#if businessProjects.length > 0}
 								<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

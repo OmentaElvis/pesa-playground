@@ -132,7 +132,7 @@ pub async fn registerurl(
         }
         use crate::accounts::paybill_accounts::db;
 
-        let model = db::Entity::find_by_id(paybill.account_id)
+        let model = db::Entity::find_by_id(paybill.id)
             .one(&state.context.db)
             .await
             .map_err(|err| ApiError::new(MpesaError::C2BServerFailure, err.to_string()))?
@@ -167,7 +167,7 @@ pub async fn registerurl(
         }
 
         use crate::accounts::till_accounts::db;
-        let model = db::Entity::find_by_id(till.account_id)
+        let model = db::Entity::find_by_id(till.id)
             .one(&state.context.db)
             .await
             .map_err(|err| ApiError::new(MpesaError::C2BServerFailure, err.to_string()))?

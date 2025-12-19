@@ -1,15 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import {
-		getPaybillAccounts,
-		getTillAccounts,
 		getUsers,
-		listAccountsFullTransactionLogs,
 		transfer,
 		TransactionType,
-		type FullTransactionLog,
 		type TransactionStats,
-		getTransactionStats
+		getTransactionStats,
+		getTransactionHistory
 	} from '$lib/api';
 	import { LoaderCircle, PiggyBank, Scale, Landmark } from 'lucide-svelte';
 	import {
@@ -20,21 +17,13 @@
 		CardHeader,
 		CardTitle
 	} from '$lib/components/ui/card';
-	import {
-		Table,
-		TableBody,
-		TableCell,
-		TableHead,
-		TableHeader,
-		TableRow
-	} from '$lib/components/ui/table';
-	import { Badge } from '$lib/components/ui/badge';
 	import { formatAmount } from '$lib/utils';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import * as Select from '$lib/components/ui/select';
 	import { toast } from 'svelte-sonner';
+	import TransactionList from '$lib/components/TransactionList.svelte';
 
 	// Main page state
 	let isLoading = $state(true);
@@ -47,8 +36,6 @@
 	let totalTransactions = $state(0);
 	let stats: TransactionStats | null = $state(null);
 
-	// Data stores
-	let allTransactions = $state<FullTransactionLog[]>([]);
 	let allAccounts = $state<{ label: string; value: string }[]>([]);
 
 	// Deposit form state
@@ -59,37 +46,32 @@
 	async function loadSystemData() {
 		isLoading = true;
 		try {
-			const paybills = await getPaybillAccounts();
-			const tills = await getTillAccounts();
 			const users = await getUsers();
 			stats = await getTransactionStats();
-
-			const allAccountIds = [
-				...paybills.map((p) => p.account_id),
-				...tills.map((t) => t.account_id),
-				...users.map((u) => u.id)
-			];
 
 			const userAccounts = users.map((u) => ({
 				label: `User: ${u.name} (${u.phone})`,
 				value: u.id.toString()
 			}));
-			const paybillAccounts = paybills.map((p) => ({
-				label: `Paybill: ${p.paybill_number}`,
-				value: p.account_id.toString()
-			}));
-			const tillAccounts = tills.map((t) => ({
-				label: `Till: ${t.till_number}`,
-				value: t.account_id.toString()
-			}));
-			allAccounts = [...userAccounts, ...paybillAccounts, ...tillAccounts];
+
+			allAccounts = [...userAccounts];
 			if (allAccounts.length > 0) {
 				selectedAccountId = allAccounts[0].value;
 			}
 
+			stats = await getTransactionStats();
+
 			// Fetch all transaction logs for all accounts
-			const txns = await listAccountsFullTransactionLogs(allAccountIds);
-			allTransactions = txns;
+			// TODO optimize this for a backend specific computation
+			const txns = await getTransactionHistory({
+				scope: {
+					type: 'All'
+				},
+				pagination: {
+					limit: stats.total_count,
+					offset: 0
+				}
+			});
 			totalTransactions = stats.total_count;
 
 			// --- Correct Balance Calculation ---
@@ -98,11 +80,11 @@
 			let volume = 0;
 
 			for (const txn of txns) {
-				if (txn.from_id === null) {
-					deposits += txn.transaction_amount;
+				if (txn.sender_id === null || txn.sender_id == 0) {
+					deposits += txn.amount;
 				}
 				fees += txn.fee;
-				volume += txn.transaction_amount;
+				volume += txn.amount;
 			}
 
 			const initialBalance = 999999999999999;
@@ -251,70 +233,11 @@
 			</Card>
 
 			<!-- Transaction Ledger Card -->
-			<Card>
-				<CardHeader>
-					<CardTitle>System-Wide Transaction Ledger</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<div class="overflow-x-auto rounded-md border">
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>Date</TableHead>
-									<TableHead>ID</TableHead>
-									<TableHead>From</TableHead>
-									<TableHead>To</TableHead>
-									<TableHead class="text-right">Amount</TableHead>
-									<TableHead>Status</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{#each allTransactions as log (log.transaction_id)}
-									<TableRow>
-										<TableCell>{new Date(log.transaction_date).toLocaleString()}</TableCell>
-										<TableCell class="font-mono text-xs font-bold">{log.transaction_id}</TableCell>
-										<TableCell>
-											{#if log.from_id !== null}
-												<a href="/accounts/{log.from_id}" class="hover:underline">
-													{log.from_name}
-												</a>
-											{:else}
-												<a href="/accounts/system" class="hover:underline">
-													{log.from_name}
-												</a>
-											{/if}
-										</TableCell>
-										<TableCell>
-											{#if log.to_id !== null && log.to_name !== 'Unknown'}
-												<a href="/accounts/{log.to_id}" class="hover:underline">
-													{log.to_name}
-												</a>
-											{:else}
-												<!-- This case should not happen for a deposit -->
-												{log.to_name}
-											{/if}
-										</TableCell>
-										<TableCell class="text-right font-mono">
-											{formatAmount(log.transaction_amount / 100)}
-										</TableCell>
-										<TableCell>
-											<Badge
-												variant={log.status === 'Completed'
-													? 'default'
-													: log.status === 'Failed'
-														? 'destructive'
-														: 'outline'}
-											>
-												{log.status}
-											</Badge>
-										</TableCell>
-									</TableRow>
-								{/each}
-							</TableBody>
-						</Table>
-					</div>
-				</CardContent>
-			</Card>
+			<TransactionList
+				scope={{
+					type: 'All'
+				}}
+			/>
 		</div>
 	{/if}
 </main>

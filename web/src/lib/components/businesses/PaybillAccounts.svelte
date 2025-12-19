@@ -22,17 +22,27 @@
 	import { toast } from 'svelte-sonner';
 	import C2BParametersForm from './C2BParametersForm.svelte';
 
-	let { paybillAccounts, businessId, isCreating, editingId, refresh, create, edit, cancel } =
-		$props<{
-			paybillAccounts: PaybillAccountDetails[];
-			businessId: number;
-			isCreating: boolean;
-			editingId: string | null;
-			refresh: () => void;
-			create: () => void;
-			edit: (params: { id: number }) => void;
-			cancel: () => void;
-		}>();
+	interface PaybillAccountsProps {
+		paybillAccounts: PaybillAccountDetails[];
+		businessId: number;
+		isCreating: boolean;
+		editingId: string | null;
+		refresh: () => void;
+		create: () => void;
+		edit: (params: { id: number }) => void;
+		cancel: () => void;
+	}
+
+	let {
+		paybillAccounts,
+		businessId,
+		isCreating,
+		editingId,
+		refresh,
+		create,
+		edit,
+		cancel
+	}: PaybillAccountsProps = $props();
 
 	let saving = $state(false);
 	let formData: (CreatePaybillAccountData & { account_id?: number }) | null = $state(null);
@@ -41,7 +51,6 @@
 		if (isCreating) {
 			formData = {
 				business_id: businessId,
-				initial_balance: 0,
 				paybill_number: 0,
 				account_validation_regex: '',
 				validation_url: '',
@@ -50,10 +59,10 @@
 			};
 		} else if (editingId) {
 			const account = paybillAccounts.find(
-				(acc: PaybillAccountDetails) => acc.account_id === parseInt(editingId!)
+				(acc: PaybillAccountDetails) => acc.id === parseInt(editingId!)
 			);
 			if (account) {
-				formData = { ...account, initial_balance: 0 };
+				formData = { ...account };
 			}
 		} else {
 			formData = null;
@@ -107,11 +116,11 @@
 			<div class="space-y-4">
 				{#each paybillAccounts.filter((acc: PaybillAccountDetails) => acc.business_id === businessId) as account}
 					<div
-						onclick={() => edit({ id: account.account_id })}
+						onclick={() => edit({ id: account.id })}
 						class="w-full cursor-pointer rounded-md p-2 hover:bg-muted"
 						role="button"
 						tabindex="0"
-						onkeydown={(e) => e.key === 'Enter' && edit({ id: account.account_id })}
+						onkeydown={(e) => e.key === 'Enter' && edit({ id: account.id })}
 					>
 						<div class="flex w-full items-center justify-between">
 							<div class="text-left">
@@ -120,14 +129,6 @@
 								</p>
 								<p class="text-xs text-muted-foreground">
 									Created: {new Date(account.created_at).toLocaleDateString()}
-								</p>
-							</div>
-							<div>
-								<p class="text-lg font-bold">
-									{new Intl.NumberFormat('en-US', {
-										style: 'currency',
-										currency: 'KES'
-									}).format(account.balance / 100)}
 								</p>
 							</div>
 						</div>
@@ -156,17 +157,6 @@
 						bind:value={formData.paybill_number}
 					/>
 				</div>
-				{#if !editingId}
-					<div class="grid grid-cols-4 items-center gap-4">
-						<Label for="initialBalance" class="text-right">Initial Balance</Label>
-						<Input
-							id="initialBalance"
-							type="number"
-							class="col-span-3"
-							bind:value={formData.initial_balance}
-						/>
-					</div>
-				{/if}
 				<div class="grid grid-cols-4 items-center gap-4">
 					<Label for="accountValidationRegex" class="text-right">Account Validation Regex</Label>
 					<Input

@@ -16,6 +16,7 @@ use tokio::sync::Mutex;
 
 use crate::accounts::Account;
 use crate::transactions_log::{db::Direction, TransactionLog};
+use serde_json;
 
 pub mod db;
 pub mod ui;
@@ -38,6 +39,28 @@ pub enum TransactionEngineError {
     TransactionNotFound,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum AccountTypeForFunding {
+    Utility,
+    Mmf,
+    User,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", content = "data")]
+pub enum TransactionNote {
+    PaybillPayment {
+        paybill_number: u32,
+        bill_ref_number: String,
+    },
+    TillPayment {
+        till_number: u32,
+    },
+    AccountSetupFunding {
+        account_type: AccountTypeForFunding,
+    },
+}
+
 static GLOBAL_LEDGER_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 #[derive(Display, EnumString, Debug, PartialEq, Serialize, Deserialize)]
@@ -51,10 +74,12 @@ pub enum TransactionType {
     Reversal,
     Withdraw,
     Deposit,
+    ChargeSettlement,
+    RevenueSweep,
     Unknown(String),
 }
 
-#[derive(Display, EnumString, Debug, PartialEq, Serialize)]
+#[derive(Display, EnumString, Debug, PartialEq, Serialize, Deserialize)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum TransactionStatus {
@@ -78,6 +103,7 @@ pub struct Transaction {
     pub transaction_type: TransactionType,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
+    pub notes: Option<TransactionNote>,
 }
 
 pub struct Ledger {}
@@ -89,6 +115,7 @@ impl Ledger {
         destination: u32,
         amount: i64,
         txn_type: &TransactionType,
+        notes: Option<&TransactionNote>,
     ) -> Result<(Transaction, Vec<crate::events::DomainEvent>), TransactionEngineError>
     where
         C: ConnectionTrait,
@@ -145,6 +172,8 @@ impl Ledger {
         };
         acc.update(conn).await?;
 
+        let notes_string = notes.map(|n| serde_json::to_string(n).unwrap_or_default());
+
         let txn = db::ActiveModel {
             id: Set(Ledger::generate_receipt()),
             to: Set(destination_account.id),
@@ -155,6 +184,7 @@ impl Ledger {
             transaction_type: Set(txn_type.to_string()),
             status: Set(TransactionStatus::Completed.to_string()),
             created_at: Set(Utc::now().to_utc()),
+            notes: Set(notes_string),
             ..Default::default()
         };
 
@@ -164,8 +194,8 @@ impl Ledger {
             let (_log, event) = TransactionLog::create(
                 conn,
                 txn.id.clone(),
-                source.id as i32,
-                Direction::Debit,
+                source.id,
+                Direction::Outflow,
                 source.balance,
             )
             .await?;
@@ -175,8 +205,8 @@ impl Ledger {
         let (_log, event) = TransactionLog::create(
             conn,
             txn.id.clone(),
-            destination_account.id as i32,
-            Direction::Credit,
+            destination_account.id,
+            Direction::Inflow,
             destination_account.balance,
         )
         .await?;
@@ -225,8 +255,8 @@ impl Ledger {
             let (_log, event) = TransactionLog::create(
                 conn,
                 transaction.id.clone(),
-                dest_id as i32,
-                Direction::Debit,
+                dest_id,
+                Direction::Outflow,
                 balance,
             )
             .await?;
@@ -249,8 +279,8 @@ impl Ledger {
                 let (_log, event) = TransactionLog::create(
                     conn,
                     transaction.id.clone(),
-                    source_id as i32,
-                    Direction::Credit,
+                    source_id,
+                    Direction::Inflow,
                     balance,
                 )
                 .await?;

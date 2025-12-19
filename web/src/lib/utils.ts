@@ -91,3 +91,12 @@ export function formatRelativeTime(dateString: string): string {
 		return `${years} years ago`;
 	}
 }
+
+export function debounce(func: Function, wait: number) {
+	let timeout: any;
+	return function (...args: any[]) {
+		clearTimeout(timeout);
+		// @ts-ignore
+		timeout = setTimeout(() => func.apply(this, args), wait);
+	};
+}

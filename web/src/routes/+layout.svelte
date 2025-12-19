@@ -1,9 +1,6 @@
 <script lang="ts">
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
-	import { ArrowRight, ArrowLeft, Bell, History } from 'lucide-svelte';
-	import * as Popover from '$lib/components/ui/popover/index.js';
-	import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
-	import { formatAmount } from '$lib/utils';
+	import { ArrowRight, ArrowLeft, History } from 'lucide-svelte';
 	import '../app.css';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { ModeWatcher } from 'mode-watcher';
@@ -14,9 +11,8 @@
 	import AppSidebar from '$lib/components/AppSidebar.svelte';
 	import StkPushDialog from '$lib/components/StkPushDialog.svelte';
 	import { listen, type UnlistenFn } from '$lib/api';
-	import { onDestroy, onMount } from 'svelte';
-	import { resolveStkPrompt, type FullTransactionLog, resolveAccountAndNavigate } from '$lib/api';
-	import { transactionLogStore } from '$lib/stores/transactionLogStore';
+	import { onMount } from 'svelte';
+	import { resolveStkPrompt } from '$lib/api';
 	import { Toaster } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -36,6 +32,7 @@
 		back,
 		forward
 	} from '$lib/actions/keymapActions';
+	import TransactionsNotification from '$lib/components/TransactionsNotification.svelte';
 
 	const keymapManager: KeymapManager = createKeymapManager();
 
@@ -103,17 +100,6 @@
 			.catch((err) => {
 				console.log(err);
 			});
-
-		listen<FullTransactionLog>('new_transaction', (e) => {
-			console.log('New transaction log received', e.payload);
-			transactionLogStore.add(e.payload);
-		})
-			.then((un) => {
-				unlistenFunctions.push(un);
-			})
-			.catch((err) => {
-				console.error('Failed to set up new_transaction listener:', err);
-			});
 	});
 
 	const { isCollapsed, activeWidget } = sidebarStore;
@@ -179,48 +165,6 @@
 		} else {
 			resolveStkPrompt(checkout_id, 'cancelled');
 		}
-	}
-
-	onDestroy(() => {
-		unlistenFunctions.forEach((unlisten) => unlisten());
-	});
-
-	function getTransactionLogDescription(log: FullTransactionLog): string {
-		if (log.transaction_type === 'Deposit') {
-			return 'Deposit';
-		} else if (log.direction === 'Credit') {
-			return 'Received';
-		} else if (log.direction === 'Debit') {
-			if (log.transaction_type === 'send_money') {
-				return 'Sent';
-			} else if (log.transaction_type === 'paybill' || log.transaction_type === 'buy_goods') {
-				return 'Paid';
-			} else if (log.transaction_type === 'withdraw') {
-				return 'Withdrawn';
-			}
-		}
-		return 'Transacted'; // Fallback
-	}
-
-	function getTransactionLogSummarySentence(log: FullTransactionLog): string {
-		const formattedAmount = formatAmount(log.transaction_amount / 100);
-
-		if (log.transaction_type === 'Deposit') {
-			return `Deposit of ${formattedAmount} to ${log.to_name}`;
-		} else if (log.direction === 'Credit') {
-			return `${log.to_name} received ${formattedAmount} from ${log.from_name}`;
-		} else if (log.direction === 'Debit') {
-			if (log.transaction_type === 'send_money') {
-				return `${log.from_name} sent ${formattedAmount} to ${log.to_name}`;
-			} else if (log.transaction_type === 'paybill') {
-				return `${log.from_name} paid ${formattedAmount} to Pay Bill ${log.to_name}`;
-			} else if (log.transaction_type === 'buy_goods') {
-				return `${log.from_name} paid ${formattedAmount} to Buy Goods ${log.to_name}`;
-			} else if (log.transaction_type === 'withdraw') {
-				return `${log.from_name} withdrew ${formattedAmount}`;
-			}
-		}
-		return `Transaction of ${formattedAmount} between ${log.from_name} and ${log.to_name}`; // Fallback
 	}
 </script>
 
@@ -297,63 +241,7 @@
 			</div>
 
 			<div>
-				<Popover.Root>
-					<Popover.Trigger>
-						<Button variant="ghost" size="icon" class="relative">
-							<Bell />
-							{#if $transactionLogStore.length > 0}
-								<div
-									class="absolute top-1 right-1 h-3 w-3 rounded-full border-2 border-muted bg-red-500"
-								></div>
-							{/if}
-						</Button>
-					</Popover.Trigger>
-					<Popover.Content class="w-96">
-						<div class="mb-2 flex items-center justify-between">
-							<h3 class="font-medium">Unread Transactions</h3>
-							<Button variant="link" size="sm" onclick={() => transactionLogStore.reset()}>
-								Clear All
-							</Button>
-						</div>
-						<ScrollArea class="h-72">
-							<div class="flex flex-col gap-2">
-								{#each $transactionLogStore as log (log.transaction_id + log.direction)}
-									{@const account_id_to_visit =
-										log.direction === 'Credit' ? log.to_id : log.from_id}
-									{#if account_id_to_visit}
-										<button
-											class="block rounded-md p-2 text-left text-sm hover:bg-secondary"
-											onclick={() => {
-												resolveAccountAndNavigate(account_id_to_visit, goto);
-												transactionLogStore.remove(log.transaction_id);
-											}}
-										>
-											<div class="font-semibold">{getTransactionLogSummarySentence(log)}</div>
-											<div class="flex items-center justify-between">
-												<div class="flex items-center gap-1">
-													<span class="font-semibold">{getTransactionLogDescription(log)}</span>
-													<span
-														class:text-green-500={log.direction === 'Credit'}
-														class:text-red-500={log.direction === 'Debit'}
-													>
-														{log.direction === 'Credit' ? '+' : '-'}{formatAmount(
-															log.transaction_amount / 100
-														)}
-													</span>
-												</div>
-												<span class="text-xs text-muted-foreground">
-													{new Date(log.transaction_date).toLocaleTimeString()}
-												</span>
-											</div>
-										</button>
-									{/if}
-								{:else}
-									<div class="text-center text-muted-foreground p-4">No new transactions.</div>
-								{/each}
-							</div>
-						</ScrollArea>
-					</Popover.Content>
-				</Popover.Root>
+				<TransactionsNotification />
 			</div>
 		</div>
 	</Sidebar.Provider>

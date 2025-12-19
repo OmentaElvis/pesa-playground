@@ -2,11 +2,11 @@ use chrono::Utc;
 use rand::{distr::Alphanumeric, Rng};
 
 use crate::{
-    accounts::{user_profiles::User, Account},
+    accounts::{user_profiles::User, utility_accounts::UtilityAccount},
     callbacks::{CallbackLog, CallbackStatus, CallbackType},
     projects::Project,
     server::ApiState,
-    transactions::TransactionType,
+    transactions::{TransactionNote, TransactionType},
 };
 
 use super::process::callback_execute;
@@ -16,12 +16,19 @@ pub struct StkpushInit {
     pub merchant_request_id: String,
     pub callback_url: String,
     pub user: User,
-    pub business: Account,
+    pub business: UtilityAccount,
     pub amount: i64,
+    pub notes: TransactionNote,
 }
 
 impl StkpushInit {
-    pub fn new(url: String, user: User, business: Account, amount: i64) -> Self {
+    pub fn new(
+        url: String,
+        user: User,
+        business: UtilityAccount,
+        amount: i64,
+        notes: TransactionNote,
+    ) -> Self {
         Self {
             checkout_request_id: Self::generate_checkout_request_id(),
             merchant_request_id: Self::generate_merchant_request_id(),
@@ -29,6 +36,7 @@ impl StkpushInit {
             user,
             business,
             amount,
+            notes,
         }
     }
 

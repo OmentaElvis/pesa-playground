@@ -3,11 +3,11 @@ use base64::{engine::general_purpose, Engine};
 use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 
+use crate::accounts::utility_accounts::UtilityAccount;
 use crate::server::{ApiState, MpesaError};
+use crate::transactions::TransactionNote;
 use crate::{
-    accounts::{
-        paybill_accounts::PaybillAccount, till_accounts::TillAccount, user_profiles::User, Account,
-    },
+    accounts::{paybill_accounts::PaybillAccount, till_accounts::TillAccount, user_profiles::User},
     api_keys::ApiKey,
     business::Business,
     callbacks::stk::init::StkpushInit,
@@ -131,7 +131,7 @@ pub async fn stkpush(
     let passkey = api_key.passkey;
     let timestamp = req.timestamp;
 
-    let (account_id, business_id) = match req.transaction_type {
+    let (business_id, notes) = match req.transaction_type {
         TransactionType::CustomerBuyGoodsOnline => {
             let till = match TillAccount::get_by_till_number(
                 &state.context.db,
@@ -150,7 +150,12 @@ pub async fn stkpush(
                     return Err(ApiError::new(MpesaError::InternalError, err.to_string()));
                 }
             };
-            (till.account_id, till.business_id)
+            (
+                till.business_id,
+                TransactionNote::TillPayment {
+                    till_number: till.till_number,
+                },
+            )
         }
         TransactionType::CustomerPayBillOnline => {
             let paybill = match PaybillAccount::get_by_paybill_number(
@@ -171,7 +176,13 @@ pub async fn stkpush(
                 }
             };
 
-            (paybill.account_id, paybill.business_id)
+            (
+                paybill.business_id,
+                TransactionNote::PaybillPayment {
+                    paybill_number: paybill.paybill_number,
+                    bill_ref_number: req.account_reference,
+                },
+            )
         }
     };
 
@@ -188,21 +199,22 @@ pub async fn stkpush(
         }
     };
 
-    let entity_account = match Account::get_account(&state.context.db, account_id).await {
-        Ok(Some(account)) => account,
-        Ok(None) => {
-            return Err(ApiError::new(
-                crate::server::MpesaError::InternalError,
-                format!("Failed to read acount {}", account_id),
-            ))
-        }
-        Err(err) => {
-            return Err(ApiError::new(
-                crate::server::MpesaError::InternalError,
-                err.to_string(),
-            ));
-        }
-    };
+    let utility_account =
+        match UtilityAccount::find_by_business_id(&state.context.db, business_id).await {
+            Ok(Some(account)) => account,
+            Ok(None) => {
+                return Err(ApiError::new(
+                    crate::server::MpesaError::InternalError,
+                    format!("Failed to read acount for business {}", business_id),
+                ))
+            }
+            Err(err) => {
+                return Err(ApiError::new(
+                    crate::server::MpesaError::InternalError,
+                    err.to_string(),
+                ));
+            }
+        };
 
     let short_code = business.short_code.clone();
 
@@ -263,8 +275,9 @@ pub async fn stkpush(
     let init = StkpushInit::new(
         req.call_back_u_r_l.to_string(),
         user,
-        entity_account,
+        utility_account,
         amount,
+        notes,
     );
 
     let merchant_id = init.merchant_request_id.to_string();

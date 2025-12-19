@@ -26,6 +26,10 @@ where
         TransactionType::Airtime => TransactionType::Airtime.to_string(),
         TransactionType::Reversal => TransactionType::Reversal.to_string(),
         TransactionType::Unknown(s) => s.to_string(),
+        // these should not incur a fee
+        TransactionType::ChargeSettlement | TransactionType::RevenueSweep => {
+            return Ok(0);
+        }
     };
 
     let amount_in_kes = amount / 100;

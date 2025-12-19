@@ -7,13 +7,15 @@ use sea_orm::{
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 
-use crate::transactions::{Ledger, TransactionType};
+use crate::transactions::{Ledger, TransactionNote, TransactionType};
 
 pub mod db;
+pub mod mmf_accounts;
 pub mod paybill_accounts;
 pub mod till_accounts;
 pub mod ui;
 pub mod user_profiles;
+pub mod utility_accounts;
 
 #[derive(EnumString, Display, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[strum(serialize_all = "snake_case")]
@@ -21,11 +23,11 @@ pub mod user_profiles;
 pub enum AccountType {
     User,
     System,
-    Paybill,
-    Till,
+    Mmf,
+    Utility,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Account {
     pub id: u32,
     pub account_type: AccountType,
@@ -51,6 +53,25 @@ impl Account {
     where
         C: ConnectionTrait,
     {
+        if id == 0 {
+            // system account
+            let account = db::Entity::find_by_id(id).one(conn).await?;
+            if account.is_none() {
+                let model = db::ActiveModel {
+                    id: Set(0),
+                    balance: Set(0),
+                    account_type: Set(AccountType::System.to_string()),
+                    created_at: Set(Utc::now()),
+                    ..Default::default()
+                };
+
+                let account = model.insert(conn).await?;
+
+                return Ok(Some(account.into()));
+            } else {
+                return Ok(account.map(|acc| acc.into()));
+            }
+        }
         let account = db::Entity::find()
             .filter(Column::Id.eq(id))
             .one(conn)
@@ -63,7 +84,7 @@ impl Account {
         conn: &C,
         account_type: AccountType,
         initial_balance: i64,
-    ) -> anyhow::Result<u32>
+    ) -> anyhow::Result<Self>
     where
         C: ConnectionTrait,
     {
@@ -77,14 +98,28 @@ impl Account {
 
         let account = create.insert(conn).await?;
 
+        let notes = match account_type {
+            AccountType::Utility => Some(TransactionNote::AccountSetupFunding {
+                account_type: crate::transactions::AccountTypeForFunding::Utility,
+            }),
+            AccountType::Mmf => Some(TransactionNote::AccountSetupFunding {
+                account_type: crate::transactions::AccountTypeForFunding::Mmf,
+            }),
+            AccountType::User => Some(TransactionNote::AccountSetupFunding {
+                account_type: crate::transactions::AccountTypeForFunding::User,
+            }),
+            _ => None,
+        };
+
         Ledger::transfer(
             conn,
             None,
             account.id,
             initial_balance,
             &TransactionType::Deposit,
+            notes.as_ref(),
         )
         .await?;
-        Ok(account.id)
+        Ok(account.into())
     }
 }

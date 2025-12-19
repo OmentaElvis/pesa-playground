@@ -17,4 +17,5 @@ wrap_core_types! {
     TransactionCostData from pesa_core::transaction_costs::ui,
     UserResponse from pesa_core::callbacks::stk,
     AccountType from pesa_core::accounts,
+    TransactionNote from pesa_core::transactions
 }

@@ -5,6 +5,7 @@
  */
 
 import { writable } from 'svelte/store';
+import { formatAmount } from './utils';
 
 export const isApiReady = writable(false);
 
@@ -46,8 +47,8 @@ export const listen: Listen = (...args) => listenImpl(...args);
 export enum AccountType {
 	User = 'user',
 	System = 'system',
-	Paybill = 'paybill',
-	Till = 'till'
+	Mmf = 'mmf',
+	Utility = 'utility'
 }
 
 export interface Account {
@@ -77,6 +78,8 @@ export async function createAccount(
 export interface BusinessData {
 	name: string;
 	short_code: string;
+	initial_working_balance: number;
+	initial_utility_balance: number;
 }
 
 /**
@@ -85,6 +88,22 @@ export interface BusinessData {
 export interface UpdateBusinessData {
 	name?: string;
 	short_code?: string;
+}
+
+export interface MmfAccount {
+	account_id: number;
+	business_id: number;
+	balance: number;
+	created_at: string;
+	disabled: boolean;
+}
+
+export interface UtilityAccount {
+	account_id: number;
+	business_id: number;
+	balance: number;
+	created_at: string;
+	disabled: boolean;
 }
 
 export interface Business {
@@ -97,6 +116,10 @@ export interface BusinessDetails {
 	id: number;
 	name: string;
 	short_code: string;
+
+	mmf_account: MmfAccount;
+	utility_account: UtilityAccount;
+	charges_amount: number;
 }
 
 export interface BusinessSummary {
@@ -115,6 +138,12 @@ export async function getBusiness(id: number): Promise<BusinessDetails> {
 
 export async function getBusinesses(): Promise<BusinessSummary[]> {
 	return await invoke('get_businesses');
+}
+
+export async function revenueSettlements(businessId: number) {
+	return await invoke('revenue_settlement', {
+		businessId
+	});
 }
 
 export async function updateBusiness(
@@ -143,7 +172,6 @@ export interface CreatePaybillAccountData {
 	response_type?: C2BResponseType;
 	validation_url?: string;
 	confirmation_url?: string;
-	initial_balance: number;
 }
 
 /**
@@ -159,7 +187,7 @@ export interface UpdatePaybillAccountData {
 }
 
 export interface PaybillAccount {
-	account_id: number;
+	id: number;
 	business_id: number;
 	paybill_number: number;
 	account_validation_regex?: string;
@@ -169,7 +197,7 @@ export interface PaybillAccount {
 }
 
 export interface PaybillAccountDetails {
-	account_id: number;
+	id: number;
 	business_id: number;
 	paybill_number: number;
 	account_validation_regex?: string;
@@ -192,6 +220,22 @@ export async function getPaybillAccount(id: number): Promise<PaybillAccountDetai
 
 export async function getPaybillAccounts(): Promise<PaybillAccountDetails[]> {
 	return await invoke('get_paybill_accounts');
+}
+
+export async function getMmfAccount(id: number): Promise<MmfAccount> {
+	return await invoke('get_mmf_account', { id });
+}
+
+export async function getUtilityAccount(id: number): Promise<UtilityAccount> {
+	return await invoke('get_utility_account', { id });
+}
+
+export async function getMmfAccountByBusinessId(businessId: number): Promise<MmfAccount> {
+	return await invoke('get_mmf_account_by_business_id', { businessId });
+}
+
+export async function getUtilityAccountByBusinessId(businessId: number): Promise<UtilityAccount> {
+	return await invoke('get_utility_account_by_business_id', { businessId });
 }
 
 export async function getPaybillAccountsByBusinessId(
@@ -218,7 +262,6 @@ export interface CreateTillAccountData {
 	business_id: number;
 	till_number: number;
 	store_number: number;
-	initial_balance: number;
 	response_type?: C2BResponseType;
 	validation_url?: string;
 	confirmation_url?: string;
@@ -236,7 +279,7 @@ export interface UpdateTillAccountData {
 }
 
 export interface TillAccount {
-	account_id: number;
+	id: number;
 	business_id: number;
 	till_number: number;
 	store_number: number;
@@ -244,7 +287,7 @@ export interface TillAccount {
 }
 
 export interface TillAccountDetails {
-	account_id: number;
+	id: number;
 	business_id: number;
 	till_number: number;
 	store_number: number;
@@ -483,6 +526,27 @@ export async function generateUsers(count: number): Promise<UserDetails[]> {
 	return await invoke('generate_users', { count: count });
 }
 
+// Transaction Notes
+export type AccountTypeForFunding = 'Utility' | 'Mmf' | 'User';
+
+export interface PaybillPaymentNoteData {
+	paybill_number: number;
+	bill_ref_number: string;
+}
+
+export interface TillPaymentNoteData {
+	till_number: number;
+}
+
+export interface AccountSetupFundingNoteData {
+	account_type: AccountTypeForFunding;
+}
+
+export type TransactionNote =
+	| { type: 'PaybillPayment'; data: PaybillPaymentNoteData }
+	| { type: 'TillPayment'; data: TillPaymentNoteData }
+	| { type: 'AccountSetupFunding'; data: AccountSetupFundingNoteData };
+
 // Main Transaction interface
 export enum TransactionStatus {
 	Pending = 'pending',
@@ -496,7 +560,9 @@ export enum TransactionType {
 	BuyGoods = 'buy_goods',
 	SendMoney = 'send_money',
 	Withdraw = 'withdraw',
-	Deposit = 'deposit'
+	Deposit = 'deposit',
+	ChargeSettlement = 'charge_settlement',
+	RevenueSweep = 'revenue_sweep'
 }
 
 export interface Transaction {
@@ -510,6 +576,7 @@ export interface Transaction {
 	reversal_of?: string;
 	created_at: string;
 	updated_at?: string;
+	notes?: TransactionNote;
 }
 
 // Filter interface for frontend use
@@ -517,7 +584,7 @@ export interface TransactionFilter {
 	to?: number;
 	from?: number;
 	transaction_type?: string;
-	status?: string;
+	status?: TransactionStats;
 	result_code?: string;
 	limit?: number;
 	offset?: number;
@@ -537,13 +604,15 @@ export async function transfer(
 	from: number | null,
 	destination: number,
 	amount: number,
-	txnType: TransactionType
+	txnType: TransactionType,
+	notes?: TransactionNote
 ): Promise<Transaction> {
 	return await invoke('transfer', {
 		source: from,
 		destination,
 		amount,
-		txnType
+		txnType,
+		notes
 	});
 }
 
@@ -638,15 +707,15 @@ export interface FullTransactionLog {
 	transaction_id: string;
 	transaction_date: string;
 	transaction_amount: number;
-	transaction_type: string;
+	transaction_type: TransactionType;
 	from_name: string;
 	to_name: string;
 	from_id: number | null;
 	to_id: number;
 	new_balance: number;
-	status: string;
+	status: TransactionStatus;
 	fee: number;
-	direction: string;
+	direction: TransactionDirection;
 }
 
 export async function listFullTransactionLogs(
@@ -667,6 +736,63 @@ export async function listAccountsFullTransactionLogs(
 
 export async function countTransactionLogs(accounts: number[]): Promise<number> {
 	return await invoke('count_transaction_logs', { accounts });
+}
+
+export type TransactionDirection = 'Inflow' | 'Outflow';
+export type SortDirection = 'Asc' | 'Desc';
+
+export interface TransactionHistoryEntry {
+	transaction_id: string;
+	date: string;
+	status: TransactionStatus;
+	transaction_type: TransactionType;
+	fee: number;
+	amount: number;
+
+	sender_name: string;
+	sender_id?: number;
+	sender_balance?: number;
+
+	receiver_name: string;
+	receiver_id: number;
+	receiver_balance?: number;
+
+	notes?: TransactionNote;
+}
+
+export type HistoryScopeType = 'User' | 'Business' | 'All';
+
+export interface HistoryScope {
+	type: HistoryScopeType;
+	id?: number;
+}
+
+export interface Sorting {
+	by: string;
+	direction: SortDirection;
+}
+
+export interface Filters {
+	statuses?: TransactionStatus[];
+	search_query?: string;
+}
+
+export interface Pagination {
+	limit: number;
+	offset: number;
+}
+
+export interface HistoryFilter {
+	scope: HistoryScope;
+	pagination: Pagination;
+	sorting?: Sorting;
+	filters?: Filters;
+}
+
+export async function getTransactionHistory(
+	filter: HistoryFilter
+): Promise<TransactionHistoryEntry[]> {
+	return await invoke('get_transaction_history', { filter });
 }
 
 // Main ApiLog interface
@@ -782,7 +908,7 @@ export async function resolveStkPrompt(checkout_id: string, result: UserResponse
 }
 
 export function formatTransactionAmount(amount: number): string {
-	return `KES ${(amount / 100).toFixed(2)}`;
+	return formatAmount(amount / 100);
 }
 
 export function formatTransactionDate(dateString: string): string {
@@ -808,16 +934,16 @@ export async function resolveAccountAndNavigate(
 	if (!account) return;
 
 	switch (account.account_type) {
-		case AccountType.Paybill:
-			let paybill = await getPaybillAccount(account.id);
+		case AccountType.Mmf:
+			let paybill = await getMmfAccount(account.id);
 			if (!paybill) return;
 			await goto(`/businesses/${paybill.business_id}`);
 			break;
 		case AccountType.System:
-			// No navigation for system accounts
+			await goto('/account/system');
 			break;
-		case AccountType.Till:
-			let till = await getTillAccount(account.id);
+		case AccountType.Utility:
+			let till = await getUtilityAccount(account.id);
 			if (!till) return;
 			await goto(`/businesses/${till.business_id}`);
 			break;
@@ -846,4 +972,54 @@ export async function getAppInfo(): Promise<AppInfo> {
 
 export async function clearAllData(): Promise<void> {
 	return await invoke('clear_all_data');
+}
+
+export type CalculatedDirection = 'Inflow' | 'Outflow' | 'Internal' | 'None';
+
+export function getTransactionDirection(
+	transaction: TransactionHistoryEntry,
+	perspective: number | number[] | null | undefined
+): CalculatedDirection {
+	if (transaction.transaction_type === TransactionType.RevenueSweep) {
+		return 'Internal';
+	}
+
+	if (perspective == null) {
+		return 'None';
+	}
+
+	// For User and Business scopes
+	if (
+		(typeof perspective === 'number' && perspective > 0) ||
+		(Array.isArray(perspective) && perspective.length > 0)
+	) {
+		const isReceiver = Array.isArray(perspective)
+			? perspective.includes(transaction.receiver_id)
+			: transaction.receiver_id === perspective;
+		const isSender = Array.isArray(perspective)
+			? perspective.includes(transaction.sender_id ?? -1)
+			: transaction.sender_id === perspective;
+
+		if (isReceiver) {
+			return 'Inflow';
+		}
+		if (isSender) {
+			return 'Outflow';
+		}
+		return 'None';
+	}
+
+	// For 'All' scope (System Perspective)
+	if (perspective === 0) {
+		if (transaction.sender_id == null || transaction.sender_id === 0) {
+			return 'Outflow';
+		}
+		if (transaction.receiver_id === 0) {
+			return 'Inflow';
+		}
+		// This transaction does not involve the system, so it's neutral
+		return 'None';
+	}
+
+	return 'None';
 }

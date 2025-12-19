@@ -96,7 +96,7 @@
 		</div>
 	</div>
 	<ScrollArea class="min-h-0 flex-1">
-		{#each users as user}
+		{#each users as user (user.id)}
 			{@const hasUnread = $transactionLogStore.some(
 				(log) => log.to_id === user.id || log.from_id === user.id
 			)}

@@ -1,6 +1,12 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import {
+		Card,
+		CardContent,
+		CardHeader,
+		CardTitle,
+		CardDescription
+	} from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Badge } from '$lib/components/ui/badge';
@@ -21,14 +27,15 @@
 		Building,
 		Users,
 		Phone,
-		CreditCard
+		CreditCard,
+		ArrowLeftRight,
+		ArrowRight
 	} from 'lucide-svelte';
 	import {
 		getProject,
 		type ProjectDetails,
 		type ApiLog,
 		getProjectApiLogs,
-		type Business,
 		getBusiness,
 		getPaybillAccountsByBusinessId,
 		type PaybillAccountDetails,
@@ -37,7 +44,8 @@
 		getUsers,
 		type UserDetails,
 		createUser,
-		generateUser
+		generateUser,
+		type BusinessDetails
 	} from '$lib/api';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -48,12 +56,12 @@
 	import TransactionList from '$lib/components/TransactionList.svelte';
 	import SandboxToggle from '$lib/components/SandboxToggle.svelte';
 	import DiceBearAvatar from '$lib/components/ui/avatar/DiceBearAvatar.svelte';
-	import { getInitials } from '$lib/utils';
+	import { debounce, formatAmount, getInitials } from '$lib/utils';
 
 	let id = $derived(page.params.id);
 	let project: ProjectDetails | null = $state(null);
 	let apiLogs: ApiLog[] = $state([]);
-	let business: Business | null = $state(null);
+	let business: BusinessDetails | null = $state(null);
 	let users: UserDetails[] = $state([]);
 
 	let selectedLog: ApiLog | null = $state(null);
@@ -151,15 +159,6 @@
 			goto(url, { replaceState: true, keepFocus: true, noScroll: true });
 		}
 	});
-
-	function debounce(func: Function, wait: number) {
-		let timeout: any;
-		return function (...args: any[]) {
-			clearTimeout(timeout);
-			// @ts-ignore
-			timeout = setTimeout(() => func.apply(this, args), wait);
-		};
-	}
 
 	onMount(async () => {
 		const tab = page.url.searchParams.get('tab');
@@ -282,7 +281,12 @@
 
 			<!-- Transactions Tab -->
 			<Tabs.Content value="transactions">
-				<TransactionList {paybills} {tills} />
+				<TransactionList
+					scope={{
+						type: 'Business',
+						id: business.id
+					}}
+				/>
 			</Tabs.Content>
 
 			<!-- Business Accounts Tab -->
@@ -291,12 +295,67 @@
 					<CardHeader class="flex flex-row items-center justify-between">
 						<CardTitle class="flex items-center gap-2">
 							<Building class="h-5 w-5" />
-							Business Accounts ({business.name})
+							Business Accounts ({business.name}) <Badge>#{business.short_code}</Badge>
 						</CardTitle>
-						<Button size="sm" variant="outline" href={`/businesses/${business.id}?tab=accounts`}>
-							<Plus class="mr-2 h-4 w-4" />
-							Add Account
+						<Button size="sm" variant="outline" href={`/businesses/${business.id}`}>
+							Open
+							<ArrowRight class="mr-2 h-4 w-4" />
 						</Button>
+					</CardHeader>
+					<CardContent class="overflow-x-auto">
+						<div class="grid grid-cols-3 gap-4 max-md:grid-cols-2 max-sm:grid-cols-1">
+							<Card>
+								<CardHeader>
+									<CardTitle>Working account</CardTitle>
+									<CardDescription>
+										Funds parked in the working (MMF) account for liquidity and balance management.
+									</CardDescription>
+								</CardHeader>
+								<CardContent>
+									<p>{formatAmount(business.mmf_account.balance / 100)}</p>
+								</CardContent>
+							</Card>
+							<Card>
+								<CardHeader>
+									<CardTitle>Utility account</CardTitle>
+									<CardDescription>
+										Operational balance used to process business payment transactions.
+									</CardDescription>
+								</CardHeader>
+								<CardContent>
+									<p>{formatAmount(business.utility_account.balance / 100)}</p>
+								</CardContent>
+							</Card>
+							<Card>
+								<CardHeader>
+									<CardTitle>Business charges</CardTitle>
+									<CardDescription>
+										Cumulative charges applied to business transactions. Needs tobe reconciled.
+									</CardDescription>
+								</CardHeader>
+								<CardContent>
+									<p>{formatAmount(business.charges_amount || 0)}</p>
+								</CardContent>
+							</Card>
+						</div>
+					</CardContent>
+				</Card>
+				<Card class="mt-4">
+					<CardHeader>
+						<CardTitle class="flex items-center gap-2">
+							<div class="flex flex-1 items-center gap-2">
+								<ArrowLeftRight class="h-5 w-5" />
+								Business payment endpoints
+							</div>
+							<Button size="sm" variant="outline" href={`/businesses/${business.id}?tab=accounts`}>
+								<Plus class="mr-2 h-4 w-4" />
+								Add Account
+							</Button>
+						</CardTitle>
+						<CardDescription>
+							These are the externally exposed paybill and till numbers used by customers and
+							systems to initiate payment transactions.
+						</CardDescription>
 					</CardHeader>
 					<CardContent class="overflow-x-auto">
 						<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -304,17 +363,13 @@
 								<div class="flex items-center justify-between rounded-md border p-3">
 									<a
 										class="cursor-pointer text-sm text-muted-foreground hover:underline"
-										href="/businesses/{business.id}?collapsed=true&biz_tab=accounts&biz_action=edit_paybill&biz_edit_paybill={account.account_id}"
+										href="/businesses/{business.id}?collapsed=true&biz_tab=accounts&biz_action=edit_paybill&biz_edit_paybill={account.id}"
 									>
 										Paybill: {account.paybill_number}
 									</a>
-									<div class="font-mono text-lg">
-										{account.balance.toLocaleString('en-US', {
-											style: 'currency',
-											currency: 'KES'
-										})}
-									</div>
 								</div>
+							{:else}
+								<p class="text-muted-foreground">No paybill accounts</p>
 							{/each}
 							{#each tills as account}
 								<div class="flex items-center justify-between rounded-md border p-3">
@@ -322,18 +377,14 @@
 										<div class="font-semibold">{account.location_description || 'Till'}</div>
 										<a
 											class="cursor-pointer text-sm text-muted-foreground hover:underline"
-											href="/businesses/{business.id}?collapsed=true&biz_tab=accounts&biz_action=edit_paybill&biz_edit_till={account.account_id}"
+											href="/businesses/{business.id}?collapsed=true&biz_tab=accounts&biz_action=edit_paybill&biz_edit_till={account.id}"
 										>
 											Till: {account.till_number}
 										</a>
 									</div>
-									<div class="font-mono text-lg">
-										{account.balance.toLocaleString('en-US', {
-											style: 'currency',
-											currency: 'KES'
-										})}
-									</div>
 								</div>
+							{:else}
+								<p class="text-muted-foreground">No till accounts</p>
 							{/each}
 						</div>
 					</CardContent>
