@@ -1,0 +1,69 @@
+name: Semantic Release
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  packages: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    outputs:
+      release_version: ${{ steps.semantic.outputs.version }}
+      release_tag: ${{ steps.semantic.outputs.git_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+          run_install: true
+
+      - name: Semantic Release
+        id: semantic
+        run: pnpm semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  call-tauri-linux-build:
+    name: Build (Linux)
+    needs: release
+    if: needs.release.outputs.release_tag
+    uses: ./.github/workflows/build-tauri-linux.yml
+    with:
+      tag_name: ${{ needs.release.outputs.release_tag }}
+    secrets: inherit
+
+  call-tauri-windows-build:
+    name: Build (Windows)
+    needs: release
+    if: needs.release.outputs.release_tag
+    uses: ./.github/workflows/build-tauri-windows.yml
+    with:
+      tag_name: ${{ needs.release.outputs.release_tag }}
+    secrets: inherit
+
+  call-docker-build:
+    name: Build (Docker)
+    needs: release
+    if: needs.release.outputs.release_tag
+    uses: ./.github/workflows/build-docker.yml
+    with:
+      tag_name: ${{ needs.release.outputs.release_tag }}
+    secrets: inherit
