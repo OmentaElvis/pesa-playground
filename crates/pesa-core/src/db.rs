@@ -2,7 +2,7 @@ use std::{env, fs, path::Path};
 
 use anyhow::Context;
 use sea_orm::{ConnectOptions, ConnectionTrait, DatabaseConnection, DbBackend, Schema};
-use sqlx::{sqlite::SqliteConnectOptions, Connection, SqliteConnection};
+use sqlx::{Connection, SqliteConnection, sqlite::SqliteConnectOptions};
 
 use crate::{
     accounts, api_keys, api_logs, business, callbacks, projects,

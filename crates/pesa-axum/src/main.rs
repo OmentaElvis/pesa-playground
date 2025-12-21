@@ -3,40 +3,40 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use axum::Router;
 use axum::extract::{
-    ws::{Message, WebSocket, WebSocketUpgrade},
     State,
+    ws::{Message, WebSocket, WebSocketUpgrade},
 };
 use axum::routing::{get, post};
-use axum::Router;
 use axum::{
     http::Request,
     middleware::{self, Next},
     response::Response,
 };
 use clap::Parser;
-use futures_util::stream::StreamExt;
 use futures_util::SinkExt;
+use futures_util::stream::StreamExt;
 use pesa_core::{
+    AppContext, AppEventManager,
     accounts::{
         paybill_accounts::{CreatePaybillAccount, UpdatePaybillAccount},
         till_accounts::{CreateTillAccount, UpdateTillAccount},
     },
-    api_logs::{ui::ApiLogFilter, UpdateApiLogRequest},
+    api_logs::{UpdateApiLogRequest, ui::ApiLogFilter},
     business::{CreateBusiness, UpdateBusiness},
     callbacks::stk::UserResponse,
     projects::{CreateProject, UpdateProject},
     transaction_costs::ui::TransactionCostData,
     transactions::{
-        ui::{LipaArgs, TransactionFilter},
         TransactionNote, TransactionType,
+        ui::{LipaArgs, TransactionFilter},
     },
     transactions_log::ui::HistoryFilter,
-    AppContext, AppEventManager,
 };
 use pesa_lua::ScriptManager;
 use pesa_macros::generate_axum_rpc_handler;
-use tokio::sync::{broadcast, Mutex};
+use tokio::sync::{Mutex, broadcast};
 use tower_http::cors::CorsLayer;
 use tower_http::services::{ServeDir, ServeFile};
 
@@ -354,10 +354,10 @@ async fn log_requests(mut req: Request<axum::body::Body>, next: Next) -> Respons
             .await
             .unwrap_or_default();
 
-        if let Ok(json_body) = serde_json::from_slice::<serde_json::Value>(&bytes) {
-            if let Some(method_name) = json_body["method"].as_str() {
-                rpc_method = Some(method_name.to_string());
-            }
+        if let Ok(json_body) = serde_json::from_slice::<serde_json::Value>(&bytes)
+            && let Some(method_name) = json_body["method"].as_str()
+        {
+            rpc_method = Some(method_name.to_string());
         }
         req = Request::from_parts(parts, axum::body::Body::from(bytes));
     }
@@ -402,12 +402,12 @@ async fn main() {
         PathBuf::from(".")
     };
 
-    if !data_dir.exists() {
-        if let Err(e) = std::fs::create_dir_all(&data_dir) {
-            error!("Failed to create data directory: {}", e);
-            // In a real app, you might want to handle this more gracefully
-            panic!("Failed to create data directory: {}", e);
-        }
+    if !data_dir.exists()
+        && let Err(e) = std::fs::create_dir_all(&data_dir)
+    {
+        error!("Failed to create data directory: {}", e);
+        // In a real app, you might want to handle this more gracefully
+        panic!("Failed to create data directory: {}", e);
     }
 
     let db_path = data_dir.join("database.sqlite");

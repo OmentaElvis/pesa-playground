@@ -90,41 +90,40 @@ impl TransactionLog {
     where
         C: ConnectionTrait,
     {
-        if let Some(log) = db::Entity::find_by_id(transaction_log_id).one(db).await? {
-            if let Some(transaction) = transactions::db::Entity::find_by_id(&log.transaction_id)
+        if let Some(log) = db::Entity::find_by_id(transaction_log_id).one(db).await?
+            && let Some(transaction) = transactions::db::Entity::find_by_id(&log.transaction_id)
                 .one(db)
                 .await?
-            {
-                let from_name = if let Some(from_id) = transaction.from {
-                    get_account_name(db, from_id).await?
-                } else {
-                    "System".to_string()
-                };
+        {
+            let from_name = if let Some(from_id) = transaction.from {
+                get_account_name(db, from_id).await?
+            } else {
+                "System".to_string()
+            };
 
-                let to_name = get_account_name(db, transaction.to).await?;
+            let to_name = get_account_name(db, transaction.to).await?;
 
-                let notes = if let Some(notes_str) = &transaction.notes {
-                    serde_json::from_str(notes_str).unwrap_or(None)
-                } else {
-                    None
-                };
+            let notes = if let Some(notes_str) = &transaction.notes {
+                serde_json::from_str(notes_str).unwrap_or(None)
+            } else {
+                None
+            };
 
-                return Ok(Some(FullTransactionLog {
-                    transaction_id: transaction.id,
-                    transaction_date: transaction.created_at,
-                    transaction_amount: transaction.amount,
-                    transaction_type: transaction.transaction_type,
-                    from_name,
-                    to_name,
-                    from_id: transaction.from,
-                    to_id: transaction.to,
-                    new_balance: log.new_balance,
-                    status: transaction.status,
-                    fee: transaction.fee,
-                    direction: log.direction,
-                    notes,
-                }));
-            }
+            return Ok(Some(FullTransactionLog {
+                transaction_id: transaction.id,
+                transaction_date: transaction.created_at,
+                transaction_amount: transaction.amount,
+                transaction_type: transaction.transaction_type,
+                from_name,
+                to_name,
+                from_id: transaction.from,
+                to_id: transaction.to,
+                new_balance: log.new_balance,
+                status: transaction.status,
+                fee: transaction.fee,
+                direction: log.direction,
+                notes,
+            }));
         }
         Ok(None)
     }
@@ -217,27 +216,23 @@ where
                     accounts::utility_accounts::db::Entity::find_by_id(account_id)
                         .one(db)
                         .await?
-                {
-                    if let Some(business) =
+                    && let Some(business) =
                         crate::business::db::Entity::find_by_id(utility.business_id)
                             .one(db)
                             .await?
-                    {
-                        return Ok(business.name);
-                    }
+                {
+                    return Ok(business.name);
                 }
             }
             accounts::AccountType::Mmf => {
                 if let Some(mmf) = accounts::mmf_accounts::db::Entity::find_by_id(account_id)
                     .one(db)
                     .await?
-                {
-                    if let Some(business) = crate::business::db::Entity::find_by_id(mmf.business_id)
+                    && let Some(business) = crate::business::db::Entity::find_by_id(mmf.business_id)
                         .one(db)
                         .await?
-                    {
-                        return Ok(business.name);
-                    }
+                {
+                    return Ok(business.name);
                 }
             }
             _ => {}

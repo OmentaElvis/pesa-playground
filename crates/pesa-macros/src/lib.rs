@@ -3,10 +3,10 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
+    Ident, Path, Token, Type,
     parse::{Parse, ParseStream, Result},
     parse_macro_input,
     punctuated::Punctuated,
-    Ident, Path, Token, Type,
 };
 
 struct CommandMapping {
@@ -115,10 +115,10 @@ pub fn generate_tauri_wrappers(input: TokenStream) -> TokenStream {
             .any(|attr| attr.path().is_ident("no_context"));
 
         let arg_names = args.iter().map(|arg| {
-            if let syn::FnArg::Typed(pat_type) = arg {
-                if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
-                    return &pat_ident.ident;
-                }
+            if let syn::FnArg::Typed(pat_type) = arg
+                && let syn::Pat::Ident(pat_ident) = &*pat_type.pat
+            {
+                return &pat_ident.ident;
             }
             panic!("Expected identifier for argument name");
         });
@@ -184,11 +184,10 @@ pub fn generate_axum_rpc_handler(input: TokenStream) -> TokenStream {
         let arg_names: Vec<_> = args
             .iter()
             .map(|arg| {
-                if let syn::FnArg::Typed(pat_type) = arg {
-                    if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
+                if let syn::FnArg::Typed(pat_type) = arg
+                    && let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
                         return &pat_ident.ident;
                     }
-                }
                 panic!("Expected identifier for argument name");
             })
             .collect();
@@ -304,11 +303,10 @@ pub fn generate_lua_bindings(input: TokenStream) -> TokenStream {
         let has_no_context_attr = mapping.attrs.iter().any(|attr| attr.path().is_ident("no_context"));
 
         let arg_names: Vec<_> = args.iter().map(|arg| {
-            if let syn::FnArg::Typed(pat_type) = arg {
-                if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
+            if let syn::FnArg::Typed(pat_type) = arg
+                && let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
                     return &pat_ident.ident;
                 }
-            }
             panic!("Expected identifier for argument name");
         }).collect();
 

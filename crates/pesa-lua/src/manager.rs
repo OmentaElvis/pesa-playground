@@ -218,10 +218,11 @@ impl ScriptManager {
         for entry in fs::read_dir(&self.scripts_dir)? {
             let entry = entry?;
             let path = entry.path();
-            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("lua") {
-                if let Some(filename) = path.file_stem().and_then(|s| s.to_str()) {
-                    scripts.push(filename.to_string());
-                }
+            if path.is_file()
+                && path.extension().and_then(|s| s.to_str()) == Some("lua")
+                && let Some(filename) = path.file_stem().and_then(|s| s.to_str())
+            {
+                scripts.push(filename.to_string());
             }
         }
         Ok(scripts)

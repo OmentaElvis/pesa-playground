@@ -4,12 +4,12 @@ use crate::accounts::{mmf_accounts, utility_accounts};
 use crate::transactions::TransactionNote;
 use crate::transactions_log;
 use crate::{
-    transactions::{self, TransactionStatus},
     AppContext,
+    transactions::{self, TransactionStatus},
 };
 use anyhow::Context;
 use anyhow::Result;
-use sea_orm::{prelude::*, sea_query::Cond, ColumnTrait, Order, QueryOrder, QuerySelect};
+use sea_orm::{ColumnTrait, Order, QueryOrder, QuerySelect, prelude::*, sea_query::Cond};
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
@@ -176,39 +176,39 @@ pub async fn get_transaction_history(
     let mut query = transactions::db::Entity::find();
 
     // Apply scope filter
-    if let Some(ids) = &account_ids {
-        if !ids.is_empty() {
-            query = query.filter(
-                Cond::any()
-                    .add(transactions::db::Column::From.is_in(ids.clone()))
-                    .add(transactions::db::Column::To.is_in(ids.clone())),
-            );
-        }
+    if let Some(ids) = &account_ids
+        && !ids.is_empty()
+    {
+        query = query.filter(
+            Cond::any()
+                .add(transactions::db::Column::From.is_in(ids.clone()))
+                .add(transactions::db::Column::To.is_in(ids.clone())),
+        );
     }
 
     // Apply advanced filters
     if let Some(filters) = filter.filters {
-        if let Some(statuses) = filters.statuses {
-            if !statuses.is_empty() {
-                query = query.filter(
-                    transactions::db::Column::Status.is_in(
-                        statuses
-                            .into_iter()
-                            .map(|s| s.to_string())
-                            .collect::<Vec<String>>(),
-                    ),
-                );
-            }
+        if let Some(statuses) = filters.statuses
+            && !statuses.is_empty()
+        {
+            query = query.filter(
+                transactions::db::Column::Status.is_in(
+                    statuses
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<String>>(),
+                ),
+            );
         }
-        if let Some(search) = filters.search_query {
-            if !search.trim().is_empty() {
-                let search_pattern = format!("%{}%", search);
-                query = query.filter(
-                    Cond::any()
-                        .add(transactions::db::Column::Id.like(&search_pattern))
-                        .add(transactions::db::Column::Notes.like(&search_pattern)),
-                );
-            }
+        if let Some(search) = filters.search_query
+            && !search.trim().is_empty()
+        {
+            let search_pattern = format!("%{}%", search);
+            query = query.filter(
+                Cond::any()
+                    .add(transactions::db::Column::Id.like(&search_pattern))
+                    .add(transactions::db::Column::Notes.like(&search_pattern)),
+            );
         }
     }
 
