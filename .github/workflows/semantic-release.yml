@@ -16,8 +16,8 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     outputs:
-      release_version: ${{ steps.semantic.outputs.version }}
-      release_tag: ${{ steps.semantic.outputs.git_tag }}
+      release_version: ${{ steps.set_outputs.outputs.version }}
+      release_tag: ${{ steps.set_outputs.outputs.git_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,9 +37,21 @@ jobs:
 
       - name: Semantic Release
         id: semantic
-        run: pnpm semantic-release
+        run: pnpm semantic-release > release.json || true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set outputs
+        id: set_outputs
+        run: |
+          if [ -f release.json ] && [ -s release.json ]; then
+            VERSION=$(jq -r .nextRelease.version release.json)
+            GIT_TAG=$(jq -r .nextRelease.gitTag release.json)
+            if [ "$VERSION" != "null" ] && [ "$GIT_TAG" != "null" ]; then
+              echo "::set-output name=version::$VERSION"
+              echo "::set-output name=git_tag::$GIT_TAG"
+            fi
+          fi
 
   call-tauri-linux-build:
     name: Build (Linux)
