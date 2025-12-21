@@ -1,6 +1,9 @@
 pub mod db;
 pub mod ui;
 
+use crate::transactions::TransactionNote;
+use serde_json;
+
 use sea_orm::prelude::DateTimeUtc;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter, Set,
@@ -14,9 +17,9 @@ use crate::transactions;
 
 #[derive(Serialize)]
 pub struct TransactionLog {
-    pub id: i32,
+    pub id: u32,
     pub transaction_id: String,
-    pub account_id: i32,
+    pub account_id: u32,
     pub direction: Direction,
     pub new_balance: i64,
 }
@@ -35,6 +38,7 @@ pub struct FullTransactionLog {
     pub status: String,
     pub fee: i64,
     pub direction: Direction,
+    pub notes: Option<TransactionNote>,
 }
 
 impl From<db::Model> for TransactionLog {
@@ -53,7 +57,7 @@ impl TransactionLog {
     pub async fn create<C>(
         conn: &C,
         transaction_id: String,
-        account_id: i32,
+        account_id: u32,
         direction: Direction,
         new_balance: i64,
     ) -> Result<(Self, crate::events::DomainEvent), DbErr>
@@ -81,7 +85,7 @@ impl TransactionLog {
 
     pub async fn get_full_log<C>(
         db: &C,
-        transaction_log_id: i32,
+        transaction_log_id: u32,
     ) -> Result<Option<FullTransactionLog>, DbErr>
     where
         C: ConnectionTrait,
@@ -99,6 +103,12 @@ impl TransactionLog {
 
                 let to_name = get_account_name(db, transaction.to).await?;
 
+                let notes = if let Some(notes_str) = &transaction.notes {
+                    serde_json::from_str(notes_str).unwrap_or(None)
+                } else {
+                    None
+                };
+
                 return Ok(Some(FullTransactionLog {
                     transaction_id: transaction.id,
                     transaction_date: transaction.created_at,
@@ -112,6 +122,7 @@ impl TransactionLog {
                     status: transaction.status,
                     fee: transaction.fee,
                     direction: log.direction,
+                    notes,
                 }));
             }
         }
@@ -186,6 +197,10 @@ pub async fn get_account_name<C>(db: &C, account_id: u32) -> Result<String, DbEr
 where
     C: ConnectionTrait,
 {
+    if account_id == 0 {
+        return Ok("System".to_string());
+    }
+
     if let Some(account) = accounts::db::Entity::find_by_id(account_id).one(db).await? {
         let account: Account = account.into();
         match account.account_type {
@@ -197,13 +212,14 @@ where
                     return Ok(user.name);
                 }
             }
-            accounts::AccountType::Till => {
-                if let Some(till) = accounts::till_accounts::db::Entity::find_by_id(account_id)
-                    .one(db)
-                    .await?
+            accounts::AccountType::Utility => {
+                if let Some(utility) =
+                    accounts::utility_accounts::db::Entity::find_by_id(account_id)
+                        .one(db)
+                        .await?
                 {
                     if let Some(business) =
-                        crate::business::db::Entity::find_by_id(till.business_id)
+                        crate::business::db::Entity::find_by_id(utility.business_id)
                             .one(db)
                             .await?
                     {
@@ -211,16 +227,14 @@ where
                     }
                 }
             }
-            accounts::AccountType::Paybill => {
-                if let Some(paybill) =
-                    accounts::paybill_accounts::db::Entity::find_by_id(account_id)
+            accounts::AccountType::Mmf => {
+                if let Some(mmf) = accounts::mmf_accounts::db::Entity::find_by_id(account_id)
+                    .one(db)
+                    .await?
+                {
+                    if let Some(business) = crate::business::db::Entity::find_by_id(mmf.business_id)
                         .one(db)
                         .await?
-                {
-                    if let Some(business) =
-                        crate::business::db::Entity::find_by_id(paybill.business_id)
-                            .one(db)
-                            .await?
                     {
                         return Ok(business.name);
                     }

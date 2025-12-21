@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { getAccount, getPaybillAccount, getTillAccount, getUser, AccountType } from '$lib/api';
+	import { getAccount, getUser, AccountType, getMmfAccount, getUtilityAccount } from '$lib/api';
 	import { LoaderCircle } from 'lucide-svelte';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 
@@ -14,6 +14,11 @@
 		if (isNaN(id)) {
 			error = 'Invalid account ID provided.';
 			isLoading = false;
+			return;
+		}
+
+		if (id == 0) {
+			goto(`/accounts/system`, { replaceState: true });
 			return;
 		}
 
@@ -32,19 +37,19 @@
 					if (user) goto(`/users/${user.id}`, { replaceState: true });
 					else error = 'Associated user profile not found.';
 					break;
-				case AccountType.Paybill:
-					const paybill = await getPaybillAccount(account.id);
-					if (paybill)
-						goto(`/businesses/${paybill.business_id}?tab=accounts`, { replaceState: true });
-					else error = 'Associated paybill account not found.';
+				case AccountType.Mmf:
+					const mmf = await getMmfAccount(account.id);
+					if (mmf) goto(`/businesses/${mmf.business_id}?tab=accounts`, { replaceState: true });
+					else error = 'Associated mmf account not found.';
 					break;
-				case AccountType.Till:
-					const till = await getTillAccount(account.id);
-					if (till) goto(`/businesses/${till.business_id}?tab=accounts`, { replaceState: true });
-					else error = 'Associated till account not found.';
+				case AccountType.Utility:
+					const utility = await getUtilityAccount(account.id);
+					if (utility)
+						goto(`/businesses/${utility.business_id}?tab=accounts`, { replaceState: true });
+					else error = 'Associated utility account not found.';
 					break;
 				case AccountType.System:
-					goto(`/accounts/system`, { replaceState: true }); // Redirect to the new dedicated system page
+					goto(`/accounts/system`, { replaceState: true });
 					break;
 				default:
 					error = 'Unknown account type encountered.';

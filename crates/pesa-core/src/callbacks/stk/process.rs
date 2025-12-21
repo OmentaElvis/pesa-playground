@@ -149,7 +149,7 @@ pub async fn callback_execute(
 
     let (tx, rx) = oneshot::channel();
     reg.insert(checkout_id.clone(), tx);
-    let business_name = get_account_name(&state.context.db, init.business.id).await?;
+    let business_name = get_account_name(&state.context.db, init.business.account_id).await?;
     if state
         .context
         .event_manager
@@ -193,9 +193,10 @@ pub async fn callback_execute(
                     match Ledger::transfer(
                         &state.context.db,
                         Some(account.id),
-                        init.business.id,
+                        init.business.account_id,
                         init.amount,
                         &transaction_type,
+                        Some(&init.notes),
                     )
                     .await
                     {

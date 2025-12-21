@@ -7,6 +7,7 @@ pub struct Model {
     pub id: u32,
     pub name: String,
     pub short_code: String, // M-Pesa short code
+    pub charges_amount: i64,
 }
 
 #[derive(Clone, Copy, Debug, EnumIter, DeriveRelation)]

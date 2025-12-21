@@ -1,13 +1,11 @@
 <script>
-	import { Phone, Wallet, Smartphone } from 'lucide-svelte';
+	import { Phone, Wallet } from 'lucide-svelte';
 	import { formatAmount, getInitials } from '$lib/utils';
 	import TransactionList from './TransactionList.svelte';
 	import DiceBearAvatar from '../ui/avatar/DiceBearAvatar.svelte';
 
 	export let selectedUser;
 	export let transactions;
-
-	let showSimToolkit = false;
 </script>
 
 <div class="flex flex-1 flex-col">
@@ -39,5 +37,5 @@
 	</div>
 
 	<!-- Transactions -->
-	<TransactionList transactions={transactions[selectedUser.id]} />
+	<TransactionList transactions={transactions[selectedUser.id]} user={selectedUser} />
 </div>

@@ -2,61 +2,38 @@ use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use chrono::Utc;
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, EntityTrait, JoinType, QuerySelect, RelationTrait, Set,
-    TransactionTrait,
-};
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, Set, TransactionTrait};
 
-use crate::accounts::{self, AccountType};
 use crate::server::api::c2b::ResponseType;
-use crate::transactions::Ledger;
 use crate::AppContext;
 
-use super::{db, CreateTillAccount, TillAccount, TillAccountDetails, UpdateTillAccount};
+use super::{db, CreateTillAccount, TillAccount, UpdateTillAccount};
 
-pub async fn create_till_account(db: &AppContext, input: CreateTillAccount) -> Result<TillAccount> {
-    let txn = db.db.begin().await.context("Failed to start transaction")?;
-
-    let new_account = accounts::db::ActiveModel {
-        account_type: Set(AccountType::Till.to_string()),
-        balance: Set(0),
-        disabled: Set(false),
-        created_at: Set(Utc::now().to_utc()),
-        ..Default::default()
-    };
-
-    let account_model = new_account
-        .insert(&txn)
+pub async fn create_till_account(
+    ctx: &AppContext,
+    input: CreateTillAccount,
+) -> Result<TillAccount> {
+    let txn = ctx
+        .db
+        .begin()
         .await
-        .context("Failed to create new account")?;
+        .context("Failed to start transaction")?;
 
     let new_till = db::ActiveModel {
-        account_id: Set(account_model.id),
         business_id: Set(input.business_id),
         till_number: Set(input.till_number),
         location_description: Set(input.location_description.clone()),
         response_type: Set(input.response_type.map(|res| res.to_string())),
         validation_url: Set(input.validation_url),
         confirmation_url: Set(input.confirmation_url),
+        created_at: Set(Utc::now().to_utc()),
+        ..Default::default()
     };
 
     let till_model = &new_till
         .insert(&txn)
         .await
         .context("Failed to create new till number")?;
-
-    Ledger::transfer(
-        &txn,
-        None,
-        till_model.account_id,
-        input.initial_balance * 100,
-        &crate::transactions::TransactionType::Deposit,
-    )
-    .await
-    .context(format!(
-        "Failed to deposit funds to new account({})",
-        till_model.account_id
-    ))?;
 
     txn.commit()
         .await
@@ -66,54 +43,34 @@ pub async fn create_till_account(db: &AppContext, input: CreateTillAccount) -> R
 
     Ok(till)
 }
-
-pub async fn get_till_account(state: &AppContext, id: u32) -> Result<TillAccountDetails> {
+pub async fn get_till_account(state: &AppContext, id: u32) -> Result<TillAccount> {
     let db = &state.db;
 
-    let till_account = db::Entity::find_by_id(id)
-        .join(JoinType::InnerJoin, db::Relation::Account.def())
-        .select_only()
-        .column(db::Column::AccountId)
-        .column(db::Column::BusinessId)
-        .column(db::Column::TillNumber)
-        .column(db::Column::LocationDescription)
-        .column(crate::accounts::db::Column::Balance)
-        .column(crate::accounts::db::Column::CreatedAt)
-        .column(crate::accounts::db::Column::AccountType)
-        .into_model::<TillAccountDetails>()
+    let till_account = &db::Entity::find_by_id(id)
         .one(db)
         .await
         .context(format!("Failed to fetch till account with ID {}", id))?
         .ok_or_else(|| anyhow::anyhow!("Till account with ID {} not found", id))?;
 
-    Ok(till_account)
+    Ok(till_account.into())
 }
-
-pub async fn get_till_accounts(ctx: &AppContext) -> Result<Vec<TillAccountDetails>> {
+pub async fn get_till_accounts(ctx: &AppContext) -> Result<Vec<TillAccount>> {
     let db = &ctx.db;
 
     let till_accounts = db::Entity::find()
-        .join(JoinType::InnerJoin, db::Relation::Account.def())
-        .select_only()
-        .column(db::Column::AccountId)
-        .column(db::Column::BusinessId)
-        .column(db::Column::TillNumber)
-        .column(db::Column::LocationDescription)
-        .column(crate::accounts::db::Column::Balance)
-        .column(crate::accounts::db::Column::CreatedAt)
-        .column(crate::accounts::db::Column::AccountType)
-        .into_model::<TillAccountDetails>()
         .all(db)
         .await
-        .context("Failed to fetch till accounts")?;
+        .context("Failed to fetch till accounts")?
+        .into_iter()
+        .map(|model| (&model).into())
+        .collect();
 
     Ok(till_accounts)
 }
-
 pub async fn get_till_accounts_by_business_id(
     ctx: &AppContext,
     business_id: u32,
-) -> Result<Vec<TillAccountDetails>> {
+) -> Result<Vec<TillAccount>> {
     use crate::accounts::till_accounts::db::Column;
     use sea_orm::QueryFilter;
 
@@ -121,26 +78,18 @@ pub async fn get_till_accounts_by_business_id(
 
     let till_accounts = db::Entity::find()
         .filter(Column::BusinessId.eq(business_id))
-        .join(JoinType::InnerJoin, db::Relation::Account.def())
-        .select_only()
-        .column(db::Column::AccountId)
-        .column(db::Column::BusinessId)
-        .column(db::Column::TillNumber)
-        .column(db::Column::LocationDescription)
-        .column(crate::accounts::db::Column::Balance)
-        .column(crate::accounts::db::Column::CreatedAt)
-        .column(crate::accounts::db::Column::AccountType)
-        .into_model::<TillAccountDetails>()
         .all(db)
         .await
         .context(format!(
             "Failed to fetch till accounts for business {}",
             business_id
-        ))?;
+        ))?
+        .into_iter()
+        .map(|model| (&model).into())
+        .collect();
 
     Ok(till_accounts)
 }
-
 pub async fn update_till_account(
     ctx: &AppContext,
     id: u32,
@@ -180,7 +129,7 @@ pub async fn update_till_account(
         .context(format!("Failed to update till account {}", id))?;
 
     Ok(Some(TillAccount {
-        account_id: updated_till_account.account_id,
+        id: updated_till_account.id,
         business_id: updated_till_account.business_id,
         till_number: updated_till_account.till_number,
         location_description: updated_till_account.location_description,
@@ -189,9 +138,9 @@ pub async fn update_till_account(
             .map(|r| r.parse().unwrap_or(ResponseType::Cancelled)),
         validation_url: updated_till_account.validation_url,
         confirmation_url: updated_till_account.confirmation_url,
+        created_at: updated_till_account.created_at,
     }))
 }
-
 pub async fn delete_till_account(ctx: &AppContext, id: u32) -> Result<bool> {
     let db = &ctx.db;
     let result = db::Entity::delete_by_id(id)

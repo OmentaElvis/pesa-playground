@@ -14,10 +14,9 @@ pub struct Model {
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
     UserProfile,
-    TillAccounts,
-    PaybillAccounts,
+    MmfAccount,
+    UtilityAccount,
 }
-
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
@@ -25,13 +24,13 @@ impl RelationTrait for Relation {
                 .from(Column::Id)
                 .to(super::user_profiles::db::Column::AccountId)
                 .into(),
-            Self::TillAccounts => Entity::has_one(super::till_accounts::db::Entity)
+            Self::MmfAccount => Entity::has_one(super::mmf_accounts::db::Entity)
                 .from(Column::Id)
-                .to(super::till_accounts::db::Column::AccountId)
+                .to(super::mmf_accounts::db::Column::AccountId)
                 .into(),
-            Self::PaybillAccounts => Entity::has_one(super::paybill_accounts::db::Entity)
+            Self::UtilityAccount => Entity::has_one(super::utility_accounts::db::Entity)
                 .from(Column::Id)
-                .to(super::paybill_accounts::db::Column::AccountId)
+                .to(super::utility_accounts::db::Column::AccountId)
                 .into(),
         }
     }
@@ -40,18 +39,6 @@ impl RelationTrait for Relation {
 impl Related<super::user_profiles::db::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::UserProfile.def()
-    }
-}
-
-impl Related<super::till_accounts::db::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::TillAccounts.def()
-    }
-}
-
-impl Related<super::paybill_accounts::db::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::PaybillAccounts.def()
     }
 }
 

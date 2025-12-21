@@ -74,6 +74,26 @@ pub async fn run_migrations(db: &DatabaseConnection) -> anyhow::Result<()> {
     )
     .await
     .context("Failed to create till_accounts table")?;
+
+    db.execute(
+        db.get_database_backend().build(
+            schema
+                .create_table_from_entity(accounts::utility_accounts::db::Entity)
+                .if_not_exists(),
+        ),
+    )
+    .await
+    .context("Failed to create utility_accounts table")?;
+
+    db.execute(
+        db.get_database_backend().build(
+            schema
+                .create_table_from_entity(accounts::mmf_accounts::db::Entity)
+                .if_not_exists(),
+        ),
+    )
+    .await
+    .context("Failed to create mmf_accounts table")?;
     db.execute(
         db.get_database_backend().build(
             schema

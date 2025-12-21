@@ -15,6 +15,7 @@ pub struct Model {
     pub currency: String,
     pub transaction_type: String,
     pub status: String,
+    pub notes: Option<String>,
     pub reversal_of: Option<String>,
     pub created_at: DateTimeUtc,
     pub updated_at: Option<DateTimeUtc>,
@@ -25,8 +26,14 @@ pub enum Relation {}
 
 impl ActiveModelBehavior for ActiveModel {}
 
+use serde_json;
+
 impl From<Model> for Transaction {
     fn from(value: Model) -> Self {
+        let notes = value
+            .notes
+            .and_then(|notes_str| serde_json::from_str(&notes_str).ok());
+
         Self {
             id: value.id,
             from: value.from,
@@ -45,6 +52,7 @@ impl From<Model> for Transaction {
                 .unwrap_or(super::TransactionType::Unknown(value.status.to_string())),
             created_at: value.created_at,
             updated_at: value.updated_at,
+            notes,
         }
     }
 }

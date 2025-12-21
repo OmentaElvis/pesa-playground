@@ -1,16 +1,12 @@
 use anyhow::{Context, Result};
 use chrono::Utc;
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, EntityTrait, JoinType, QuerySelect, RelationTrait, Set,
-    TransactionTrait,
-};
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, Set, TransactionTrait};
 
-use crate::accounts::AccountType;
-use crate::transactions::Ledger;
+use crate::accounts::paybill_accounts::PaybillAccountDetails;
 use crate::AppContext;
 
 use super::db;
-use super::{CreatePaybillAccount, PaybillAccount, PaybillAccountDetails, UpdatePaybillAccount};
+use super::{CreatePaybillAccount, PaybillAccount, UpdatePaybillAccount};
 
 pub async fn create_paybill_account(
     ctx: &AppContext,
@@ -22,45 +18,20 @@ pub async fn create_paybill_account(
         .await
         .context("Failed to start transaction")?;
 
-    let new_account = crate::accounts::db::ActiveModel {
-        account_type: Set(AccountType::Paybill.to_string()),
-        balance: Set(0),
-        disabled: Set(false),
-        created_at: Set(Utc::now().to_utc()),
-        ..Default::default()
-    };
-
-    let account_model = new_account
-        .insert(&txn)
-        .await
-        .context("Failed to create new account")?;
-
     let new_paybill = db::ActiveModel {
-        account_id: Set(account_model.id),
         business_id: Set(input.business_id),
         paybill_number: Set(input.paybill_number),
         response_type: Set(input.response_type.map(|res| res.to_string())),
         validation_url: Set(input.validation_url),
         confirmation_url: Set(input.confirmation_url),
+        created_at: Set(Utc::now().to_utc()),
+        ..Default::default()
     };
 
     let paybill_model = &new_paybill
         .insert(&txn)
         .await
         .context("Failed to create new paybill account")?;
-
-    Ledger::transfer(
-        &txn,
-        None,
-        paybill_model.account_id,
-        input.initial_balance * 100,
-        &crate::transactions::TransactionType::Deposit,
-    )
-    .await
-    .context(format!(
-        "Failed to deposit funds to new account({})",
-        paybill_model.account_id,
-    ))?;
 
     txn.commit()
         .await
@@ -70,21 +41,10 @@ pub async fn create_paybill_account(
 
     Ok(paybill)
 }
-
 pub async fn get_paybill_account(ctx: &AppContext, id: u32) -> Result<PaybillAccountDetails> {
     let db = &ctx.db;
 
     let paybill_account = db::Entity::find_by_id(id)
-        .join(JoinType::InnerJoin, db::Relation::Account.def())
-        .select_only()
-        .column(db::Column::AccountId)
-        .column(db::Column::BusinessId)
-        .column(db::Column::PaybillNumber)
-        .column(db::Column::ValidationUrl)
-        .column(db::Column::ConfirmationUrl)
-        .column(crate::accounts::db::Column::Balance)
-        .column(crate::accounts::db::Column::CreatedAt)
-        .column(crate::accounts::db::Column::AccountType)
         .into_model::<PaybillAccountDetails>()
         .one(db)
         .await
@@ -93,21 +53,10 @@ pub async fn get_paybill_account(ctx: &AppContext, id: u32) -> Result<PaybillAcc
 
     Ok(paybill_account)
 }
-
 pub async fn get_paybill_accounts(ctx: &AppContext) -> Result<Vec<PaybillAccountDetails>> {
     let db = &ctx.db;
 
     let paybill_accounts = db::Entity::find()
-        .join(JoinType::InnerJoin, db::Relation::Account.def())
-        .select_only()
-        .column(db::Column::AccountId)
-        .column(db::Column::BusinessId)
-        .column(db::Column::PaybillNumber)
-        .column(db::Column::ValidationUrl)
-        .column(db::Column::ConfirmationUrl)
-        .column(crate::accounts::db::Column::Balance)
-        .column(crate::accounts::db::Column::CreatedAt)
-        .column(crate::accounts::db::Column::AccountType)
         .into_model::<PaybillAccountDetails>()
         .all(db)
         .await
@@ -115,7 +64,6 @@ pub async fn get_paybill_accounts(ctx: &AppContext) -> Result<Vec<PaybillAccount
 
     Ok(paybill_accounts)
 }
-
 pub async fn get_paybill_accounts_by_business_id(
     ctx: &AppContext,
     business_id: u32,
@@ -127,16 +75,6 @@ pub async fn get_paybill_accounts_by_business_id(
 
     let paybill_accounts = db::Entity::find()
         .filter(Column::BusinessId.eq(business_id))
-        .join(JoinType::InnerJoin, db::Relation::Account.def())
-        .select_only()
-        .column(db::Column::AccountId)
-        .column(db::Column::BusinessId)
-        .column(db::Column::PaybillNumber)
-        .column(db::Column::ValidationUrl)
-        .column(db::Column::ConfirmationUrl)
-        .column(crate::accounts::db::Column::Balance)
-        .column(crate::accounts::db::Column::CreatedAt)
-        .column(crate::accounts::db::Column::AccountType)
         .into_model::<PaybillAccountDetails>()
         .all(db)
         .await
@@ -147,7 +85,6 @@ pub async fn get_paybill_accounts_by_business_id(
 
     Ok(paybill_accounts)
 }
-
 pub async fn update_paybill_account(
     ctx: &AppContext,
     id: u32,
@@ -184,7 +121,7 @@ pub async fn update_paybill_account(
         .context(format!("Failed to update paybill account {}", id))?;
 
     Ok(Some(PaybillAccount {
-        account_id: updated_paybill_account.account_id,
+        id: updated_paybill_account.id,
         business_id: updated_paybill_account.business_id,
         paybill_number: updated_paybill_account.paybill_number,
         validation_url: updated_paybill_account.validation_url,
@@ -192,7 +129,6 @@ pub async fn update_paybill_account(
         response_type: input.response_type,
     }))
 }
-
 pub async fn delete_paybill_account(state: &AppContext, id: u32) -> Result<bool> {
     let db = &state.db;
     let result = db::Entity::delete_by_id(id)

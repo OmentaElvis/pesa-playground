@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 #[sea_orm(table_name = "transactions_log")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    pub id: i32,
+    pub id: u32,
     pub transaction_id: String,
-    pub account_id: i32,
+    pub account_id: u32,
     pub direction: Direction,
     pub new_balance: i64,
 }
@@ -15,10 +15,10 @@ pub struct Model {
 #[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "direction")]
 pub enum Direction {
-    #[sea_orm(string_value = "DEBIT")]
-    Debit,
-    #[sea_orm(string_value = "CREDIT")]
-    Credit,
+    #[sea_orm(string_value = "OUTFLOW")]
+    Outflow,
+    #[sea_orm(string_value = "INFLOW")]
+    Inflow,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

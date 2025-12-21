@@ -1,7 +1,7 @@
 [package]
 name = "pesa-ratatui"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
 tokio = { version = "1.36", features = ["full"] }

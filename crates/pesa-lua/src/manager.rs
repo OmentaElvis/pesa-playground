@@ -84,12 +84,12 @@ generate_lua_bindings! {
     get_user_transactions(user_id: u32, limit: Option<u32>, offset: Option<u32>) => pesa_core::transactions::ui::get_user_transactions,
     get_recent_transactions(limit: Option<u32>) => pesa_core::transactions::ui::get_recent_transactions,
     get_transaction_stats() => pesa_core::transactions::ui::get_transaction_stats,
-    transfer(source: Option<u32>, destination: u32, amount: i64, #[wrap] txn_type: TransactionType) => pesa_core::transactions::ui::transfer,
+    // transfer(source: Option<u32>, destination: u32, amount: i64, #[wrap] txn_type: TransactionType, #[wrap] notes: Option<TransactionNote>) => pesa_core::transactions::ui::transfer,
     reverse(id: String) => pesa_core::transactions::ui::reverse,
     lipa(#[wrap] args: LipaArgs) => pesa_core::transactions::ui::lipa,
 
-    get_transaction_log(transaction_id: i32) => pesa_core::transactions_log::ui::get_transaction_log,
-    get_full_transaction_log(transaction_log_id: i32) => pesa_core::transactions_log::ui::get_full_transaction_log,
+    get_transaction_log(transaction_id: u32) => pesa_core::transactions_log::ui::get_transaction_log,
+    get_full_transaction_log(transaction_log_id: u32) => pesa_core::transactions_log::ui::get_full_transaction_log,
     list_full_transaction_logs(account_id: i32, limit: Option<u64>, offset: Option<u64>) => pesa_core::transactions_log::ui::list_full_transaction_logs,
     list_accounts_full_transaction_logs(accounts: Vec<u32>, limit: Option<u64>, offset: Option<u64>) => pesa_core::transactions_log::ui::list_accounts_full_transaction_logs,
     count_transaction_logs(accounts: Vec<u32>) => pesa_core::transactions_log::ui::count_transaction_logs,
@@ -114,6 +114,11 @@ generate_lua_bindings! {
 
     get_account(id: u32) => pesa_core::accounts::ui::get_account,
     create_account(#[wrap] account_type: AccountType, initial_balance: i64) => pesa_core::accounts::ui::create_account,
+
+    get_utility_account(id: u32) => pesa_core::accounts::utility_accounts::ui::get_utility_account,
+    get_mmf_account(id: u32) => pesa_core::accounts::mmf_accounts::ui::get_mmf_account,
+
+    revenue_settlement(business_id: u32) => pesa_core::business::ui::revenue_settlement
 }
 
 type ListenerMap = Arc<Mutex<HashMap<String, Vec<RegistryKey>>>>;

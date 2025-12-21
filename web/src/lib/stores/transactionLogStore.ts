@@ -3,8 +3,6 @@ import { browser } from '$app/environment';
 import { type FullTransactionLog } from '$lib/api';
 import { activeUserPageId } from './activePageStore';
 
-export type TransactionDirection = 'Credit' | 'Debit';
-
 const STORAGE_KEY = 'unread-transaction-logs';
 
 // Helper to get the initial value from localStorage

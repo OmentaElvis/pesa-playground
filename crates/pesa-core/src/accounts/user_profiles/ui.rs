@@ -1,11 +1,9 @@
 use super::{db as user_profiles, User};
 use crate::{
-    accounts::{db as accounts, AccountType},
-    transactions::Ledger,
+    accounts::{db as accounts, Account, AccountType},
     AppContext,
 };
 use anyhow::{Context, Result};
-use chrono::Utc;
 use fake::{faker::name::en::Name, Fake};
 use rand::seq::IndexedRandom;
 use sea_orm::{prelude::*, ActiveValue::Set, TransactionTrait};
@@ -99,21 +97,12 @@ pub async fn create_user(
 
     let balance = (balance * 100.0).round() as i64;
 
-    let new_account = accounts::ActiveModel {
-        account_type: Set(AccountType::User.to_string()),
-        balance: Set(0),
-        disabled: Set(false),
-        created_at: Set(Utc::now().to_utc()),
-        ..Default::default()
-    };
-
-    let account_model = new_account
-        .insert(&txn)
+    let account = Account::create_account(&txn, AccountType::User, balance)
         .await
         .map_err(|err| format!("Failed to create new account: {}", err))?;
 
     let new_profile = user_profiles::ActiveModel {
-        account_id: Set(account_model.id),
+        account_id: Set(account.id),
         name: Set(name),
         pin: Set(pin),
         phone: Set(phone),
@@ -123,21 +112,6 @@ pub async fn create_user(
         .insert(&txn)
         .await
         .map_err(|err| format!("Failed to create new profile: {}", err))?;
-
-    Ledger::transfer(
-        &txn,
-        None,
-        user_model.account_id,
-        balance,
-        &crate::transactions::TransactionType::Deposit,
-    )
-    .await
-    .map_err(|err| {
-        format!(
-            "Failed to deposit funds to new account({}): {}",
-            user_model.account_id, err
-        )
-    })?;
 
     txn.commit()
         .await
@@ -154,7 +128,7 @@ pub async fn create_user(
         })
         .expect("Failed to convert UserDetails to serde_json value"),
     );
-    Ok(account_model.id)
+    Ok(account.id)
 }
 
 pub async fn remove_user(ctx: &AppContext, user_id: u32) -> Result<(), String> {

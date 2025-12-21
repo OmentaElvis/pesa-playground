@@ -13,11 +13,13 @@
 	import { page } from '$app/state';
 	import {
 		getUser,
-		listFullTransactionLogs,
+		getTransactionHistory,
 		TransactionType,
 		transfer,
-		type FullTransactionLog,
-		type UserDetails
+		type TransactionHistoryEntry,
+		type UserDetails,
+		type HistoryFilter,
+		type FullTransactionLog
 	} from '$lib/api';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Button } from '$lib/components/ui/button';
@@ -31,11 +33,21 @@
 	import { listen } from '$lib/api';
 	import { activeUserPageId } from '$lib/stores/activePageStore';
 	import { sidebarStore } from '$lib/stores/sidebarStore';
+	import { transactionLogStore } from '$lib/stores/transactionLogStore';
 
 	let id = $derived(page.params.id);
 
+	function fetchTransactions() {
+		const filter: HistoryFilter = {
+			scope: { type: 'User', id: Number(id) },
+			pagination: { limit: 200, offset: 0 },
+			sorting: { by: 'date', direction: 'Asc' }
+		};
+		return getTransactionHistory(filter);
+	}
+
 	let user: Promise<UserDetails | null> = $derived(getUser(Number(id)));
-	let transactions: Promise<FullTransactionLog[]> = $derived(listFullTransactionLogs(Number(id)));
+	let transactions: Promise<TransactionHistoryEntry[]> = $derived(fetchTransactions());
 
 	let fundsToAdd = $state(1000);
 	let depositDialogOpen = $state(false);
@@ -80,6 +92,7 @@
 	onMount(() => {
 		// Set active user page ID
 		activeUserPageId.set(Number(id));
+		transactionLogStore.removeByUser(Number(id));
 
 		// Listen for new transactions to refresh data
 		const unlisten = listen<FullTransactionLog>('new_transaction', (event) => {
@@ -87,7 +100,7 @@
 			if (isRelated) {
 				console.log(`Refreshing user ${id} due to new transaction.`);
 				user = getUser(Number(id));
-				transactions = listFullTransactionLogs(Number(id));
+				transactions = fetchTransactions();
 			}
 		});
 
