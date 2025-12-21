@@ -1,3 +1,17 @@
+# [0.2.0](https://github.com/OmentaElvis/pesa-playground/compare/v0.1.0...v0.2.0) (2025-12-21)
+
+
+### Bug Fixes
+
+* **ci:** add execute permission to .github/workflows/prepare-release.sh ([dbca8f4](https://github.com/OmentaElvis/pesa-playground/commit/dbca8f4bf16845b481efe570aca6b3c7b1807b2c))
+* **ci:** change the jsonpath for toml to correct syntax ([a7a39a3](https://github.com/OmentaElvis/pesa-playground/commit/a7a39a3d127afea943cbfaa6e4b2cdb425c539a8))
+* **ci:** include missing rpm bundle in tauri ([105938e](https://github.com/OmentaElvis/pesa-playground/commit/105938ea30a365346de00a3e67f99ed1aaaa971a))
+
+
+### Features
+
+* improved pesa playground logo ([bae58ab](https://github.com/OmentaElvis/pesa-playground/commit/bae58ab3c9826d926333fce0214143bba46f799a))
+
 # Changelog
 
 ## [0.1.0](https://github.com/OmentaElvis/pesa-playground/compare/v0.0.1...v0.1.0) (2025-12-12)
