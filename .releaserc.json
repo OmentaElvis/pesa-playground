@@ -5,6 +5,12 @@
     "@semantic-release/release-notes-generator",
     "@semantic-release/changelog",
     [
+      "@semantic-release/exec",
+      {
+        "verifyConditionsCmd": "cargo check --workspace && pnpm check"
+      }
+    ],
+    [
       "@semantic-release/npm",
       {
         "npmPublish": false,
