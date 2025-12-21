@@ -29,7 +29,7 @@ impl Database {
                 .expect("Failed to create database");
         }
         let connection_url = format!("sqlite://{}?mode=rwc", db_path.display());
-        env::set_var("DATABASE_URL", &connection_url);
+        unsafe { env::set_var("DATABASE_URL", &connection_url) };
 
         let mut opt = ConnectOptions::new(connection_url);
         opt.sqlx_logging(false);

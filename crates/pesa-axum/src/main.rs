@@ -388,7 +388,9 @@ async fn log_requests(mut req: Request<axum::body::Body>, next: Next) -> Respons
 
 #[tokio::main]
 async fn main() {
-    std::env::set_var("RUST_LOG", "info,sqlx=warn");
+    unsafe {
+        std::env::set_var("RUST_LOG", "info,sqlx=warn");
+    }
     env_logger::init();
 
     let cli_args = CliArgs::parse();
