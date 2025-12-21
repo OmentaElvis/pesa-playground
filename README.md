@@ -14,8 +14,8 @@
     <a href="https://github.com/OmentaElvis/pesa-playground/actions/workflows/build-tauri-linux.yml">
         <img src="https://github.com/OmentaElvis/pesa-playground/actions/workflows/build-tauri-linux.yml/badge.svg" alt="Build Status" />
     </a>
-    <a href="https://opensource.org/licenses/GPL-3.0">
-        <img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License: GPL v3" />
+    <a href="https://opensource.org/licenses/BSD-2-Clause">
+        <img src="https://img.shields.io/badge/License-BSD_2--Clause-orange.svg" alt="BSD 2-Clause License" />
     </a>
 </p>
 <p align="center">
