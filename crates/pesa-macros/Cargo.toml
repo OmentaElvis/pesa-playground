@@ -2,7 +2,6 @@
 name = "pesa-macros"
 version.workspace = true
 edition.workspace = true
-edition = "2021"
 
 [lib]
 proc-macro = true
