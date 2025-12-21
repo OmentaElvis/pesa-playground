@@ -1,0 +1,21 @@
+import { writeFileSync } from 'fs';
+import { resolve } from 'path';
+
+async function run() {
+  const { default: semanticRelease } = await import('semantic-release');
+  
+  const result = await semanticRelease();
+
+  if (result && result.nextRelease) {
+    const releaseInfo = {
+      version: result.nextRelease.version,
+      gitTag: result.nextRelease.gitTag,
+    };
+    writeFileSync(resolve(process.cwd(), 'release.json'), JSON.stringify(releaseInfo));
+  }
+}
+
+run().catch(error => {
+  console.error('The automated release failed:', error);
+  process.exit(1);
+});

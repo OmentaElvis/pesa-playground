@@ -35,18 +35,18 @@ jobs:
           version: 8
           run_install: true
 
-      - name: Semantic Release
-        id: semantic
-        run: pnpm semantic-release > release.json || true
+      - name: Get next release version
+        id: get_release
+        run: node scripts/semantic-release.js
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+          
       - name: Set outputs
         id: set_outputs
         run: |
-          if [ -f release.json ] && [ -s release.json ]; then
-            VERSION=$(jq -r .nextRelease.version release.json)
-            GIT_TAG=$(jq -r .nextRelease.gitTag release.json)
+          if [ -f release.json ]; then
+            VERSION=$(jq -r .version release.json)
+            GIT_TAG=$(jq -r .gitTag release.json)
             if [ "$VERSION" != "null" ] && [ "$GIT_TAG" != "null" ]; then
               echo "::set-output name=version::$VERSION"
               echo "::set-output name=git_tag::$GIT_TAG"
