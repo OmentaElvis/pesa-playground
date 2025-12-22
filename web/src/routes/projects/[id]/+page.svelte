@@ -228,7 +228,7 @@
 				</CardHeader>
 				<CardContent class="space-y-4 font-mono">
 					<div class="space-y-1">
-						<Label class="text-sm">Client Key</Label>
+						<Label class="text-sm">Consumer Key</Label>
 						<div class="flex items-center gap-2">
 							<Input type="text" value={project.consumer_key} readonly class="flex-1" />
 							<Button
@@ -241,7 +241,7 @@
 						</div>
 					</div>
 					<div class="space-y-1">
-						<Label class="text-sm">Client Secret</Label>
+						<Label class="text-sm">Consumer Secret</Label>
 						<div class="flex items-center gap-2">
 							<Input value={project.consumer_secret} readonly class="flex-1" />
 							<Button
