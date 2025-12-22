@@ -89,7 +89,7 @@
 				{@const Icon = getTransactionIcon(transaction, direction)}
 				<div class="m-4 flex {isSentTransaction(direction) ? 'justify-end' : 'justify-start'}">
 					<div
-						class="max-w-[65%] max-lg:max-w-[80%] rounded-lg p-3 shadow-md {isSentTransaction(direction)
+						class="w-fit min-w-48 max-w-[85%] max-w-md rounded-lg p-3 shadow-md {isSentTransaction(direction)
 							? 'rounded-br-none bg-green-800 text-white'
 							: 'rounded-bl-none bg-background'}"
 					>
