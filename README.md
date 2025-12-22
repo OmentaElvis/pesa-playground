@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-    <a href="https://github.com/OmentaElvis/pesa-playground/actions/workflows/build-tauri-linux.yml">
-        <img src="https://github.com/OmentaElvis/pesa-playground/actions/workflows/build-tauri-linux.yml/badge.svg" alt="Build Status" />
+    <a href="https://github.com/OmentaElvis/pesa-playground/actions/workflows/semantic-release.yml">
+        <img src="https://github.com/OmentaElvis/pesa-playground/actions/workflows/semantic-release.yml/badge.svg" alt="Build Status" />
     </a>
     <a href="https://opensource.org/licenses/BSD-2-Clause">
         <img src="https://img.shields.io/badge/License-BSD_2--Clause-orange.svg" alt="BSD 2-Clause License" />
