@@ -1,14 +1,14 @@
 use std::time::Duration;
 
-use super::db;
 use super::Ledger;
 use super::Transaction;
 use super::TransactionEngineError;
 use super::TransactionNote;
 use super::TransactionType;
-use anyhow::bail;
+use super::db;
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::bail;
 use sea_orm::ColumnTrait;
 use sea_orm::Condition;
 use sea_orm::ConnectionTrait;
@@ -19,12 +19,13 @@ use sea_orm::QuerySelect;
 use sea_query::ExprTrait;
 use serde::Deserialize;
 
+use crate::AppContext;
+use crate::accounts::Account;
 use crate::accounts::paybill_accounts::PaybillAccount;
 use crate::accounts::till_accounts::TillAccount;
 use crate::accounts::user_profiles::User;
 use crate::accounts::utility_accounts;
 use crate::accounts::utility_accounts::UtilityAccount;
-use crate::accounts::Account;
 use crate::api_logs::ApiLog;
 use crate::events::DomainEventDispatcher;
 use crate::projects;
@@ -33,7 +34,6 @@ use crate::server::api::c2b::ResponseType;
 use crate::server::api::c2b::ValidationRequest;
 use crate::server::api::c2b::ValidationResponse;
 use crate::transaction_costs::get_fee;
-use crate::AppContext;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct TransactionFilter {
@@ -534,8 +534,9 @@ async fn process_lipa<C: ConnectionTrait>(conn: C, args: ProcessLipaArgs, ctx: A
 
     let msisdn = mask_msisdn_ke(&args.user.phone);
     let mut third_party_transaction_id = String::new();
+    let validation_url = args.validation_url.filter(|url| !url.is_empty());
 
-    if let Some(validation_url) = args.validation_url {
+    if let Some(validation_url) = validation_url {
         // send the validation request
         let req: reqwest::RequestBuilder = reqwest::Client::new()
             .post(validation_url.to_string())
@@ -644,9 +645,10 @@ async fn process_lipa<C: ConnectionTrait>(conn: C, args: ProcessLipaArgs, ctx: A
             return;
         }
     };
+    let confirmation_url = args.confirmation_url.filter(|url| !url.is_empty());
 
     // send the confirmation request.
-    if let Some(confirmation_url) = &args.confirmation_url {
+    if let Some(confirmation_url) = &confirmation_url {
         let req: reqwest::RequestBuilder = reqwest::Client::new()
             .post(confirmation_url.to_string())
             .json(&ValidationRequest {
