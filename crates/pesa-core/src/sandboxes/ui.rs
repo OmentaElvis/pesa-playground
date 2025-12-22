@@ -1,10 +1,10 @@
 use crate::{
+    AppContext,
     sandboxes::{RunningSandbox, Status},
     server::start_project_server,
-    AppContext,
 };
-use anyhow::{anyhow, Context, Result};
-use serde_json::{json, Value};
+use anyhow::{Context, Result, anyhow};
+use serde_json::{Value, json};
 use tokio::sync::oneshot;
 
 pub async fn start_sandbox(ctx: &AppContext, project_id: u32) -> Result<String> {
@@ -18,6 +18,16 @@ pub async fn start_sandbox(ctx: &AppContext, project_id: u32) -> Result<String> 
     if running.contains_key(&project_id) {
         return Ok(format!("http://{}", addr));
     }
+
+    ctx.event_manager.emit_all(
+        "sandbox_status",
+        json!({
+            "project_id": project_id,
+            "port": port,
+            "status": "starting",
+        }),
+    )?;
+
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
     let handle = tokio::spawn(start_project_server(
         project_id,
@@ -51,6 +61,15 @@ pub async fn stop_sandbox(ctx: &AppContext, project_id: u32) -> Result<()> {
             .send(())
             .map_err(|_| anyhow!("Failed to send shutdown signal"))?;
     }
+
+    ctx.event_manager.emit_all(
+        "sandbox_status",
+        json!({
+            "project_id": project_id,
+            "port": rs.port,
+            "status": "off",
+        }),
+    )?;
 
     Ok(())
 }

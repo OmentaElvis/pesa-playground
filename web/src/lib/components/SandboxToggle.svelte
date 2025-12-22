@@ -1,40 +1,17 @@
 <script lang="ts">
 	import { Play, Cog, Loader2, CircleX } from 'lucide-svelte';
-	import { getSandboxes, sandboxStatus } from '$lib/stores/sandboxStatus';
-	import { sandboxStatus as apiSandboxStatus, startSandbox, stopSandbox } from '$lib/api';
-	import { onDestroy, onMount } from 'svelte';
+	import { getSandboxes, sandboxes, type SandboxStatus } from '$lib/stores/sandboxStatus';
+	import { startSandbox, stopSandbox } from '$lib/api';
+	import { onDestroy } from 'svelte';
 	import * as Kbd from '$lib/components/ui/kbd';
 
 	export let id: number;
-	let status: 'off' | 'starting' | 'on' | 'error' = 'off';
+	let status: SandboxStatus = 'off';
 	let port: number | null = null;
 	let error: string | null = null;
-	let pollInterval: ReturnType<typeof setInterval>;
 
-	function setStatus(s: 'off' | 'starting' | 'on' | 'error') {
+	function setStatus(s: SandboxStatus) {
 		status = s;
-		$sandboxStatus = s;
-	}
-
-	async function refresh() {
-		try {
-			const res = await apiSandboxStatus(id);
-			if (res.status === 'on') {
-				setStatus('on');
-				port = res.port;
-				error = null;
-			} else if (res.status == 'error') {
-				error = res.error || 'The sandbox encountered unknown error';
-				setStatus('error');
-				port = null;
-			} else {
-				setStatus('off');
-				port = null;
-			}
-		} catch (e) {
-			setStatus('error');
-			error = e instanceof Error ? e.message : String(e);
-		}
 	}
 
 	async function toggle() {
@@ -57,9 +34,6 @@
 			try {
 				const addr = await startSandbox(id);
 				port = parseInt(addr.split(':').pop() || '0');
-				setTimeout(() => refresh(), 2000);
-				await getSandboxes();
-				// status = "on";
 			} catch (e) {
 				setStatus('error');
 				error = e instanceof Error ? e.message : String(e);
@@ -67,15 +41,24 @@
 		}
 	}
 
-	onMount(() => {
-		refresh();
-		pollInterval = setInterval(() => {
-			refresh();
-		}, 10000);
+	const unsub = sandboxes.subscribe((map)=> {
+	  let info = map.get(id);
+	  if (!info) {
+	  	setStatus("off");
+	  } else {
+	  	setStatus(info.status);
+	  	if (info.status == "error") {
+	  		error = info.error || null;
+	  	}
+
+	  	if (info.status == "on" ) {
+	  		port = info.port;
+	  	}
+	  }
 	});
 
 	onDestroy(() => {
-		clearInterval(pollInterval);
+		unsub();
 	});
 </script>
 

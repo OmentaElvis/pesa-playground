@@ -1,35 +1,57 @@
-import { getProject, listRunningSandboxes } from '$lib/api';
+import { getProject, listRunningSandboxes, listen } from '$lib/api';
 import { writable } from 'svelte/store';
 
 export type SandboxStatus = 'off' | 'starting' | 'on' | 'error';
 
-export const sandboxStatus = writable<SandboxStatus>('off');
+interface SandboxStatusPayload {
+	project_id: number,
+	port: number,
+	status: SandboxStatus,
+	error?: string
+}
 
-export interface SandboxInfo {
-	status: SandboxStatus;
-	port: number;
-	project_id: number;
+export interface SandboxInfo extends SandboxStatusPayload {
 	name: string;
 }
 
 export async function getSandboxes() {
 	try {
 		let list: SandboxInfo[] = await listRunningSandboxes();
+		let map = new Map();
 
 		for (let info of list) {
 			let project = await getProject(info.project_id);
 			info.name = project.name;
+
+			map.set(info.project_id, info);
 		}
 
-		sandboxes.update(() => list);
+		sandboxes.update(() => map);
 	} catch (err) {
 		console.log(err);
 	}
 }
 
-export const sandboxes = writable<SandboxInfo[]>([]);
-getSandboxes();
+export const sandboxes = writable<Map<number, SandboxInfo>>(new Map());
 
-setInterval(async () => {
-	await getSandboxes();
-}, 10000);
+export const unlisten = listen("sandbox_status", async ({ payload }: {payload: SandboxStatusPayload})=> {
+	let project = await getProject(payload.project_id);
+	let info: SandboxInfo = {
+		name: project.name,
+		port: payload.port,
+		project_id: payload.project_id,
+		status: payload.status,
+	};
+
+	sandboxes.update((m) => {
+		if (info.status == "off") {
+			m.delete(info.project_id);
+		} else {
+			m.set(info.project_id, info);
+		}
+
+		return m;
+	});
+});
+
+getSandboxes();
