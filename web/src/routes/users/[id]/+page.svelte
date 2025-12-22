@@ -6,10 +6,13 @@
 		CardSim,
 		Banknote,
 		Save,
-		LoaderCircle
+		LoaderCircle,
+		MessageSquareMore,
+		SheetIcon
 	} from 'lucide-svelte';
 	import { formatAmount, getInitials } from '$lib/utils';
-	import TransactionList from '$lib/components/users/TransactionList.svelte';
+	import TransactionMessages from '$lib/components/users/TransactionList.svelte';
+	import TransactionList from '$lib/components/TransactionList.svelte';
 	import { page } from '$app/state';
 	import {
 		getUser,
@@ -34,6 +37,9 @@
 	import { activeUserPageId } from '$lib/stores/activePageStore';
 	import { sidebarStore } from '$lib/stores/sidebarStore';
 	import { transactionLogStore } from '$lib/stores/transactionLogStore';
+	import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
+	import { urlStateManager } from '$lib/utils/urlState';
+	import { writable } from 'svelte/store';
 
 	let id = $derived(page.params.id);
 
@@ -52,6 +58,7 @@
 	let fundsToAdd = $state(1000);
 	let depositDialogOpen = $state(false);
 	let addingDeposit = $state(false);
+	let viewMode = writable("messages");
 
 	async function handleDepositFunds() {
 		let user_details = await user;
@@ -94,6 +101,11 @@
 		activeUserPageId.set(Number(id));
 		transactionLogStore.removeByUser(Number(id));
 
+		// get default view mode
+		const { destroy } = urlStateManager.sync({
+			transactionsView: viewMode
+		});
+
 		// Listen for new transactions to refresh data
 		const unlisten = listen<FullTransactionLog>('new_transaction', (event) => {
 			const isRelated = event.payload.to_id === Number(id) || event.payload.from_id === Number(id);
@@ -109,6 +121,7 @@
 			activeUserPageId.set(null);
 			unlisten.then((f) => f());
 			sidebarStore.unregister('user-stk-menu');
+			destroy();
 		};
 	});
 </script>
@@ -141,6 +154,14 @@
 							</div>
 						</div>
 					</div>
+					<ToggleGroup.Root size="sm" bind:value={$viewMode} type="single" class="mr-4">
+					  <ToggleGroup.Item value="messages" aria-label="Toggle bold">
+					    <MessageSquareMore class="size-4" />
+					  </ToggleGroup.Item>
+					  <ToggleGroup.Item value="table" aria-label="Toggle italic">
+					    <SheetIcon class="size-4" />
+					  </ToggleGroup.Item>
+					</ToggleGroup.Root>
 					<DropdownMenu.Root>
 						<DropdownMenu.Trigger>
 							<EllipsisVertical />
@@ -245,7 +266,16 @@
 
 			<!-- Transactions -->
 			{#await transactions then transactions}
-				<TransactionList {transactions} {user} />
+				{#if $viewMode == "messages"}
+					<TransactionMessages {transactions} {user} />
+				{:else}
+					<div class="p-4">
+						<TransactionList scope={{
+								type: "User",
+								id: user.id
+							}} {transactions} />
+					</div>
+				{/if}
 			{/await}
 		{/if}
 	{:catch err}
