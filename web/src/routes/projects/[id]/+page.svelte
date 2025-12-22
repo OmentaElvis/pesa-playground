@@ -228,6 +228,20 @@
 				</CardHeader>
 				<CardContent class="space-y-4 font-mono">
 					<div class="space-y-1">
+						<Label class="text-sm">Api endpoint</Label>
+						<div class="flex items-center gap-2">
+							<Input type="text" value={`http://localhost:${Number(project?.id)+8000}/`} readonly class="flex-1" />
+							<Button
+								size="icon"
+								variant="outline"
+								onclick={() => copyToClipboard(`http://localhost:${Number(project?.id)+8000}/`)}
+							>
+								<Copy class="h-4 w-4" />
+							</Button>
+						</div>
+						<small class="text-muted-foreground">The opened port is 8000+[project id], allowing multiple sandboxes to run concurrently</small>
+					</div>
+					<div class="space-y-1">
 						<Label class="text-sm">Consumer Key</Label>
 						<div class="flex items-center gap-2">
 							<Input type="text" value={project.consumer_key} readonly class="flex-1" />
