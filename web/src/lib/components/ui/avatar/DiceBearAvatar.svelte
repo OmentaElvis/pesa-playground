@@ -15,7 +15,7 @@
 	const avatarUri = avatar.toDataUri();
 </script>
 
-<Avatar.Root class="h-full w-full border border-foreground bg-muted">
+<Avatar.Root class="h-full w-full bg-muted">
 	<div
 		class="flex h-full w-full items-center justify-center overflow-hidden rounded-full border-2 border-transparent bg-green-800"
 	>
