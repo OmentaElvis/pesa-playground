@@ -42,7 +42,7 @@ jobs:
 
       - name: Get next release version
         id: get_release
-        run: node scripts/semantic-release.js
+        run: node scripts/semantic-release.cjs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           

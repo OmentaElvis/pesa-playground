@@ -1,8 +1,8 @@
-import { writeFileSync } from 'fs';
-import { resolve } from 'path';
+const { writeFileSync } = require('fs');
+const { resolve } = require('path');
 
 async function run() {
-  const { default: semanticRelease } = await import('semantic-release');
+  const { default: semanticRelease } = await require('semantic-release');
   
   const result = await semanticRelease();
 
