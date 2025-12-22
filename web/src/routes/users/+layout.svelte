@@ -6,7 +6,7 @@
 
 <div class="flex h-full">
 	<PaneGroup direction="horizontal">
-		<Pane defaultSize={35}>
+		<Pane defaultSize={22} >
 			<UserList />
 		</Pane>
 		<Pane>

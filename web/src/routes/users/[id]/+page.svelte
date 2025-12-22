@@ -149,7 +149,7 @@
 								</span>
 								<span class="flex items-center gap-1">
 									<Wallet size={14} />
-									Balance: {formatAmount(user.balance)}
+									Balance: <b class="dark:text-green-500 text-green-600">{formatAmount(user.balance)}</b>
 								</span>
 							</div>
 						</div>
