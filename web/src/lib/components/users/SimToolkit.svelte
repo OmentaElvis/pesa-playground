@@ -9,7 +9,9 @@
 		getTillAccounts,
 		transfer,
 		getUserByPhone,
-		TransactionType
+		TransactionType,
+		lipa,
+		LipaPaymentType
 	} from '$lib/api';
 	import { toast } from 'svelte-sonner';
 
@@ -117,6 +119,48 @@
 		}
 	}
 
+	async function lipaNaPaybill() {
+		try {
+				let amount = Number(simFormData.amount) * 100;
+				await lipa({
+					amount,
+					payment_type: LipaPaymentType.Paybill,
+					business_number: Number(simFormData.business),
+					account_number: simFormData.account,
+					user_phone: user.phone
+				});
+				toast.info(`Transaction to paybill: ${simFormData.business} account name ${simFormData.account} initiated.`);
+				resetMenu();
+			
+		} catch (err) {
+			toast.error(`${err}`);
+		}
+	}
+
+	async function lipaNaTill() {
+		try {
+				let amount = Number(simFormData.amount) * 100;
+				await lipa({
+					amount,
+					payment_type: LipaPaymentType.Till,
+					business_number: Number(simFormData.business),
+					account_number: undefined,
+					user_phone: user.phone
+				});
+				toast.info(`Transaction to till: ${simFormData.business} initiated.`);
+				resetMenu();
+			
+		} catch (err) {
+			toast.error(`${err}`);
+		}
+	}
+
+	function incorrectPin() {
+		toast.error(
+			`Incorrect pin for: ${user.name}, use the suggested pin or type 0000 to override checks.`
+		);
+	}
+
 	async function submit(submit_type: SubmitType) {
 		submitting = true;
 		switch (submit_type) {
@@ -124,14 +168,22 @@
 				if (simFormData.pin == '0000' || user.pin == simFormData.pin) {
 					await transferMoneyToUser();
 				} else {
-					toast.error(
-						`Incorrect pin for: ${user.name}, use the suggested pin or type 0000 to override checks.`
-					);
+					incorrectPin();
 				}
 				break;
 			case 'Paybill':
+				if (simFormData.pin == '0000' || user.pin == simFormData.pin) {
+				  await lipaNaPaybill();
+				} else {
+					incorrectPin();
+				}
 				break;
 			case 'BuyGoodsTill':
+				if (simFormData.pin == '0000' || user.pin == simFormData.pin) {
+					await lipaNaTill();
+				} else {
+					incorrectPin();
+				}
 				break;
 			case 'BuyAirtime':
 				break;
@@ -339,7 +391,7 @@
 						showSimInput(
 							'Enter till number:',
 							(till) => {
-								simFormData.business = `Till ${till}`;
+								simFormData.business = till;
 								showSimInput(
 									'Enter amount:',
 									(amount) => {

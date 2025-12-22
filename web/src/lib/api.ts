@@ -1023,3 +1023,20 @@ export function getTransactionDirection(
 
 	return 'None';
 }
+
+export enum LipaPaymentType {
+    Paybill = "Paybill",
+    Till = "Till",
+}
+
+export interface LipaArgs {
+  	user_phone: String,
+  	amount: number,
+  	payment_type: LipaPaymentType,
+  	business_number: number,
+  	account_number?: String,
+}
+
+export async function lipa(args: LipaArgs): Promise<void> {
+	return await invoke('lipa', {args});
+}
