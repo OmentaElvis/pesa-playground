@@ -121,17 +121,18 @@
 
 	async function lipaNaPaybill() {
 		try {
-				let amount = Number(simFormData.amount) * 100;
-				await lipa({
-					amount,
-					payment_type: LipaPaymentType.Paybill,
-					business_number: Number(simFormData.business),
-					account_number: simFormData.account,
-					user_phone: user.phone
-				});
-				toast.info(`Transaction to paybill: ${simFormData.business} account name ${simFormData.account} initiated.`);
-				resetMenu();
-			
+			let amount = Number(simFormData.amount) * 100;
+			await lipa({
+				amount,
+				payment_type: LipaPaymentType.Paybill,
+				business_number: Number(simFormData.business),
+				account_number: simFormData.account,
+				user_phone: user.phone
+			});
+			toast.info(
+				`Transaction to paybill: ${simFormData.business} account name ${simFormData.account} initiated.`
+			);
+			resetMenu();
 		} catch (err) {
 			toast.error(`${err}`);
 		}
@@ -139,17 +140,16 @@
 
 	async function lipaNaTill() {
 		try {
-				let amount = Number(simFormData.amount) * 100;
-				await lipa({
-					amount,
-					payment_type: LipaPaymentType.Till,
-					business_number: Number(simFormData.business),
-					account_number: undefined,
-					user_phone: user.phone
-				});
-				toast.info(`Transaction to till: ${simFormData.business} initiated.`);
-				resetMenu();
-			
+			let amount = Number(simFormData.amount) * 100;
+			await lipa({
+				amount,
+				payment_type: LipaPaymentType.Till,
+				business_number: Number(simFormData.business),
+				account_number: undefined,
+				user_phone: user.phone
+			});
+			toast.info(`Transaction to till: ${simFormData.business} initiated.`);
+			resetMenu();
 		} catch (err) {
 			toast.error(`${err}`);
 		}
@@ -173,7 +173,7 @@
 				break;
 			case 'Paybill':
 				if (simFormData.pin == '0000' || user.pin == simFormData.pin) {
-				  await lipaNaPaybill();
+					await lipaNaPaybill();
 				} else {
 					incorrectPin();
 				}

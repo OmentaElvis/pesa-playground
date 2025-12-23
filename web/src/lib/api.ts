@@ -822,7 +822,7 @@ export enum Theme {
 }
 
 export interface EncryptionKeys {
-	public_key: string,
+	public_key: string;
 	// private_key: string, // private key is not really private in this sandbox
 }
 

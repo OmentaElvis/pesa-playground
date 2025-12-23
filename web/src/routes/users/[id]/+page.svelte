@@ -37,7 +37,7 @@
 	import { activeUserPageId } from '$lib/stores/activePageStore';
 	import { sidebarStore } from '$lib/stores/sidebarStore';
 	import { transactionLogStore } from '$lib/stores/transactionLogStore';
-	import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
+	import * as ToggleGroup from '$lib/components/ui/toggle-group/index.js';
 	import { urlStateManager } from '$lib/utils/urlState';
 	import { writable } from 'svelte/store';
 
@@ -58,7 +58,7 @@
 	let fundsToAdd = $state(1000);
 	let depositDialogOpen = $state(false);
 	let addingDeposit = $state(false);
-	let viewMode = writable("messages");
+	let viewMode = writable('messages');
 
 	async function handleDepositFunds() {
 		let user_details = await user;
@@ -149,18 +149,19 @@
 								</span>
 								<span class="flex items-center gap-1">
 									<Wallet size={14} />
-									Balance: <b class="dark:text-green-500 text-green-600">{formatAmount(user.balance)}</b>
+									Balance:
+									<b class="text-green-600 dark:text-green-500">{formatAmount(user.balance)}</b>
 								</span>
 							</div>
 						</div>
 					</div>
 					<ToggleGroup.Root size="sm" bind:value={$viewMode} type="single" class="mr-4">
-					  <ToggleGroup.Item value="messages" aria-label="Toggle bold">
-					    <MessageSquareMore class="size-4" />
-					  </ToggleGroup.Item>
-					  <ToggleGroup.Item value="table" aria-label="Toggle italic">
-					    <SheetIcon class="size-4" />
-					  </ToggleGroup.Item>
+						<ToggleGroup.Item value="messages" aria-label="Toggle bold">
+							<MessageSquareMore class="size-4" />
+						</ToggleGroup.Item>
+						<ToggleGroup.Item value="table" aria-label="Toggle italic">
+							<SheetIcon class="size-4" />
+						</ToggleGroup.Item>
 					</ToggleGroup.Root>
 					<DropdownMenu.Root>
 						<DropdownMenu.Trigger>
@@ -266,14 +267,17 @@
 
 			<!-- Transactions -->
 			{#await transactions then transactions}
-				{#if $viewMode == "messages"}
+				{#if $viewMode == 'messages'}
 					<TransactionMessages {transactions} {user} />
 				{:else}
 					<div class="p-4">
-						<TransactionList scope={{
-								type: "User",
+						<TransactionList
+							scope={{
+								type: 'User',
 								id: user.id
-							}} {transactions} />
+							}}
+							{transactions}
+						/>
 					</div>
 				{/if}
 			{/await}

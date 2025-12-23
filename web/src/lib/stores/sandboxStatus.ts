@@ -4,10 +4,10 @@ import { writable } from 'svelte/store';
 export type SandboxStatus = 'off' | 'starting' | 'on' | 'error';
 
 interface SandboxStatusPayload {
-	project_id: number,
-	port: number,
-	status: SandboxStatus,
-	error?: string
+	project_id: number;
+	port: number;
+	status: SandboxStatus;
+	error?: string;
 }
 
 export interface SandboxInfo extends SandboxStatusPayload {
@@ -34,24 +34,27 @@ export async function getSandboxes() {
 
 export const sandboxes = writable<Map<number, SandboxInfo>>(new Map());
 
-export const unlisten = listen("sandbox_status", async ({ payload }: {payload: SandboxStatusPayload})=> {
-	let project = await getProject(payload.project_id);
-	let info: SandboxInfo = {
-		name: project.name,
-		port: payload.port,
-		project_id: payload.project_id,
-		status: payload.status,
-	};
+export const unlisten = listen(
+	'sandbox_status',
+	async ({ payload }: { payload: SandboxStatusPayload }) => {
+		let project = await getProject(payload.project_id);
+		let info: SandboxInfo = {
+			name: project.name,
+			port: payload.port,
+			project_id: payload.project_id,
+			status: payload.status
+		};
 
-	sandboxes.update((m) => {
-		if (info.status == "off") {
-			m.delete(info.project_id);
-		} else {
-			m.set(info.project_id, info);
-		}
+		sandboxes.update((m) => {
+			if (info.status == 'off') {
+				m.delete(info.project_id);
+			} else {
+				m.set(info.project_id, info);
+			}
 
-		return m;
-	});
-});
+			return m;
+		});
+	}
+);
 
 getSandboxes();

@@ -41,20 +41,20 @@
 		}
 	}
 
-	const unsub = sandboxes.subscribe((map)=> {
-	  let info = map.get(id);
-	  if (!info) {
-	  	setStatus("off");
-	  } else {
-	  	setStatus(info.status);
-	  	if (info.status == "error") {
-	  		error = info.error || null;
-	  	}
+	const unsub = sandboxes.subscribe((map) => {
+		let info = map.get(id);
+		if (!info) {
+			setStatus('off');
+		} else {
+			setStatus(info.status);
+			if (info.status == 'error') {
+				error = info.error || null;
+			}
 
-	  	if (info.status == "on" ) {
-	  		port = info.port;
-	  	}
-	  }
+			if (info.status == 'on') {
+				port = info.port;
+			}
+		}
 	});
 
 	onDestroy(() => {
