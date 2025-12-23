@@ -808,6 +808,32 @@ export interface ApiLog {
 	created_at: string;
 }
 
+export enum LogLevel {
+	Trace = 'Trace',
+	Debug = 'Debug',
+	Info = 'Info',
+	Warn = 'Warn',
+	Error = 'Error'
+}
+
+export enum Theme {
+	Dark = 'dark',
+	Light = 'light'
+}
+
+export interface AppSettings {
+	theme: Theme;
+	server_log_level: LogLevel;
+}
+
+export async function getSettings(): Promise<AppSettings> {
+	return await invoke('get_settings');
+}
+
+export async function setSettings(settings: AppSettings): Promise<void> {
+	return await invoke('set_settings', { settings });
+}
+
 // Filter interface for frontend use
 export interface ApiLogFilter {
 	project_id?: number;
@@ -1025,18 +1051,18 @@ export function getTransactionDirection(
 }
 
 export enum LipaPaymentType {
-    Paybill = "Paybill",
-    Till = "Till",
+	Paybill = 'Paybill',
+	Till = 'Till'
 }
 
 export interface LipaArgs {
-  	user_phone: String,
-  	amount: number,
-  	payment_type: LipaPaymentType,
-  	business_number: number,
-  	account_number?: String,
+	user_phone: String;
+	amount: number;
+	payment_type: LipaPaymentType;
+	business_number: number;
+	account_number?: String;
 }
 
 export async function lipa(args: LipaArgs): Promise<void> {
-	return await invoke('lipa', {args});
+	return await invoke('lipa', { args });
 }

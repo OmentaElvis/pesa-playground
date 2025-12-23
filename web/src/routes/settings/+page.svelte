@@ -4,13 +4,19 @@
 	import DangerAction from '$lib/components/shared/DangerAction.svelte';
 	import * as Card from '$lib/components/ui/card';
 	import { toast } from 'svelte-sonner';
-	import { clearAllData } from '$lib/api';
+	import { clearAllData, LogLevel, Theme } from '$lib/api';
 	import KeymapRow from '$lib/components/keymap/KeymapRow.svelte';
 	import { getKeymapManager, getAllKeymapActions } from '$lib/keymap';
 	import { Button } from '$lib/components/ui/button';
+	import * as Select from '$lib/components/ui/select/index.js';
+	import * as Field from '$lib/components/ui/field/index.js';
+	import { settings } from '$lib/stores/settings';
 
 	const keymapManager = getKeymapManager();
 	const allKeymapActions = getAllKeymapActions();
+
+	let logLevels: LogLevel[] = [LogLevel.Debug, LogLevel.Info, LogLevel.Warn, LogLevel.Error];
+	let themes: Theme[] = [Theme.Light, Theme.Dark];
 
 	async function handlePurge() {
 		try {
@@ -67,6 +73,40 @@
 					<Card.Description>General application settings.</Card.Description>
 				</Card.Header>
 				<Card.Content class="space-y-4">
+					<Field.Group>
+						<Field.Label>Log Level</Field.Label>
+						<Field.Description>The level of logging by the app backend.</Field.Description>
+						<Select.Root type="single" bind:value={$settings.server_log_level}>
+							<Select.Trigger>
+								Level - {$settings.server_log_level}
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Group>
+									{#each logLevels as level}
+										<Select.Item value={level}>{level}</Select.Item>
+									{/each}
+								</Select.Group>
+							</Select.Content>
+						</Select.Root>
+					</Field.Group>
+					<!-- theme -->
+					<Field.Group>
+						<Field.Label>Theme</Field.Label>
+						<Field.Description>The theme to use for the application.</Field.Description>
+						<Select.Root type="single" bind:value={$settings.theme}>
+							<Select.Trigger>
+								Theme - {$settings.theme}
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Group>
+									{#each themes as theme}
+										<Select.Item value={theme}>{theme}</Select.Item>
+									{/each}
+								</Select.Group>
+							</Select.Content>
+						</Select.Root>
+					</Field.Group>
+					<hr class="my-4" />
 					<div>
 						<h3 class="mb-2 text-lg font-semibold">Danger Zone</h3>
 						<DangerAction

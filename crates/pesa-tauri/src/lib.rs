@@ -8,6 +8,7 @@ use pesa_core::{
     business::{CreateBusiness, UpdateBusiness},
     callbacks::stk::UserResponse,
     projects::{CreateProject, UpdateProject},
+    settings::models::AppSettings,
     transaction_costs::ui::TransactionCostData,
     transactions::{
         ui::{LipaArgs, TransactionFilter},
@@ -61,6 +62,10 @@ pub struct TauriAppState {
 
 generate_tauri_wrappers! {
     TauriAppState,
+    // Settings
+    get_settings() => pesa_core::settings::ui::get_settings,
+    set_settings(settings: AppSettings) => pesa_core::settings::ui::set_settings,
+
     // Existing commands
     start_sandbox(project_id: u32) => pesa_core::sandboxes::ui::start_sandbox,
     stop_sandbox(project_id: u32) => pesa_core::sandboxes::ui::stop_sandbox,
@@ -203,6 +208,7 @@ pub fn run() {
             let handle = app.handle().clone();
             let app_dir = handle.path().app_data_dir().expect("failed to get app dir");
             let db_path = app_dir.join("database.sqlite");
+            let settings_path = app_dir.join("settings.json");
 
             tauri::async_runtime::block_on(async move {
                 let db = pesa_core::db::Database::new(&db_path)
@@ -213,6 +219,9 @@ pub fn run() {
                     eprintln!("Database error: {:?}", err);
                 }
 
+                let settings_manager =
+                    pesa_core::settings::SettingsManager::new(settings_path).await.unwrap();
+
                 let (event_sender, _event_receiver) =
                     broadcast::channel(WEBSOCKET_CHANNEL_CAPACITY);
                 let event_manager = Arc::new(TauriEventManager {
@@ -222,6 +231,7 @@ pub fn run() {
 
                 let context = AppContext {
                     db: db.conn.clone(),
+                    settings: settings_manager,
                     event_manager: event_manager.clone(),
                     running: Arc::new(Mutex::new(HashMap::new())),
                 };
@@ -269,6 +279,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             close_splashscreen,
+            get_settings,
+            set_settings,
             // Scripting Commands
             scripts_list,
             scripts_read,

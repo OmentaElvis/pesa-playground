@@ -3,14 +3,14 @@
 	import { ArrowRight, ArrowLeft, History } from 'lucide-svelte';
 	import '../app.css';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { ModeWatcher } from 'mode-watcher';
+	import { mode, ModeWatcher } from 'mode-watcher';
 	import SunIcon from '@lucide/svelte/icons/sun';
 	import MoonIcon from '@lucide/svelte/icons/moon';
-	import { toggleMode } from 'mode-watcher';
+	import { setMode } from 'mode-watcher';
 	import { title } from '$lib/stores/title';
 	import AppSidebar from '$lib/components/AppSidebar.svelte';
 	import StkPushDialog from '$lib/components/StkPushDialog.svelte';
-	import { listen, type UnlistenFn } from '$lib/api';
+	import { listen, Theme, type UnlistenFn } from '$lib/api';
 	import { onMount } from 'svelte';
 	import { resolveStkPrompt } from '$lib/api';
 	import { Toaster } from 'svelte-sonner';
@@ -32,6 +32,7 @@
 		back,
 		forward
 	} from '$lib/actions/keymapActions';
+	import { settings } from '$lib/stores/settings';
 	import TransactionsNotification from '$lib/components/TransactionsNotification.svelte';
 
 	const keymapManager: KeymapManager = createKeymapManager();
@@ -42,6 +43,12 @@
 			WindowControls = mod.default;
 		});
 	}
+
+	settings.subscribe((settings) => {
+		if (settings.theme != mode.current) {
+			setMode(settings.theme);
+		}
+	});
 
 	let innerWidth = $state(0);
 	// 42 px
@@ -64,6 +71,7 @@
 	let showSplash = $state(true); // State for splash screen visibility
 
 	onMount(async () => {
+		await settings.init();
 		const projectSandboxKeymaps = await generateProjectSandboxKeymaps();
 		const allAppKeymapActions = [...globalKeymapActions, ...projectSandboxKeymaps];
 		keymapManager.initialize(allAppKeymapActions);
@@ -164,6 +172,14 @@
 			resolveStkPrompt(checkout_id, 'timeout');
 		} else {
 			resolveStkPrompt(checkout_id, 'cancelled');
+		}
+	}
+
+	function toggleMode() {
+		if (mode.current === Theme.Light) {
+			settings.set({ theme: Theme.Dark });
+		} else {
+			settings.set({ theme: Theme.Light });
 		}
 	}
 </script>

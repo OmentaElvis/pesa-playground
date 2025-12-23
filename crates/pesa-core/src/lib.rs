@@ -16,6 +16,7 @@ pub mod info;
 pub mod projects;
 pub mod sandboxes;
 pub mod server;
+pub mod settings;
 pub mod system;
 pub mod transaction_costs;
 pub mod transactions;
@@ -29,6 +30,7 @@ pub trait AppEventManager {
 #[derive(Clone)]
 pub struct AppContext {
     pub db: DatabaseConnection,
+    pub settings: settings::SettingsManager,
     pub event_manager: Arc<dyn AppEventManager + Send + Sync>,
     pub running: Arc<Mutex<HashMap<u32, RunningSandbox>>>,
 }

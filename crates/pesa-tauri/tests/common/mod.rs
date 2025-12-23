@@ -39,10 +39,23 @@ impl TestApp {
         let db = setup_db().await?;
         let t = mock_builder().build(tauri::generate_context!()).unwrap();
 
-        let app_handle = TauriEventManager(t.handle().clone());
+        let temp_dir = std::env::temp_dir();
+        let settings_path =
+            temp_dir.join(format!("test-settings-{}.json", uuid::Uuid::new_v4()));
+        let settings_manager =
+            pesa_playground_lib::settings::SettingsManager::new(settings_path).await?;
+
+        let (event_sender, _) = tokio::sync::broadcast::channel(100);
+        let event_manager = Arc::new(TauriEventManager {
+            app_handle: t.handle().clone(),
+            sender: event_sender,
+        });
+
         let ctx = AppContext {
             db: db.clone(),
-            event_manager: Arc::new(app_handle),
+            settings: settings_manager,
+            event_manager,
+            running: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
         };
         Ok(ctx)
     }
