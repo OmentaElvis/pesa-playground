@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use rand::Rng;
 use reqwest::Client;
-use serde_json::{json, Value};
-use tokio::time::{sleep, Instant};
+use serde_json::{Value, json};
+use tokio::time::{Instant, sleep};
 
 use crate::{api_logs::ApiLog, server::ApiState};
 
@@ -174,7 +174,7 @@ pub async fn return_body(
         }
 
         // Exponential backoff with jitter
-        let backoff_ms = 2_u64.pow(attempt as u32) * 1000 + rand::rng().random_range(0..500);
+        let backoff_ms = 2_u64.pow(attempt as u32) * 1000 + rand::thread_rng().gen_range(0..500);
         sleep(Duration::from_millis(backoff_ms)).await;
     }
     eprintln!("[CALLBACK] Final failure after {MAX_ATTEMPTS} attempts to {url}");

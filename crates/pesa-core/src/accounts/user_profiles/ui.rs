@@ -1,12 +1,12 @@
-use super::{db as user_profiles, User};
+use super::{User, db as user_profiles};
 use crate::{
-    accounts::{db as accounts, Account, AccountType},
     AppContext,
+    accounts::{Account, AccountType, db as accounts},
 };
 use anyhow::{Context, Result};
-use fake::{faker::name::en::Name, Fake};
-use rand::seq::IndexedRandom;
-use sea_orm::{prelude::*, ActiveValue::Set, TransactionTrait};
+use fake::{Fake, faker::name::en::Name};
+use rand::seq::SliceRandom;
+use sea_orm::{ActiveValue::Set, TransactionTrait, prelude::*};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -41,7 +41,7 @@ impl UserDetails {
         let phone = Self::generate_fake_phone(&mut set);
         let pin = Self::generate_fake_pin();
         let balance = [1000.0, 0.0, 200.0, 420.69, 14.0]
-            .choose(&mut rand::rng())
+            .choose(&mut rand::thread_rng())
             .unwrap();
 
         UserDetails {

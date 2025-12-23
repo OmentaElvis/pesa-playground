@@ -1,5 +1,5 @@
 use chrono::Utc;
-use rand::{distr::Alphanumeric, Rng};
+use rand::{Rng, distributions::Alphanumeric};
 
 use crate::{
     accounts::{user_profiles::User, utility_accounts::UtilityAccount},
@@ -43,15 +43,15 @@ impl StkpushInit {
     pub fn generate_merchant_request_id() -> String {
         format!(
             "{}-{}-{}",
-            rand::rng().random_range(10000..99999),
-            rand::rng().random_range(10000000..99999999),
-            rand::rng().random_range(0..9)
+            rand::thread_rng().gen_range(10000..99999),
+            rand::thread_rng().gen_range(10000000..99999999),
+            rand::thread_rng().gen_range(0..9)
         )
     }
 
     pub fn generate_checkout_request_id() -> String {
         let timestamp = Utc::now().format("%d%m%Y%H%M%S").to_string(); // e.g. 02072025143500
-        let rand_suffix: String = rand::rng()
+        let rand_suffix: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(6)
             .map(char::from)

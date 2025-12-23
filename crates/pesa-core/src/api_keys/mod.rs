@@ -1,5 +1,5 @@
 use anyhow::Result;
-use rand::{distr::Alphanumeric, Rng};
+use rand::{Rng, distributions::Alphanumeric};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
@@ -30,19 +30,19 @@ impl From<db::Model> for ApiKey {
 
 impl ApiKey {
     pub fn generate(project_id: u32) -> ApiKey {
-        let consumer_key: String = rand::rng()
+        let consumer_key: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(18)
             .map(char::from)
             .collect();
 
-        let consumer_secret: String = rand::rng()
+        let consumer_secret: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(40)
             .map(char::from)
             .collect();
 
-        let passkey: String = rand::rng()
+        let passkey: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(64)
             .map(char::from)
