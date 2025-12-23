@@ -4,15 +4,15 @@ use pesa_core::{
         paybill_accounts::{CreatePaybillAccount, UpdatePaybillAccount},
         till_accounts::{CreateTillAccount, UpdateTillAccount},
     },
-    api_logs::{ui::ApiLogFilter, UpdateApiLogRequest},
+    api_logs::{UpdateApiLogRequest, ui::ApiLogFilter},
     business::{CreateBusiness, UpdateBusiness},
     callbacks::stk::UserResponse,
     projects::{CreateProject, UpdateProject},
     settings::models::AppSettings,
     transaction_costs::ui::TransactionCostData,
     transactions::{
-        ui::{LipaArgs, TransactionFilter},
         TransactionNote, TransactionType,
+        ui::{LipaArgs, TransactionFilter},
     },
     transactions_log::ui::HistoryFilter,
 };
@@ -22,7 +22,7 @@ use pesa_macros::generate_tauri_wrappers;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::{Emitter, Manager, Runtime, State};
-use tokio::sync::{broadcast, Mutex};
+use tokio::sync::{Mutex, broadcast};
 
 const WEBSOCKET_CHANNEL_CAPACITY: usize = 100;
 
@@ -65,6 +65,7 @@ generate_tauri_wrappers! {
     // Settings
     get_settings() => pesa_core::settings::ui::get_settings,
     set_settings(settings: AppSettings) => pesa_core::settings::ui::set_settings,
+    generate_security_credential(password: String) => pesa_core::settings::ui::generate_security_credential,
 
     // Existing commands
     start_sandbox(project_id: u32) => pesa_core::sandboxes::ui::start_sandbox,
@@ -219,8 +220,9 @@ pub fn run() {
                     eprintln!("Database error: {:?}", err);
                 }
 
-                let settings_manager =
-                    pesa_core::settings::SettingsManager::new(settings_path).await.unwrap();
+                let settings_manager = pesa_core::settings::SettingsManager::new(settings_path)
+                    .await
+                    .unwrap();
 
                 let (event_sender, _event_receiver) =
                     broadcast::channel(WEBSOCKET_CHANNEL_CAPACITY);
@@ -280,6 +282,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             close_splashscreen,
             get_settings,
+            generate_security_credential,
             set_settings,
             // Scripting Commands
             scripts_list,

@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { SimulationMode } from './api';
+import { toast } from 'svelte-sonner';
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
@@ -99,4 +100,9 @@ export function debounce(func: Function, wait: number) {
 		// @ts-ignore
 		timeout = setTimeout(() => func.apply(this, args), wait);
 	};
+}
+
+export function copyToClipboard(text: String = '') {
+	navigator.clipboard.writeText(text as string);
+	toast(`Copied to clipboard`);
 }

@@ -821,9 +821,15 @@ export enum Theme {
 	Light = 'light'
 }
 
+export interface EncryptionKeys {
+	public_key: string,
+	// private_key: string, // private key is not really private in this sandbox
+}
+
 export interface AppSettings {
 	theme: Theme;
 	server_log_level: LogLevel;
+	encryption_keys?: EncryptionKeys;
 }
 
 export async function getSettings(): Promise<AppSettings> {
@@ -832,6 +838,10 @@ export async function getSettings(): Promise<AppSettings> {
 
 export async function setSettings(settings: AppSettings): Promise<void> {
 	return await invoke('set_settings', { settings });
+}
+
+export async function generateSecurityCredential(password: string): Promise<string> {
+	return await invoke('generate_security_credential', { password });
 }
 
 // Filter interface for frontend use

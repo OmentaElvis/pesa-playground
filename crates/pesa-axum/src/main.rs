@@ -193,6 +193,7 @@ generate_axum_rpc_handler! {
     // Settings
     get_settings() => pesa_core::settings::ui::get_settings,
     set_settings(settings: AppSettings) => pesa_core::settings::ui::set_settings,
+    generate_security_credential(password: String) => pesa_core::settings::ui::generate_security_credential,
 
     get_account(id: u32) => pesa_core::accounts::ui::get_account,
     create_account(account_type: pesa_core::accounts::AccountType, initial_balance: i64) => pesa_core::accounts::ui::create_account,
@@ -431,8 +432,9 @@ async fn main() {
     });
 
     let settings_path = data_dir.join("settings.json");
-    let settings_manager =
-        pesa_core::settings::SettingsManager::new(settings_path).await.expect("failed to init settings");
+    let settings_manager = pesa_core::settings::SettingsManager::new(settings_path)
+        .await
+        .expect("failed to init settings");
 
     let core_context = AppContext {
         db: db.conn.clone(),

@@ -56,7 +56,7 @@
 	import TransactionList from '$lib/components/TransactionList.svelte';
 	import SandboxToggle from '$lib/components/SandboxToggle.svelte';
 	import DiceBearAvatar from '$lib/components/ui/avatar/DiceBearAvatar.svelte';
-	import { debounce, formatAmount, getInitials } from '$lib/utils';
+	import { copyToClipboard, debounce, formatAmount, getInitials } from '$lib/utils';
 
 	let id = $derived(page.params.id);
 	let project: ProjectDetails | null = $state(null);
@@ -94,11 +94,6 @@
 
 	async function generateRandomUser() {
 		newUser = await generateUser();
-	}
-
-	function copyToClipboard(text: String = '') {
-		navigator.clipboard.writeText(text as string);
-		toast(`Copied to clipboard`);
 	}
 
 	function getStatusColor(status: number) {
@@ -230,16 +225,23 @@
 					<div class="space-y-1">
 						<Label class="text-sm">Api endpoint</Label>
 						<div class="flex items-center gap-2">
-							<Input type="text" value={`http://localhost:${Number(project?.id)+8000}/`} readonly class="flex-1" />
+							<Input
+								type="text"
+								value={`http://localhost:${Number(project?.id) + 8000}/`}
+								readonly
+								class="flex-1"
+							/>
 							<Button
 								size="icon"
 								variant="outline"
-								onclick={() => copyToClipboard(`http://localhost:${Number(project?.id)+8000}/`)}
+								onclick={() => copyToClipboard(`http://localhost:${Number(project?.id) + 8000}/`)}
 							>
 								<Copy class="h-4 w-4" />
 							</Button>
 						</div>
-						<small class="text-muted-foreground">The opened port is 8000+[project id], allowing multiple sandboxes to run concurrently</small>
+						<small class="text-muted-foreground">
+							The opened port is 8000+[project id], allowing multiple sandboxes to run concurrently
+						</small>
 					</div>
 					<div class="space-y-1">
 						<Label class="text-sm">Consumer Key</Label>
