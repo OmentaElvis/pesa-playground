@@ -1,7 +1,7 @@
 #![cfg(feature = "cli")]
 
 use clap::Parser;
-use pesa_core::{db, AppContext, AppEventManager};
+use pesa_core::{AppContext, AppEventManager, db};
 use pesa_lua::ScriptManager;
 use std::collections::HashMap;
 use std::path::PathBuf;

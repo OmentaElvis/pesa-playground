@@ -12,10 +12,12 @@
 		getPaybillAccountsByBusinessId,
 		getTillAccountsByBusinessId,
 		getProjectsByBusinessId,
+		getOperatorsByBusinessId,
 		type PaybillAccountDetails,
 		type TillAccountDetails,
 		type ProjectSummary,
 		type BusinessDetails,
+		type BusinessOperator,
 		revenueSettlements
 	} from '$lib/api';
 	import { goto } from '$app/navigation';
@@ -29,11 +31,13 @@
 		Save,
 		Settings,
 		Wallet,
-		WalletMinimal
+		WalletMinimal,
+		Users
 	} from 'lucide-svelte';
 	import PaybillAccounts from '$lib/components/businesses/PaybillAccounts.svelte';
 	import TillAccounts from '$lib/components/businesses/TillAccounts.svelte';
 	import Projects from '$lib/components/businesses/Projects.svelte';
+	import Operators from '$lib/components/businesses/Operators.svelte';
 	import { Label } from '$lib/components/ui/label';
 	import { Input } from '$lib/components/ui/input';
 	import { formatAmount } from '$lib/utils';
@@ -46,6 +50,7 @@
 	let paybillAccounts: PaybillAccountDetails[] = $state([]);
 	let tillAccounts: TillAccountDetails[] = $state([]);
 	let projects: ProjectSummary[] = $state([]);
+	let operators: BusinessOperator[] = $state([]);
 
 	let businessId: number | undefined = $state(undefined);
 	let updatingBusiness = $state(false);
@@ -63,6 +68,7 @@
 			paybillAccounts = await getPaybillAccountsByBusinessId(businessId);
 			tillAccounts = await getTillAccountsByBusinessId(businessId);
 			projects = await getProjectsByBusinessId(businessId);
+			operators = await getOperatorsByBusinessId(businessId);
 		}
 	}
 
@@ -143,6 +149,12 @@
 		}
 	}
 
+	async function onRefreshOperators() {
+	  if (businessId) {
+			operators = await getOperatorsByBusinessId(businessId);
+		}
+	}
+
 	onMount(() => {
 		const tab = page.url.searchParams.get('biz_tab');
 		if (tab && tab !== currentTab) {
@@ -217,6 +229,7 @@
 		<Tabs.Root bind:value={currentTab} class="">
 			<Tabs.List>
 				<Tabs.Trigger value="accounts"><WalletMinimal /> Accounts</Tabs.Trigger>
+				<Tabs.Trigger value="operators"><Users /> Operators</Tabs.Trigger>
 				<Tabs.Trigger value="projects"><ChevronsLeftRightEllipsis /> Projects</Tabs.Trigger>
 				<Tabs.Trigger value="transactions"><DollarSign /> Transactions</Tabs.Trigger>
 				<Tabs.Trigger value="settings"><Settings /> Settings</Tabs.Trigger>
@@ -251,6 +264,9 @@
 						cancel={clearActionParams}
 					/>
 				</div>
+			</Tabs.Content>
+			<Tabs.Content value="operators">
+				<Operators {operators} businessId={business.id} onrefresh={onRefreshOperators} />
 			</Tabs.Content>
 			<Tabs.Content value="projects">
 				<h3 class="mt-6 text-lg font-medium">Associated Projects</h3>

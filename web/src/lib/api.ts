@@ -128,6 +128,12 @@ export interface BusinessSummary {
 	short_code: string;
 }
 
+export interface BusinessOperator {
+	id: number;
+	username: string;
+	password: string;
+}
+
 export async function createBusiness(input: BusinessData): Promise<Business> {
 	return await invoke('create_business', { input });
 }
@@ -155,6 +161,32 @@ export async function updateBusiness(
 
 export async function deleteBusiness(id: number): Promise<void> {
 	return await invoke('delete_business', { id });
+}
+
+export async function createOperator(
+	business_id: number,
+	username: string,
+	password_raw: string
+): Promise<void> {
+	return await invoke('create_operator', {
+		input: {
+			business_id,
+			username,
+			password: password_raw
+		}
+	});
+}
+
+export async function getOperatorsByBusinessId(businessId: number): Promise<BusinessOperator[]> {
+	return await invoke('get_operators_by_business', {
+		businessId
+	});
+}
+
+export async function deleteOperator(operatorId: number): Promise<void> {
+	return await invoke('delete_operator', {
+		operatorId
+	});
 }
 
 export enum C2BResponseType {

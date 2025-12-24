@@ -3,9 +3,10 @@ use sea_orm::{ConnectionTrait, EntityName};
 use sea_query::{Alias, IntoIden};
 
 use crate::{
-    accounts, api_keys, api_logs, business, callbacks, db, projects, sandboxes,
+    AppContext, accounts, api_keys, api_logs, business, business_operators, callbacks, db,
+    projects, sandboxes,
     server::{self},
-    transaction_costs, transactions, transactions_log, AppContext,
+    transaction_costs, transactions, transactions_log,
 };
 
 pub async fn clear_all_data(context: &AppContext) -> anyhow::Result<()> {
@@ -34,6 +35,7 @@ pub async fn clear_all_data(context: &AppContext) -> anyhow::Result<()> {
         server::access_token::db::Entity.table_name().to_string(),
         projects::db::Entity.table_name().to_string(),
         callbacks::db::Entity.table_name().to_string(),
+        business_operators::db::Entity.table_name().to_string(),
         business::db::Entity.table_name().to_string(),
         api_logs::db::Entity.table_name().to_string(),
         api_keys::db::Entity.table_name().to_string(),

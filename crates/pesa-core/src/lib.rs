@@ -9,6 +9,7 @@ pub mod accounts;
 pub mod api_keys;
 pub mod api_logs;
 pub mod business;
+pub mod business_operators;
 pub mod callbacks;
 pub mod db;
 pub mod events;

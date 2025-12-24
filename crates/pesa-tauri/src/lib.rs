@@ -6,6 +6,7 @@ use pesa_core::{
     },
     api_logs::{UpdateApiLogRequest, ui::ApiLogFilter},
     business::{CreateBusiness, UpdateBusiness},
+    business_operators::ui::CreateOperatorPayload,
     callbacks::stk::UserResponse,
     projects::{CreateProject, UpdateProject},
     settings::models::AppSettings,
@@ -85,6 +86,10 @@ generate_tauri_wrappers! {
     get_businesses() => pesa_core::business::ui::get_businesses,
     update_business(id: u32, input: UpdateBusiness) => pesa_core::business::ui::update_business,
     delete_business(id: u32) => pesa_core::business::ui::delete_business,
+
+    create_operator(input: CreateOperatorPayload) => pesa_core::business_operators::ui::create_operator,
+    get_operators_by_business(business_id: u32) => pesa_core::business_operators::ui::get_operators_by_business,
+    delete_operator(operator_id: u32) => pesa_core::business_operators::ui::delete_operator,
 
     get_users() => pesa_core::accounts::user_profiles::ui::get_users,
     create_user(name: String, phone: String, balance: f64, pin: String) => pesa_core::accounts::user_profiles::ui::create_user,
@@ -306,6 +311,9 @@ pub fn run() {
             get_businesses,
             update_business,
             delete_business,
+            create_operator,
+            get_operators_by_business,
+            delete_operator,
             get_users,
             create_user,
             remove_user,

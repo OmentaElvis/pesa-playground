@@ -5,7 +5,7 @@ use sea_orm::{ConnectOptions, ConnectionTrait, DatabaseConnection, DbBackend, Sc
 use sqlx::{Connection, SqliteConnection, sqlite::SqliteConnectOptions};
 
 use crate::{
-    accounts, api_keys, api_logs, business, callbacks, projects,
+    accounts, api_keys, api_logs, business, business_operators, callbacks, projects,
     server::{self},
     transaction_costs, transactions, transactions_log,
 };
@@ -130,6 +130,15 @@ pub async fn run_migrations(db: &DatabaseConnection) -> anyhow::Result<()> {
     )
     .await
     .context("Failed to create business table")?;
+    db.execute(
+        db.get_database_backend().build(
+            schema
+                .create_table_from_entity(business_operators::db::Entity)
+                .if_not_exists(),
+        ),
+    )
+    .await
+    .context("Failed to create business_operators table")?;
     db.execute(
         db.get_database_backend().build(
             schema

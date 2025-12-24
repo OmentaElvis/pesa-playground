@@ -22,6 +22,8 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     TillAccounts,
+    #[sea_orm(has_many = "crate::business_operators::db::Entity")]
+    BusinessOperators,
 }
 
 impl Related<crate::accounts::paybill_accounts::db::Entity> for Entity {
@@ -33,6 +35,12 @@ impl Related<crate::accounts::paybill_accounts::db::Entity> for Entity {
 impl Related<crate::accounts::till_accounts::db::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::TillAccounts.def()
+    }
+}
+
+impl Related<crate::business_operators::db::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::BusinessOperators.def()
     }
 }
 
