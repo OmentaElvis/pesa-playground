@@ -1,7 +1,7 @@
 use crate::AppContext;
 use anyhow::Result;
 
-use super::{UserResponse, STK_RESPONSE_REGISTRY};
+use super::{STK_RESPONSE_REGISTRY, UserResponse};
 
 pub async fn resolve_stk_prompt(
     _: &AppContext,

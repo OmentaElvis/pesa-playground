@@ -2,8 +2,8 @@ use anyhow::{Context, Result};
 use chrono::Utc;
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, Set, TransactionTrait};
 
-use crate::accounts::paybill_accounts::PaybillAccountDetails;
 use crate::AppContext;
+use crate::accounts::paybill_accounts::PaybillAccountDetails;
 
 use super::db;
 use super::{CreatePaybillAccount, PaybillAccount, UpdatePaybillAccount};

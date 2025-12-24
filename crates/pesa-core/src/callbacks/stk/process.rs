@@ -5,8 +5,8 @@ use serde_json::json;
 use tokio::sync::oneshot;
 
 use crate::{
-    accounts::{user_profiles::ui::UserDetails, Account},
-    callbacks::{response::return_body, CallbackLog},
+    accounts::{Account, user_profiles::ui::UserDetails},
+    callbacks::{CallbackLog, response::return_body},
     events::DomainEventDispatcher,
     projects::Project,
     server::ApiState,
@@ -14,7 +14,7 @@ use crate::{
     transactions_log::get_account_name,
 };
 
-use super::{init::StkpushInit, StkCodes, UserResponse, STK_RESPONSE_REGISTRY};
+use super::{STK_RESPONSE_REGISTRY, StkCodes, UserResponse, init::StkpushInit};
 
 pub async fn callback_execute(
     state: &ApiState,

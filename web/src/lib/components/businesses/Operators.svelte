@@ -6,9 +6,9 @@
 	import { Input } from '../ui/input';
 	import { toast } from 'svelte-sonner';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import * as Field from "$lib/components/ui/field/index.js";
-	import * as InputGroup from "$lib/components/ui/input-group/index.js";
-  import * as Table from "$lib/components/ui/table/index.js";
+	import * as Field from '$lib/components/ui/field/index.js';
+	import * as InputGroup from '$lib/components/ui/input-group/index.js';
+	import * as Table from '$lib/components/ui/table/index.js';
 	import { copyToClipboard } from '$lib/utils';
 
 	let {
@@ -84,40 +84,47 @@
 	</Card.Header>
 	<Card.Content>
 		<Table.Root>
-		  <Table.Caption>A list of available operators</Table.Caption>
-		  <Table.Header>
-		    <Table.Row>
-		    	 <Table.Head class="w-[100px] font-bold">Username</Table.Head>
-			     <Table.Head class="font-bold">Password</Table.Head>
-			     <Table.Head></Table.Head>
-		    </Table.Row>
-		  </Table.Header>
-	    <Table.Body>
+			<Table.Caption>A list of available operators</Table.Caption>
+			<Table.Header>
+				<Table.Row>
+					<Table.Head class="w-[100px] font-bold">Username</Table.Head>
+					<Table.Head class="font-bold">Password</Table.Head>
+					<Table.Head></Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
 				{#each operators as operator}
-				  <Table.Row>
-				  	<Table.Cell class="font-medium">{operator.username}</Table.Cell>
-				  	<Table.Cell>
+					<Table.Row>
+						<Table.Cell class="font-medium">{operator.username}</Table.Cell>
+						<Table.Cell>
 							<InputGroup.Root>
-						    <InputGroup.Input value={operator.password} readonly/>
-						    <InputGroup.Addon align="inline-end" >
-						    	<Button variant="ghost" class="cursor-pointer" onclick={()=> copyToClipboard(operator.password)}>
-							      <CopyIcon />
-						    	</Button>
-						    </InputGroup.Addon>
-						  </InputGroup.Root>
-				  	</Table.Cell>
-				  	<Table.Cell>
-							<Button onclick={() => confirmDelete(operator)} class="cursor-pointer" variant="ghost" size="icon">
+								<InputGroup.Input value={operator.password} readonly />
+								<InputGroup.Addon align="inline-end">
+									<Button
+										variant="ghost"
+										class="cursor-pointer"
+										onclick={() => copyToClipboard(operator.password)}
+									>
+										<CopyIcon />
+									</Button>
+								</InputGroup.Addon>
+							</InputGroup.Root>
+						</Table.Cell>
+						<Table.Cell>
+							<Button
+								onclick={() => confirmDelete(operator)}
+								class="cursor-pointer"
+								variant="ghost"
+								size="icon"
+							>
 								<Trash2 class="text-destructive" />
 							</Button>
-				  	</Table.Cell>
-				  </Table.Row>
+						</Table.Cell>
+					</Table.Row>
 				{:else}
-			  	<Table.Cell colspan={3} class="text-center">
-						No operators found.
-			  	</Table.Cell>
+					<Table.Cell colspan={3} class="text-center">No operators found.</Table.Cell>
 				{/each}
-	    </Table.Body>
+			</Table.Body>
 		</Table.Root>
 	</Card.Content>
 </Card.Root>
@@ -147,41 +154,46 @@
 				</AlertDialog.Description>
 			</AlertDialog.Header>
 			<div>
-					<div class="grid gap-4">
-						<Field.Group>
-		          <Field.Field>
-								<Field.Label for="operator-username">Username</Field.Label>
-								<Input
-									id="operator-username"
-									bind:value={username}
-									required
-									onkeydown={(e) => {
-										if (e.key === 'Escape') {
-											handleCancel();
-										}
-									}}
-								/>
-		          </Field.Field>
-		          <Field.Field>
-								<Field.Label for="operator-password">Password</Field.Label>
-								<Input
-									id="operator-password"
-									type="password"
-									bind:value={password}
-									required
-									onkeydown={(e) => {
-										if (e.key === 'Escape') {
-											handleCancel();
-										}
-									}}
-								/>
-		          </Field.Field>
-						</Field.Group>
-					</div>
+				<div class="grid gap-4">
+					<Field.Group>
+						<Field.Field>
+							<Field.Label for="operator-username">Username</Field.Label>
+							<Input
+								id="operator-username"
+								bind:value={username}
+								required
+								onkeydown={(e) => {
+									if (e.key === 'Escape') {
+										handleCancel();
+									}
+								}}
+							/>
+						</Field.Field>
+						<Field.Field>
+							<Field.Label for="operator-password">Password</Field.Label>
+							<Input
+								id="operator-password"
+								type="password"
+								bind:value={password}
+								required
+								onkeydown={(e) => {
+									if (e.key === 'Escape') {
+										handleCancel();
+									}
+								}}
+							/>
+						</Field.Field>
+					</Field.Group>
+				</div>
 			</div>
 			<AlertDialog.Footer>
 				<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-				<AlertDialog.Action type="submit" disabled={ password == '' || username == ''} onclick={handleCreateOperator} class="flex items-center">
+				<AlertDialog.Action
+					type="submit"
+					disabled={password == '' || username == ''}
+					onclick={handleCreateOperator}
+					class="flex items-center"
+				>
 					{#if loading}
 						<LoaderCircle class="animate-spin" /> Creating
 					{:else}

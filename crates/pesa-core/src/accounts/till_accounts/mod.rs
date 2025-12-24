@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use sea_orm::{
-    prelude::DateTimeUtc, ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter,
+    ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter, prelude::DateTimeUtc,
 };
 use serde::{Deserialize, Serialize};
 

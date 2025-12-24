@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sea_orm::{entity::*, query::*, ActiveValue::Set};
+use sea_orm::{ActiveValue::Set, entity::*, query::*};
 
 use crate::{AppContext, business_operators};
 

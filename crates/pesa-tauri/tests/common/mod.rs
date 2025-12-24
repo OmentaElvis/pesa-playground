@@ -1,21 +1,21 @@
 use std::sync::Arc;
 
 use axum::{
+    Router,
     body::Body,
     http::{HeaderMap, Request},
     response::Response,
-    Router,
 };
 use chrono::Utc;
 use fake::{
-    faker::{company::en::CompanyName, name::en::Name, phone_number::en::PhoneNumber},
     Fake,
+    faker::{company::en::CompanyName, name::en::Name, phone_number::en::PhoneNumber},
 };
 use pesa_playground_lib::{
-    accounts, api_keys, business,
+    AppContext, TauriEventManager, accounts, api_keys, business,
     db::run_migrations,
     projects::{self, SimulationMode},
-    server, AppContext, TauriEventManager,
+    server,
 };
 use sea_orm::{ActiveModelTrait, Database, DatabaseConnection, Set};
 use tauri::test::mock_builder;
@@ -40,8 +40,7 @@ impl TestApp {
         let t = mock_builder().build(tauri::generate_context!()).unwrap();
 
         let temp_dir = std::env::temp_dir();
-        let settings_path =
-            temp_dir.join(format!("test-settings-{}.json", uuid::Uuid::new_v4()));
+        let settings_path = temp_dir.join(format!("test-settings-{}.json", uuid::Uuid::new_v4()));
         let settings_manager =
             pesa_playground_lib::settings::SettingsManager::new(settings_path).await?;
 

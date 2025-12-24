@@ -1,13 +1,13 @@
-use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::anyhow;
 use chrono::Utc;
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, Set, TransactionTrait};
 
-use crate::server::api::c2b::ResponseType;
 use crate::AppContext;
+use crate::server::api::c2b::ResponseType;
 
-use super::{db, CreateTillAccount, TillAccount, UpdateTillAccount};
+use super::{CreateTillAccount, TillAccount, UpdateTillAccount, db};
 
 pub async fn create_till_account(
     ctx: &AppContext,

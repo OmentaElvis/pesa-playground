@@ -1,4 +1,4 @@
-use pesa_playground_lib::transactions::ui::{c2b_lipa_logic, LipaArgs, LipaPaymentType};
+use pesa_playground_lib::transactions::ui::{LipaArgs, LipaPaymentType, c2b_lipa_logic};
 
 use crate::common::TestApp;
 

@@ -150,7 +150,7 @@
 	}
 
 	async function onRefreshOperators() {
-	  if (businessId) {
+		if (businessId) {
 			operators = await getOperatorsByBusinessId(businessId);
 		}
 	}

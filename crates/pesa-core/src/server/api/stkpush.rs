@@ -1,5 +1,5 @@
-use axum::{extract::State, http::HeaderMap, Json};
-use base64::{engine::general_purpose, Engine};
+use axum::{Json, extract::State, http::HeaderMap};
+use base64::{Engine, engine::general_purpose};
 use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 
@@ -12,7 +12,7 @@ use crate::{
     business::Business,
     callbacks::stk::init::StkpushInit,
     projects::Project,
-    server::{access_token::AccessToken, ApiError},
+    server::{ApiError, access_token::AccessToken},
 };
 
 #[derive(Deserialize)]
@@ -67,7 +67,7 @@ pub async fn stkpush(
                 return Err(ApiError::new(
                     MpesaError::InvalidAccessToken,
                     invalid_access_token,
-                ))
+                ));
             }
             Ok(auth) => auth,
         }
@@ -144,7 +144,7 @@ pub async fn stkpush(
                     return Err(ApiError::new(
                         MpesaError::InvalidShortcode,
                         "Invalid Till Number",
-                    ))
+                    ));
                 }
                 Err(err) => {
                     return Err(ApiError::new(MpesaError::InternalError, err.to_string()));
@@ -169,7 +169,7 @@ pub async fn stkpush(
                     return Err(ApiError::new(
                         MpesaError::InvalidShortcode,
                         "Invalid Paybill Number",
-                    ))
+                    ));
                 }
                 Err(err) => {
                     return Err(ApiError::new(MpesaError::InternalError, err.to_string()));
@@ -206,7 +206,7 @@ pub async fn stkpush(
                 return Err(ApiError::new(
                     crate::server::MpesaError::InternalError,
                     format!("Failed to read acount for business {}", business_id),
-                ))
+                ));
             }
             Err(err) => {
                 return Err(ApiError::new(

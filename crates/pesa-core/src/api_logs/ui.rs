@@ -1,13 +1,13 @@
 use super::db::ActiveModel;
-use super::{db::Entity as ApiLogs, UpdateApiLogRequest};
+use super::{UpdateApiLogRequest, db::Entity as ApiLogs};
 use anyhow::Context;
 use anyhow::Result;
 use sea_orm::ActiveValue::Set;
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
 use serde::Deserialize;
 
-use crate::api_logs::ApiLog;
 use crate::AppContext;
+use crate::api_logs::ApiLog;
 
 #[derive(Deserialize)]
 pub struct ApiLogFilter {
