@@ -1,6 +1,7 @@
 use crate::accounts::mmf_accounts::MmfAccount;
 use crate::accounts::utility_accounts::UtilityAccount;
 use crate::accounts::{mmf_accounts, utility_accounts};
+use crate::business_operators::BusinessOperator;
 use crate::transactions::Ledger;
 use anyhow::{Context, Result, anyhow};
 use sea_orm::ActiveValue::Set;
@@ -8,7 +9,7 @@ use sea_orm::{
     ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, TransactionTrait,
 };
 
-use crate::{AppContext, business_operators};
+use crate::AppContext;
 
 use super::db;
 use crate::business::{Business, BusinessSummary, CreateBusiness, UpdateBusiness};
@@ -57,13 +58,13 @@ pub async fn create_business(ctx: &AppContext, input: CreateBusiness) -> Result<
     .await?;
 
     // 4. Create the default 'admin' operator for this new business
-    let new_operator = business_operators::db::ActiveModel {
-        username: Set("admin".to_owned()),
-        password: Set("admin".to_owned()), // Default, plain text
-        business_id: Set(created_business.id),
-        ..Default::default()
-    };
-    new_operator.insert(&txn).await?;
+    BusinessOperator::create(
+        &txn,
+        "admin".to_string(),
+        "admin".to_string(),
+        created_business.id,
+    )
+    .await?;
 
     txn.commit().await?;
 
