@@ -49,7 +49,7 @@ You run the app, point your backend to the local endpoints, and test complete pa
 - **Complete Wallet Simulation**
   Create and manage users with phone numbers, balances, and transaction histories.
   <p align="center">
-    ![users account with stkmenu](web/static/docs/user_account_with_stk.png)
+    <img src="web/static/docs/user_account_with_stk.png" alt="users account with stkmenu" />
   </p>
 
 - **Transfer and Payment Flows**
@@ -64,7 +64,7 @@ You run the app, point your backend to the local endpoints, and test complete pa
   Additionally, you can see visual feedback for your STK push requests, providing transparency and eliminating the "black box" effect of identical automated replies.
   This is particularly useful for visually demonstrating the payment system of your app.
   <p align="center">
-    ![users stk push](web/static/docs/stk-push-dialog.png)
+    <img src="web/static/docs/stk-push-dialog.png" alt="users stk push" />
   </p>
 
 
