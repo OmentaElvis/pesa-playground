@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/OmentaElvis/pesa-playground/compare/v1.1.0...v1.1.1) (2025-12-25)
+
+
+### Bug Fixes
+
+* **ci:** tauri.conf.json fix NEW_VERSION command not found ([0064860](https://github.com/OmentaElvis/pesa-playground/commit/0064860a6d5cf1060d33b84f659218b0e98d8c38))
+
 # [1.1.0](https://github.com/OmentaElvis/pesa-playground/compare/v1.0.0...v1.1.0) (2025-12-25)
 
 
