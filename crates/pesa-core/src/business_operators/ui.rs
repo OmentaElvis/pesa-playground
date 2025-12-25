@@ -1,7 +1,6 @@
 use anyhow::Result;
-use sea_orm::{ActiveValue::Set, entity::*, query::*};
 
-use crate::{AppContext, business_operators};
+use crate::{AppContext, business_operators::BusinessOperator};
 
 // Input payload for creating an operator
 #[derive(Debug, serde::Deserialize)]
@@ -15,14 +14,14 @@ pub struct CreateOperatorPayload {
 pub async fn create_operator(
     context: &AppContext,
     payload: CreateOperatorPayload,
-) -> anyhow::Result<business_operators::db::Model> {
-    let new_operator = business_operators::db::ActiveModel {
-        username: Set(payload.username),
-        password: Set(payload.password),
-        business_id: Set(payload.business_id),
-        ..Default::default()
-    };
-    let operator = new_operator.insert(&context.db).await?;
+) -> anyhow::Result<BusinessOperator> {
+    let operator = BusinessOperator::create(
+        &context.db,
+        payload.username,
+        payload.password,
+        payload.business_id,
+    )
+    .await?;
     Ok(operator)
 }
 
@@ -30,18 +29,20 @@ pub async fn create_operator(
 pub async fn get_operators_by_business(
     context: &AppContext,
     business_id: u32,
-) -> Result<Vec<business_operators::db::Model>> {
-    let operators = business_operators::db::Entity::find()
-        .filter(business_operators::db::Column::BusinessId.eq(business_id))
-        .all(&context.db)
-        .await?;
+) -> Result<Vec<BusinessOperator>> {
+    let operators = BusinessOperator::get_business_operators(&context.db, business_id).await?;
     Ok(operators)
+}
+
+pub async fn get_operator(
+    context: &AppContext,
+    operator_id: u32,
+) -> Result<Option<BusinessOperator>> {
+    let operator = BusinessOperator::get_operator(&context.db, operator_id).await?;
+    Ok(operator)
 }
 
 // Function to delete an operator by id
 pub async fn delete_operator(context: &AppContext, operator_id: u32) -> Result<bool> {
-    let result = business_operators::db::Entity::delete_by_id(operator_id)
-        .exec(&context.db)
-        .await?;
-    Ok(result.rows_affected > 0)
+    BusinessOperator::delete_operator(&context.db, operator_id).await
 }
