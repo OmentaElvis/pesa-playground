@@ -5,15 +5,12 @@
 	import { onDestroy } from 'svelte';
 	import * as Kbd from '$lib/components/ui/kbd';
 	import { toast } from 'svelte-sonner';
+	import { spin } from '$lib/transitions/spin';
 
 	export let id: number;
 	let status: SandboxStatus = 'off';
 	let port: number | null = null;
 	let error: string | null = null;
-
-	function setStatus(s: SandboxStatus) {
-		status = s;
-	}
 
 	async function toggle() {
 		if (status === 'starting') {
@@ -37,7 +34,6 @@
 
 	const unsub = sandboxes.subscribe((map) => {
 		const info = map.get(id);
-		console.log(info)
 		if (!info) {
 			status = 'off';
 			error = null;
@@ -69,7 +65,7 @@
 			{#if status === 'starting'}
 				<Loader2 class="h-4 w-4 animate-spin text-yellow-600" />
 			{:else if status === 'on'}
-				<Cog class="h-4 w-4 animate-spin text-gray-700" />
+				<div in:spin={{ degrees: 360, duration: 700 }}><Cog class="h-4 w-4 text-gray-700" /></div>
 			{:else if status === 'error'}
 				<CircleX class="w-4 text-red-500" />
 			{:else}
