@@ -6,14 +6,14 @@
 	import { toast } from 'svelte-sonner';
 	import { clearAllData, LogLevel, Theme } from '$lib/api';
 	import KeymapRow from '$lib/components/keymap/KeymapRow.svelte';
-	import { getKeymapManager, getAllKeymapActions } from '$lib/keymap';
+	import { getKeymapManager, getAllKeymapActionsStore } from '$lib/keymap';
 	import { Button } from '$lib/components/ui/button';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
 	import { settings } from '$lib/stores/settings';
 
 	const keymapManager = getKeymapManager();
-	const allKeymapActions = getAllKeymapActions();
+	const allKeymapActions = getAllKeymapActionsStore();
 
 	let logLevels: LogLevel[] = [LogLevel.Debug, LogLevel.Info, LogLevel.Warn, LogLevel.Error];
 	let themes: Theme[] = [Theme.Light, Theme.Dark];
@@ -55,7 +55,7 @@
 					</Card.Description>
 				</Card.Header>
 				<Card.Content class="grid max-w-2xl gap-4">
-					{#each Array.from(allKeymapActions.values()) as action (action.id)}
+					{#each Array.from($allKeymapActions.values()) as action (action.id)}
 						<KeymapRow {action} />
 					{/each}
 					<div class="mt-4">

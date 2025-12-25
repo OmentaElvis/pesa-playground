@@ -4,6 +4,8 @@
 	import { Users, Settings, LayoutDashboard, Info, KeyIcon } from 'lucide-svelte';
 	import { sandboxes } from '$lib/stores/sandboxStatus';
 	import Separator from './ui/separator/separator.svelte';
+	import { scale } from 'svelte/transition';
+	import { elasticOut } from 'svelte/easing';
 
 	let sidebar = Sidebar.useSidebar();
 	sidebar.setOpen(false);
@@ -64,24 +66,27 @@
 						</Sidebar.MenuButton>
 					</Sidebar.MenuItem>
 					<Separator class="mt-8" />
-					{#each $sandboxes as [_, info]}
-						<Sidebar.MenuItem>
-							<Sidebar.MenuButton>
-								{#snippet child({ props })}
-									<a {...props} href="/projects/{info.project_id}">
-										<div
-											class="size-[16px] min-w-[16px] animate-pulse rounded-full"
-											class:bg-green-700={info.status == 'on'}
-											class:bg-red-500={info.status == 'off'}
-										></div>
-										<span>
-											{info.name}
-											<b>{info.port}</b>
-										</span>
-									</a>
-								{/snippet}
-							</Sidebar.MenuButton>
-						</Sidebar.MenuItem>
+					{#each $sandboxes as [_, info] (info.project_id)}
+						<div in:scale={{ start: 0, duration: 600, easing: elasticOut }}>
+							<Sidebar.MenuItem>
+								<Sidebar.MenuButton>
+									{#snippet child({ props })}
+										<a {...props} href="/projects/{info.project_id}">
+											<div
+												class="size-[16px] min-w-[16px] rounded-full"
+												class:bg-green-700={info.status == 'on'}
+												class:bg-orange-500={info.status == 'off'}
+												class:bg-red-500={info.status == 'error'}
+											></div>
+											<span>
+												{info.name}
+												<b>{info.port}</b>
+											</span>
+										</a>
+									{/snippet}
+								</Sidebar.MenuButton>
+							</Sidebar.MenuItem>
+						</div>
 					{/each}
 				</Sidebar.Menu>
 			</Sidebar.GroupContent>

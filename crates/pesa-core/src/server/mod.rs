@@ -245,22 +245,9 @@ pub async fn start_project_server(
 
     let router = create_router(context.clone(), project_id, true);
 
-    if let Err(err) = axum::serve(listener, router)
+    axum::serve(listener, router)
         .with_graceful_shutdown(shutdown_signal(shutdown_rx))
-        .await
-    {
-        context.event_manager.emit_all(
-            "sandbox_status",
-            json!({
-                "project_id": project_id,
-                "port": port,
-                "status": "error",
-                "error": err.to_string()
-            }),
-        )?;
-
-        anyhow::bail!(err);
-    }
+        .await?;
 
     Ok(())
 }

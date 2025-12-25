@@ -1,5 +1,6 @@
 import { getProject, listRunningSandboxes, listen } from '$lib/api';
 import { writable } from 'svelte/store';
+import { toast } from 'svelte-sonner';
 
 export type SandboxStatus = 'off' | 'starting' | 'on' | 'error';
 
@@ -34,19 +35,33 @@ export async function getSandboxes() {
 
 export const sandboxes = writable<Map<number, SandboxInfo>>(new Map());
 
-export const unlisten = listen(
-	'sandbox_status',
-	async ({ payload }: { payload: SandboxStatusPayload }) => {
+let initialized = false;
+
+export function initSandboxStatus() {
+	if (initialized) {
+		return;
+	}
+
+	listen('sandbox_status', async ({ payload }: { payload: SandboxStatusPayload }) => {
 		let project = await getProject(payload.project_id);
 		let info: SandboxInfo = {
 			name: project.name,
 			port: payload.port,
 			project_id: payload.project_id,
-			status: payload.status
+			status: payload.status,
+			error: payload.error
 		};
 
+		if (payload.status === 'on') {
+			toast.success(`Sandbox for "${info.name}" started on port ${payload.port}.`);
+		} else if (payload.status === 'error') {
+			toast.error(`Sandbox for "${info.name}" failed: ${payload.error}`);
+		} else if (payload.status === 'off') {
+			toast.info(`Sandbox for "${info.name}" stopped.`);
+		}
+
 		sandboxes.update((m) => {
-			if (info.status == 'off') {
+			if (payload.status === 'off') {
 				m.delete(info.project_id);
 			} else {
 				m.set(info.project_id, info);
@@ -54,7 +69,8 @@ export const unlisten = listen(
 
 			return m;
 		});
-	}
-);
+	});
 
-getSandboxes();
+	getSandboxes();
+	initialized = true;
+}

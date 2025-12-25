@@ -862,6 +862,7 @@ export interface AppSettings {
 	theme: Theme;
 	server_log_level: LogLevel;
 	encryption_keys?: EncryptionKeys;
+	custom_keymaps?: Record<string, string> | null;
 }
 
 export async function getSettings(): Promise<AppSettings> {
