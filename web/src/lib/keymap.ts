@@ -23,7 +23,7 @@ export interface KeymapAction {
  * A Svelte store that holds all globally registered keymap actions,
  * keyed by their ID. This map stores the original definition of actions.
  */
-const allKeymapActions: Map<string, KeymapAction> = new Map();
+const allKeymapActions: Writable<Map<string, KeymapAction>> = writable(new Map());
 
 /**
  * A Svelte store that holds the currently active keyboard shortcuts,
@@ -153,6 +153,7 @@ export class KeymapManager {
 	initialize(defaults: Omit<KeymapAction, 'shortcut'>[]) {
 		const customKeymaps = this.loadCustomKeymaps();
 		const resolvedKeymaps: KeymapAction[] = [];
+		const newAllKeymapActions = new Map<string, KeymapAction>();
 
 		for (const def of defaults) {
 			const customShortcut = customKeymaps[def.id];
@@ -160,9 +161,11 @@ export class KeymapManager {
 				...def,
 				shortcut: customShortcut || def.defaultShortcut
 			};
-			allKeymapActions.set(action.id, action);
+			newAllKeymapActions.set(action.id, action);
 			resolvedKeymaps.push(action);
 		}
+
+		allKeymapActions.set(newAllKeymapActions);
 		this.updateActiveKeymaps(resolvedKeymaps);
 	}
 
@@ -211,7 +214,7 @@ export class KeymapManager {
 	 * @param newShortcut - The new shortcut string.
 	 */
 	updateKeybinding(actionId: string, newShortcut: string) {
-		const action = allKeymapActions.get(actionId);
+		const action = get(allKeymapActions).get(actionId);
 		if (!action) {
 			console.warn(`Action with ID "${actionId}" not found.`);
 			return;
@@ -238,14 +241,14 @@ export class KeymapManager {
 		});
 
 		action.shortcut = newShortcut;
-		allKeymapActions.set(actionId, action); // Update allKeymapActions with the new shortcut
+		allKeymapActions.update((map) => map.set(actionId, action)); // Update allKeymapActions with the new shortcut
 
 		const customKeymaps = this.loadCustomKeymaps();
 		customKeymaps[actionId] = newShortcut;
 		this.saveCustomKeymaps(customKeymaps);
 
 		// Rebuild activeKeymaps with the updated action
-		this.updateActiveKeymaps(Array.from(allKeymapActions.values()));
+		this.updateActiveKeymaps(Array.from(get(allKeymapActions).values()));
 		return true;
 	}
 
@@ -254,7 +257,7 @@ export class KeymapManager {
 	 * @param actionId - The ID of the action to reset.
 	 */
 	resetKeybinding(actionId: string) {
-		const action = allKeymapActions.get(actionId);
+		const action = get(allKeymapActions).get(actionId);
 		if (!action) {
 			console.warn(`Action with ID "${actionId}" not found.`);
 			return;
@@ -275,14 +278,14 @@ export class KeymapManager {
 		});
 
 		action.shortcut = action.defaultShortcut;
-		allKeymapActions.set(actionId, action); // Update allKeymapActions with the default shortcut
+		allKeymapActions.update((map) => map.set(actionId, action)); // Update allKeymapActions with the default shortcut
 
 		const customKeymaps = this.loadCustomKeymaps();
 		delete customKeymaps[actionId];
 		this.saveCustomKeymaps(customKeymaps);
 
 		// Rebuild activeKeymaps with the updated action
-		this.updateActiveKeymaps(Array.from(allKeymapActions.values()));
+		this.updateActiveKeymaps(Array.from(get(allKeymapActions).values()));
 	}
 
 	/**
@@ -291,14 +294,19 @@ export class KeymapManager {
 	resetAllKeybindings() {
 		localStorage.removeItem(LOCAL_STORAGE_KEY_PREFIX);
 		const resolvedKeymaps: KeymapAction[] = [];
-		for (const def of allKeymapActions.values()) {
-			const action: KeymapAction = {
-				...def,
-				shortcut: def.defaultShortcut
-			};
-			allKeymapActions.set(action.id, action);
-			resolvedKeymaps.push(action);
-		}
+
+		allKeymapActions.update((map) => {
+			for (const def of map.values()) {
+				const action: KeymapAction = {
+					...def,
+					shortcut: def.defaultShortcut
+				};
+				map.set(action.id, action);
+				resolvedKeymaps.push(action);
+			}
+			return map;
+		});
+
 		this.updateActiveKeymaps(resolvedKeymaps);
 	}
 
@@ -358,6 +366,6 @@ export function getKeymapManager(): KeymapManager {
  * Retrieves all registered (default and customized) keymap actions.
  * @returns A Map of all keymap actions, keyed by their ID.
  */
-export function getAllKeymapActions(): Map<string, KeymapAction> {
+export function getAllKeymapActionsStore(): Writable<Map<string, KeymapAction>> {
 	return allKeymapActions;
 }
