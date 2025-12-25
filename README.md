@@ -40,23 +40,56 @@ You run the app, point your backend to the local endpoints, and test complete pa
 
 
 ## ✨ Features
+- **FOSS (Free and Open-Source Software)**
+  Our sandbox is open-source, allowing you to inspect and modify the core code,
+  understand how your requests are processed, and contribute to the project.
+  This transparency makes it easier to spot bugs and collaborate with the community.
+  It is also fully modular. The core is a standalone library, you can add any frontend to it. 
 
 - **Complete Wallet Simulation**
   Create and manage users with phone numbers, balances, and transaction histories.
+  <p align="center">
+    ![users account with stkmenu](web/static/docs/user_account_with_stk.png)
+  </p>
 
 - **Transfer and Payment Flows**
   Send money between users, tills, and paybills using familiar API patterns and inbuilt Sim Toolkit.
+  Pesa playground uses a unified transaction ledger that allows emulation of MPesa transaction engine. So everything is designed to be interactible.
+  Users can send money between each other, user to business and business to business. The system sees everything as an account that money can be transferred between.
 
 - **Interactive STK Push**
-  A visual prompt in the UI lets you decide how the simulated device responds.
-  Respond with correct PIN, Timeout, Offline or Cancelled prompt. So that you dont have to test these edge cases in prod.
+  A visual prompt allows you to control how the simulated device responds.
+  You can choose from various responses, including correct PIN, timeout, offline, or cancelled prompts.
+  This feature enables you to test edge cases in a simulated environment, rather than in production.
+  Additionally, you can see visual feedback for your STK push requests, providing transparency and eliminating the "black box" effect of identical automated replies.
+  This is particularly useful for visually demonstrating the payment system of your app.
+  <p align="center">
+    ![users stk push](web/static/docs/stk-push-dialog.png)
+  </p>
+
 
 - **Offline-First**
   Runs entirely locally - no external services, account logins or network tunnels.
 
 - **Clear Logging**
   Every request and transaction is logged for easy debugging and traceability.
-  We provide explanations for why your API request failed.
+  We provide detailed explanations for API request failures. Our API pipeline utilizes
+  the Rust Serde library to automatically validate your requests, providing specific and
+  informative error messages instead of generic errors when your request body fails parsing.
+  ![api logs](web/static/docs/api_logs.png)
+
+- **Inbuilt docs**
+  Everything in one place. We provide built-in documentation for various implemented API endpoints.
+  Our goal is to create a comprehensive, community-sourced documentation hub that captures everything we've learned so far.
+  ![inbuilt docs](web/static/docs/inbuilt_docs.png)
+
+- **Chameleon**
+  Did you know their eyes are independently mobile, providing a 180-degree field of vision 
+  to monitor multiple directions at once? This unique stereoscopic perspective is 
+  essential for their primary daily task: catching bugs for breakfast. While most 
+  species rely on blending into their environment, the chameleon changes color to 
+  reflect its internal state, making it much easier to spot what is happening 
+  under the surface before things move to the wild.
 
 ## 🚀 Installation
 
@@ -84,19 +117,19 @@ To build Pesa Playground from source, you'll need a <a href="https://rustup.rs/"
 
 ### 🐋 Using Docker
 
-A prebuilt Docker image is available on GitHub Container Registry.
+A prebuilt Docker image is available on [GitHub Container Registry](https://github.com/OmentaElvis/pesa-playground/pkgs/container/pesa-playground).
+Good for containerized workflow.
 
 1.  **Pull the Docker image:**
 
     ```bash
-    docker pull ghcr.io/omentaelvis/pesa-playground:<version>
+    docker pull ghcr.io/omentaelvis/pesa-playground:latest
     ```
-    Replace `<version>` with the desired version tag (e.g., `v0.0.1`).
 
 2.  **Run the Docker container:**
 
     ```bash
-    docker run --init -it --rm -p 3001:3000 -p 8001:8001 ghcr.io/omentaelvis/pesa-playground:v0.0.1
+    docker run --init -it --rm -p 3001:3000 -p 8001:8001 ghcr.io/omentaelvis/pesa-playground:latest
     ```
     Note: Ports `800*` are dependent on the project ID. For example, project 1 will open port `8001`.
 
@@ -115,6 +148,10 @@ Available formats include:
 ## 📝 Feature To-Do List
 
 Core M-Pesa API coverage roadmap for **Pesa Playground**.
+> [!NOTE]
+> Daraja 3.0 was released in November 2025, at which point most of the APIs had not yet been implemented.
+> As far as I know, there is no easy way to access the old documentation, so it's safe to assume that this sandbox will implement Daraja 3.0.
+> We will attempt to add backwards compatibility with previous versions later.
 
 - ✅ **Authentication** - OAuth token generation and validation
 - ✅ **STK Push (C2B Payment Simulation)** - full request/response flow with interactive prompt
@@ -125,11 +162,15 @@ Core M-Pesa API coverage roadmap for **Pesa Playground**.
 - ✅ C2B Validation and Confirmation callbacks
 
 #### Business to Customer (B2C)
+This is a unified api that is used by Business To Pochi and Business To Customer (B2C)
+
 - [ ] B2C Payment Request - simulate disbursements to mobile numbers
 - [ ] Transaction Status query
 - [ ] Balance query
 
 #### Business to Business (B2B)
+This is a unified api that is used by Tax remitance, Business Paybill, Business Buy Goods and B2C Account Top Up
+
 - [ ] B2B Payment Request - simulate transfers between business accounts
 - [ ] B2B Transaction Status query
 - [ ] Balance query
@@ -140,13 +181,14 @@ Core M-Pesa API coverage roadmap for **Pesa Playground**.
 - [ ] Balance Inquiry - return current wallet or till balance
 
 #### Utility & Simulation
-- [ ] Configurable failure modes (timeout, insufficient funds, declined)
-- [ ] Adjustable latency simulation
+- ✅ Configurable failure modes (timeout, insufficient funds, declined)
+- ✅ Adjustable latency simulation
 - [ ] Sandbox-to-production parity testing mode
+- [ ] Scripting (lua) - ongoing
 
 #### User Interface
-- [ ] Interactive transaction viewer
-- [ ] Wallet editor (balances, user creation, history)
+- ✅ Interactive transaction viewer
+- ✅ Wallet editor (balances, user creation, history)
 - ✅ STK push prompt (approve/decline/time-out)
 
 ## 🙏 Contributing
