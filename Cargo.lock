@@ -3582,7 +3582,7 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
 name = "pesa-axum"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "anyhow",
  "axum 0.7.9",
@@ -3603,7 +3603,7 @@ dependencies = [
 
 [[package]]
 name = "pesa-core"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "anyhow",
  "axum 0.8.6",
@@ -3631,7 +3631,7 @@ dependencies = [
 
 [[package]]
 name = "pesa-lua"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -3649,7 +3649,7 @@ dependencies = [
 
 [[package]]
 name = "pesa-macros"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3658,7 +3658,7 @@ dependencies = [
 
 [[package]]
 name = "pesa-tauri"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "anyhow",
  "axum 0.8.6",

@@ -1,3 +1,23 @@
+# [1.2.0](https://github.com/OmentaElvis/pesa-playground/compare/v1.1.1...v1.2.0) (2025-12-25)
+
+
+### Bug Fixes
+
+* **ci:** ensure Tauri builds use correct release version ([931ab24](https://github.com/OmentaElvis/pesa-playground/commit/931ab24e96705f553b878187c8d1c738047265ab))
+* **web:** fix race condition in displaying keymaps on settings page ([fce8b29](https://github.com/OmentaElvis/pesa-playground/commit/fce8b29be8d9a331c424aab3531cb75fbce62380))
+* **web:** resolve sandbox status initialization race condition ([f5ca628](https://github.com/OmentaElvis/pesa-playground/commit/f5ca62807d3e3e783b58aabdadea7f53c4758c5e))
+* **web:** synchronize sandbox UI state with the central store ([e8946a9](https://github.com/OmentaElvis/pesa-playground/commit/e8946a911a6351a585e7e507b2e6ccde4653ee54))
+
+
+### Features
+
+* persist custom keymaps to backend settings ([d100d6f](https://github.com/OmentaElvis/pesa-playground/commit/d100d6ff19c9e77d10f65caef3ec27f170edc27b))
+
+
+### Performance Improvements
+
+* use single use animations and avoid continious resource heavy animations ([f61c836](https://github.com/OmentaElvis/pesa-playground/commit/f61c8365ab10b32a10a6c61355c02330c212bad5))
+
 ## [1.1.1](https://github.com/OmentaElvis/pesa-playground/compare/v1.1.0...v1.1.1) (2025-12-25)
 
 
