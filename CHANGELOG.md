@@ -1,3 +1,29 @@
+# [1.1.0](https://github.com/OmentaElvis/pesa-playground/compare/v1.0.0...v1.1.0) (2025-12-25)
+
+
+### Bug Fixes
+
+* **c2b:** fixed c2b process logic to check for empty strings instead of just null ([ca90bd2](https://github.com/OmentaElvis/pesa-playground/commit/ca90bd2353467a4650e98ea30f1183bd89fd7099))
+* **ui:** fix chat bubble max width ([6ae8c88](https://github.com/OmentaElvis/pesa-playground/commit/6ae8c887951cfacdc0ab63f9e4aadd5095fe10c2))
+* **ui:** lock user list to 260px ([8270e97](https://github.com/OmentaElvis/pesa-playground/commit/8270e97e51ccc3ac0a8464b68defc9dc2221c658))
+* **ui:** remove user avatar border ([abb0a57](https://github.com/OmentaElvis/pesa-playground/commit/abb0a570b3383c325acc84ac18d3ca175fc964ee))
+
+
+### Features
+
+* added api endpoint for copying in project page ([797aee0](https://github.com/OmentaElvis/pesa-playground/commit/797aee04cf13a9da44c009aa324e0f304673d2d8))
+* added business operators ([2cc9817](https://github.com/OmentaElvis/pesa-playground/commit/2cc9817291f3376181188400fb37de317d2878be))
+* added generate b2c security credential page ([7b461cd](https://github.com/OmentaElvis/pesa-playground/commit/7b461cd0ee20d4b9a88ed052696899285dfea94b))
+* added persistent backend settings ([f2b64b1](https://github.com/OmentaElvis/pesa-playground/commit/f2b64b138337d3e28d143f387e8e9786ec383f47))
+* **ui:** added toggle for message and table view in user transactions ([7ff4da8](https://github.com/OmentaElvis/pesa-playground/commit/7ff4da8f6881c269476becec6aec6f170cb1fa18))
+* **ui:** connect lipa na mpesa to stk menu ([dba2dc7](https://github.com/OmentaElvis/pesa-playground/commit/dba2dc7411b1e5c783b8e7e2f71d7707611e169e))
+* **ui:** users ui tweaks ([ef25b6a](https://github.com/OmentaElvis/pesa-playground/commit/ef25b6a4741ff6eb12d2bdce387e9ef2786e743b))
+
+
+### Performance Improvements
+
+* use async events to communicate sandbox status instead of active poll ([d74542d](https://github.com/OmentaElvis/pesa-playground/commit/d74542dc8134599778ad68bb2de1b5a83beafcc9))
+
 # 1.0.0 (2025-12-22)
 
 
