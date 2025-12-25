@@ -3,12 +3,7 @@ import type { KeymapAction } from '$lib/keymap';
 import { sandboxes } from '$lib/stores/sandboxStatus';
 import { get } from 'svelte/store';
 
-import {
-	getProjects,
-	startSandbox,
-	type ProjectSummary,
-	stopSandbox
-} from '$lib/api';
+import { getProjects, startSandbox, type ProjectSummary, stopSandbox } from '$lib/api';
 import { toast } from 'svelte-sonner';
 
 export function back() {

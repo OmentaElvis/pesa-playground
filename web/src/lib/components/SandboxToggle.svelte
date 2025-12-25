@@ -17,7 +17,6 @@
 			return;
 		}
 
-
 		try {
 			if (status === 'on') {
 				await stopSandbox(id);
@@ -26,7 +25,6 @@
 			} else if (status === 'error') {
 				await startSandbox(id);
 			}
-			
 		} catch (e: any) {
 			toast.error(`API Error: ${e.message ?? String(e)}`);
 		}

@@ -67,9 +67,7 @@
 					</Sidebar.MenuItem>
 					<Separator class="mt-8" />
 					{#each $sandboxes as [_, info] (info.project_id)}
-						<div
-							in:scale={{ start: 0, duration: 600, easing: elasticOut }}
-						>
+						<div in:scale={{ start: 0, duration: 600, easing: elasticOut }}>
 							<Sidebar.MenuItem>
 								<Sidebar.MenuButton>
 									{#snippet child({ props })}
