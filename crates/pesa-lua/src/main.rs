@@ -1,7 +1,7 @@
 #![cfg(feature = "cli")]
 
 use clap::Parser;
-use pesa_core::{db, AppContext, AppEventManager};
+use pesa_core::{AppContext, AppEventManager, db};
 use pesa_lua::ScriptManager;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -54,13 +54,17 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let db_path = data_dir.join("database.sqlite");
+    let settings_path = data_dir.join("settings.json");
 
     info!("Setting up database at {:?}...", db_path);
     let db = Arc::new(db::Database::new(&db_path).await?);
     db.init().await?;
 
+    let settings_manager = pesa_core::settings::SettingsManager::new(settings_path).await?;
+
     let app_context = AppContext {
         db: db.conn.clone(),
+        settings: settings_manager,
         event_manager: Arc::new(CliEventManager),
         running: Arc::new(Mutex::new(HashMap::new())),
     };

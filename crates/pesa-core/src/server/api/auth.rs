@@ -1,13 +1,13 @@
 use crate::api_keys::db as api_keys_db;
 use crate::server::access_token::db as access_token_db;
 use axum::{
+    Json,
     extract::{Query, State},
     http::HeaderMap,
-    Json,
 };
-use base64::{engine::general_purpose, Engine};
+use base64::{Engine, engine::general_purpose};
 use chrono::{Duration, Utc};
-use rand::{distr::Alphanumeric, Rng};
+use rand::{Rng, distributions::Alphanumeric};
 use sea_orm::ActiveModelTrait;
 use sea_orm::ColumnTrait;
 use sea_orm::QueryFilter;
@@ -36,7 +36,7 @@ pub struct AuthResponse {
 }
 
 fn generate_access_token() -> String {
-    rand::rng()
+    rand::thread_rng()
         .sample_iter(&Alphanumeric)
         .take(32)
         .map(char::from)
@@ -57,14 +57,14 @@ pub async fn oauth(
             return Err(ApiError::new(
                 crate::server::MpesaError::InvalidGrantType,
                 invalid_grant_type.to_string(),
-            ))
+            ));
         }
         Some(GrantType::ClientCredentials) => {}
         None => {
             return Err(ApiError::new(
                 crate::server::MpesaError::InvalidGrantType,
                 missing_grant_type.to_string(),
-            ))
+            ));
         }
     }
 
@@ -74,7 +74,7 @@ pub async fn oauth(
                 return Err(ApiError::new(
                     crate::server::MpesaError::InvalidAuthenticationPassed,
                     auth_error.to_string(),
-                ))
+                ));
             }
             Ok(auth) => auth,
         }

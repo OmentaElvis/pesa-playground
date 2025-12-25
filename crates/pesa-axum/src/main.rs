@@ -25,8 +25,10 @@ use pesa_core::{
     },
     api_logs::{UpdateApiLogRequest, ui::ApiLogFilter},
     business::{CreateBusiness, UpdateBusiness},
+    business_operators::ui::CreateOperatorPayload,
     callbacks::stk::UserResponse,
     projects::{CreateProject, UpdateProject},
+    settings::models::AppSettings,
     transaction_costs::ui::TransactionCostData,
     transactions::{
         TransactionNote, TransactionType,
@@ -127,6 +129,10 @@ generate_axum_rpc_handler! {
     update_business(id: u32, input: UpdateBusiness) => pesa_core::business::ui::update_business,
     delete_business(id: u32) => pesa_core::business::ui::delete_business,
 
+    create_operator(input: CreateOperatorPayload) => pesa_core::business_operators::ui::create_operator,
+    get_operators_by_business(business_id: u32) => pesa_core::business_operators::ui::get_operators_by_business,
+    delete_operator(operator_id: u32) => pesa_core::business_operators::ui::delete_operator,
+
     get_users() => pesa_core::accounts::user_profiles::ui::get_users,
     create_user(name: String, phone: String, balance: f64, pin: String) => pesa_core::accounts::user_profiles::ui::create_user,
     remove_user(user_id: u32) => pesa_core::accounts::user_profiles::ui::remove_user,
@@ -188,6 +194,11 @@ generate_axum_rpc_handler! {
     resolve_stk_prompt(checkout_id: String, result: UserResponse) => pesa_core::callbacks::stk::ui::resolve_stk_prompt,
     #[no_context]
     get_app_info() => pesa_core::info::get_app_info,
+
+    // Settings
+    get_settings() => pesa_core::settings::ui::get_settings,
+    set_settings(settings: AppSettings) => pesa_core::settings::ui::set_settings,
+    generate_security_credential(password: String) => pesa_core::settings::ui::generate_security_credential,
 
     get_account(id: u32) => pesa_core::accounts::ui::get_account,
     create_account(account_type: pesa_core::accounts::AccountType, initial_balance: i64) => pesa_core::accounts::ui::create_account,
@@ -425,8 +436,14 @@ async fn main() {
         sender: event_sender.clone(),
     });
 
+    let settings_path = data_dir.join("settings.json");
+    let settings_manager = pesa_core::settings::SettingsManager::new(settings_path)
+        .await
+        .expect("failed to init settings");
+
     let core_context = AppContext {
         db: db.conn.clone(),
+        settings: settings_manager,
         event_manager: axum_event_manager.clone(),
         running: Arc::new(Mutex::new(HashMap::new())),
     };

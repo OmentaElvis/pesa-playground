@@ -1,7 +1,7 @@
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 
-use crate::{accounts::utility_accounts::UtilityAccount, AppContext};
+use crate::{AppContext, accounts::utility_accounts::UtilityAccount};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateUtilityAccountInput {

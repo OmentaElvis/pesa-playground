@@ -2,12 +2,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use chrono::{DateTime, Utc};
 use once_cell::sync::Lazy;
-use rand::{distr::Alphanumeric, Rng};
+use rand::{Rng, distributions::Alphanumeric};
 use sea_orm::{
-    prelude::DateTimeUtc,
     ActiveModelTrait,
     ActiveValue::{Set, Unchanged},
     ConnectionTrait, DbErr, EntityTrait,
+    prelude::DateTimeUtc,
 };
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
@@ -15,7 +15,7 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 
 use crate::accounts::Account;
-use crate::transactions_log::{db::Direction, TransactionLog};
+use crate::transactions_log::{TransactionLog, db::Direction};
 use serde_json;
 
 pub mod db;
@@ -319,7 +319,7 @@ impl Ledger {
 
         let timestamp_str = Self::to_base36(now_ms as u64);
 
-        let rand_suffix: String = rand::rng()
+        let rand_suffix: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .map(|c| (c as char).to_ascii_uppercase())
             .take(10 - timestamp_str.len())

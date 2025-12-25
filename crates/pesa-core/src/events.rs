@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use crate::{transactions_log::FullTransactionLog, AppContext};
+use crate::{AppContext, transactions_log::FullTransactionLog};
 
 pub enum DomainEvent {
     TransactionCreated(FullTransactionLog),

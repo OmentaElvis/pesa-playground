@@ -1,5 +1,5 @@
-use crate::accounts::{Account, AccountType};
 use crate::AppContext;
+use crate::accounts::{Account, AccountType};
 
 pub async fn create_account(
     ctx: &AppContext,

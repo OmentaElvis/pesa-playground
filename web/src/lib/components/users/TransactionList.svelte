@@ -78,7 +78,7 @@
 </script>
 
 <div class="mx-4 h-full overflow-auto">
-	<ScrollArea class="mx-auto h-full max-w-xl">
+	<ScrollArea class="mx-auto h-full">
 		{#if transactions.length > 0}
 			{#each transactions as transaction (transaction.transaction_id)}
 				{@const direction = getTransactionDirection(transaction, user?.id)}
@@ -89,7 +89,9 @@
 				{@const Icon = getTransactionIcon(transaction, direction)}
 				<div class="m-4 flex {isSentTransaction(direction) ? 'justify-end' : 'justify-start'}">
 					<div
-						class="max-w-[85%] rounded-lg p-3 shadow-md {isSentTransaction(direction)
+						class="w-fit max-w-[85%] max-w-md min-w-48 rounded-lg p-3 shadow-md {isSentTransaction(
+							direction
+						)
 							? 'rounded-br-none bg-green-800 text-white'
 							: 'rounded-bl-none bg-background'}"
 					>

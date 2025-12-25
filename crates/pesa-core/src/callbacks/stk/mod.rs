@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use once_cell::sync::Lazy;
-use rand::seq::IndexedRandom;
+use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::{Mutex, oneshot};
 
 pub mod init;
 pub mod process;
@@ -97,7 +97,7 @@ impl StkCodes {
             UnableToObtainSubscriberLock,
         ];
 
-        let mut rng = rand::rng();
+        let mut rng = rand::thread_rng();
         FAILURES.choose(&mut rng).unwrap().clone()
     }
     pub fn random() -> Self {
@@ -115,7 +115,7 @@ impl StkCodes {
             UnableToObtainSubscriberLock,
         ];
 
-        let mut rng = rand::rng();
+        let mut rng = rand::thread_rng();
         FAILURES.choose(&mut rng).unwrap().clone()
     }
 }

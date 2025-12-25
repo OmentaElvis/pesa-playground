@@ -1,6 +1,6 @@
-use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::anyhow;
 use chrono::Utc;
 use sea_orm::ActiveValue::Set;
 use sea_orm::{
@@ -9,7 +9,7 @@ use sea_orm::{
 };
 
 use crate::api_keys::ApiKey;
-use crate::{api_keys, AppContext};
+use crate::{AppContext, api_keys};
 
 use super::db;
 use super::{CreateProject, Project, ProjectDetails, ProjectSummary, UpdateProject};

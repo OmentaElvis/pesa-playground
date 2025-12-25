@@ -4,14 +4,16 @@ use pesa_core::{
         paybill_accounts::{CreatePaybillAccount, UpdatePaybillAccount},
         till_accounts::{CreateTillAccount, UpdateTillAccount},
     },
-    api_logs::{ui::ApiLogFilter, UpdateApiLogRequest},
+    api_logs::{UpdateApiLogRequest, ui::ApiLogFilter},
     business::{CreateBusiness, UpdateBusiness},
+    business_operators::ui::CreateOperatorPayload,
     callbacks::stk::UserResponse,
     projects::{CreateProject, UpdateProject},
+    settings::models::AppSettings,
     transaction_costs::ui::TransactionCostData,
     transactions::{
-        ui::{LipaArgs, TransactionFilter},
         TransactionNote, TransactionType,
+        ui::{LipaArgs, TransactionFilter},
     },
     transactions_log::ui::HistoryFilter,
 };
@@ -21,7 +23,7 @@ use pesa_macros::generate_tauri_wrappers;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::{Emitter, Manager, Runtime, State};
-use tokio::sync::{broadcast, Mutex};
+use tokio::sync::{Mutex, broadcast};
 
 const WEBSOCKET_CHANNEL_CAPACITY: usize = 100;
 
@@ -61,6 +63,11 @@ pub struct TauriAppState {
 
 generate_tauri_wrappers! {
     TauriAppState,
+    // Settings
+    get_settings() => pesa_core::settings::ui::get_settings,
+    set_settings(settings: AppSettings) => pesa_core::settings::ui::set_settings,
+    generate_security_credential(password: String) => pesa_core::settings::ui::generate_security_credential,
+
     // Existing commands
     start_sandbox(project_id: u32) => pesa_core::sandboxes::ui::start_sandbox,
     stop_sandbox(project_id: u32) => pesa_core::sandboxes::ui::stop_sandbox,
@@ -79,6 +86,10 @@ generate_tauri_wrappers! {
     get_businesses() => pesa_core::business::ui::get_businesses,
     update_business(id: u32, input: UpdateBusiness) => pesa_core::business::ui::update_business,
     delete_business(id: u32) => pesa_core::business::ui::delete_business,
+
+    create_operator(input: CreateOperatorPayload) => pesa_core::business_operators::ui::create_operator,
+    get_operators_by_business(business_id: u32) => pesa_core::business_operators::ui::get_operators_by_business,
+    delete_operator(operator_id: u32) => pesa_core::business_operators::ui::delete_operator,
 
     get_users() => pesa_core::accounts::user_profiles::ui::get_users,
     create_user(name: String, phone: String, balance: f64, pin: String) => pesa_core::accounts::user_profiles::ui::create_user,
@@ -203,6 +214,7 @@ pub fn run() {
             let handle = app.handle().clone();
             let app_dir = handle.path().app_data_dir().expect("failed to get app dir");
             let db_path = app_dir.join("database.sqlite");
+            let settings_path = app_dir.join("settings.json");
 
             tauri::async_runtime::block_on(async move {
                 let db = pesa_core::db::Database::new(&db_path)
@@ -213,6 +225,10 @@ pub fn run() {
                     eprintln!("Database error: {:?}", err);
                 }
 
+                let settings_manager = pesa_core::settings::SettingsManager::new(settings_path)
+                    .await
+                    .unwrap();
+
                 let (event_sender, _event_receiver) =
                     broadcast::channel(WEBSOCKET_CHANNEL_CAPACITY);
                 let event_manager = Arc::new(TauriEventManager {
@@ -222,6 +238,7 @@ pub fn run() {
 
                 let context = AppContext {
                     db: db.conn.clone(),
+                    settings: settings_manager,
                     event_manager: event_manager.clone(),
                     running: Arc::new(Mutex::new(HashMap::new())),
                 };
@@ -269,6 +286,9 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             close_splashscreen,
+            get_settings,
+            generate_security_credential,
+            set_settings,
             // Scripting Commands
             scripts_list,
             scripts_read,
@@ -291,6 +311,9 @@ pub fn run() {
             get_businesses,
             update_business,
             delete_business,
+            create_operator,
+            get_operators_by_business,
+            delete_operator,
             get_users,
             create_user,
             remove_user,

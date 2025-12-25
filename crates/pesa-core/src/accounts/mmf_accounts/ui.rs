@@ -1,7 +1,7 @@
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 
-use crate::{accounts::mmf_accounts::MmfAccount, AppContext};
+use crate::{AppContext, accounts::mmf_accounts::MmfAccount};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateMmfAccountInput {

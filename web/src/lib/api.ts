@@ -128,6 +128,12 @@ export interface BusinessSummary {
 	short_code: string;
 }
 
+export interface BusinessOperator {
+	id: number;
+	username: string;
+	password: string;
+}
+
 export async function createBusiness(input: BusinessData): Promise<Business> {
 	return await invoke('create_business', { input });
 }
@@ -155,6 +161,32 @@ export async function updateBusiness(
 
 export async function deleteBusiness(id: number): Promise<void> {
 	return await invoke('delete_business', { id });
+}
+
+export async function createOperator(
+	business_id: number,
+	username: string,
+	password_raw: string
+): Promise<void> {
+	return await invoke('create_operator', {
+		input: {
+			business_id,
+			username,
+			password: password_raw
+		}
+	});
+}
+
+export async function getOperatorsByBusinessId(businessId: number): Promise<BusinessOperator[]> {
+	return await invoke('get_operators_by_business', {
+		businessId
+	});
+}
+
+export async function deleteOperator(operatorId: number): Promise<void> {
+	return await invoke('delete_operator', {
+		operatorId
+	});
 }
 
 export enum C2BResponseType {
@@ -808,6 +840,42 @@ export interface ApiLog {
 	created_at: string;
 }
 
+export enum LogLevel {
+	Trace = 'Trace',
+	Debug = 'Debug',
+	Info = 'Info',
+	Warn = 'Warn',
+	Error = 'Error'
+}
+
+export enum Theme {
+	Dark = 'dark',
+	Light = 'light'
+}
+
+export interface EncryptionKeys {
+	public_key: string;
+	// private_key: string, // private key is not really private in this sandbox
+}
+
+export interface AppSettings {
+	theme: Theme;
+	server_log_level: LogLevel;
+	encryption_keys?: EncryptionKeys;
+}
+
+export async function getSettings(): Promise<AppSettings> {
+	return await invoke('get_settings');
+}
+
+export async function setSettings(settings: AppSettings): Promise<void> {
+	return await invoke('set_settings', { settings });
+}
+
+export async function generateSecurityCredential(password: string): Promise<string> {
+	return await invoke('generate_security_credential', { password });
+}
+
 // Filter interface for frontend use
 export interface ApiLogFilter {
 	project_id?: number;
@@ -1022,4 +1090,21 @@ export function getTransactionDirection(
 	}
 
 	return 'None';
+}
+
+export enum LipaPaymentType {
+	Paybill = 'Paybill',
+	Till = 'Till'
+}
+
+export interface LipaArgs {
+	user_phone: String;
+	amount: number;
+	payment_type: LipaPaymentType;
+	business_number: number;
+	account_number?: String;
+}
+
+export async function lipa(args: LipaArgs): Promise<void> {
+	return await invoke('lipa', { args });
 }

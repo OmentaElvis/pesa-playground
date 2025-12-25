@@ -1,5 +1,5 @@
 use chrono::Utc;
-use sea_orm::{prelude::DateTimeUtc, ActiveModelTrait, ActiveValue::Set, ConnectionTrait};
+use sea_orm::{ActiveModelTrait, ActiveValue::Set, ConnectionTrait, prelude::DateTimeUtc};
 use serde::{Deserialize, Serialize};
 
 use crate::server::log::generate_request_id;

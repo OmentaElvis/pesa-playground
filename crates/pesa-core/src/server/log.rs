@@ -12,29 +12,29 @@ use tokio::time::Instant;
 
 use crate::{api_logs::ApiLog, server::ApiState};
 
-use rand::{rng, Rng};
+use rand::{Rng, thread_rng as rng};
 
 pub fn generate_request_id() -> String {
     let mut rng = rng();
 
     let part1: String = (0..4)
-        .map(|_| rng.random_range(0..16))
+        .map(|_| rng.gen_range(0..16))
         .map(|x| format!("{:x}", x))
         .collect();
     let part2: String = (0..4)
-        .map(|_| rng.random_range(0..16))
+        .map(|_| rng.gen_range(0..16))
         .map(|x| format!("{:x}", x))
         .collect();
     let part3: String = (0..4)
-        .map(|_| rng.random_range(0..16))
+        .map(|_| rng.gen_range(0..16))
         .map(|x| format!("{:x}", x))
         .collect();
     let part4: String = (0..4)
-        .map(|_| rng.random_range(0..16))
+        .map(|_| rng.gen_range(0..16))
         .map(|x| format!("{:x}", x))
         .collect();
     let part5: String = (0..16)
-        .map(|_| rng.random_range(0..16))
+        .map(|_| rng.gen_range(0..16))
         .map(|x| format!("{:x}", x))
         .collect();
 
