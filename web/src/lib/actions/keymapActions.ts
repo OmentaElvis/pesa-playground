@@ -1,10 +1,12 @@
 import { goto } from '$app/navigation';
 import type { KeymapAction } from '$lib/keymap';
+import { sandboxes } from '$lib/stores/sandboxStatus';
+import { get } from 'svelte/store';
+
 import {
 	getProjects,
 	startSandbox,
 	type ProjectSummary,
-	listRunningSandboxes,
 	stopSandbox
 } from '$lib/api';
 import { toast } from 'svelte-sonner';
@@ -78,17 +80,14 @@ export async function generateProjectSandboxKeymaps(): Promise<Omit<KeymapAction
 				defaultShortcut: `ctrl+shift+${numberKey}`,
 				callback: async () => {
 					try {
-						const runningSandboxes = await listRunningSandboxes();
-						const isRunning = runningSandboxes.some(
-							(sandbox: any) => sandbox.project_id === project.id
-						);
+						const sandboxesMap = get(sandboxes);
+						const sandboxInfo = sandboxesMap.get(project.id);
+						const status = sandboxInfo?.status ?? 'off';
 
-						if (isRunning) {
+						if (status === 'on') {
 							await stopSandbox(project.id);
-							toast.success(`Sandbox for "${project.name}" stopped!`);
-						} else {
+						} else if (status === 'off' || status === 'error') {
 							await startSandbox(project.id);
-							toast.success(`Sandbox for "${project.name}" started!`);
 						}
 					} catch (error) {
 						toast.error(`Failed to toggle sandbox for "${project.name}": ${error}`);

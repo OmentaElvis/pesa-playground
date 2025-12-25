@@ -4,6 +4,7 @@
 	import { startSandbox, stopSandbox } from '$lib/api';
 	import { onDestroy } from 'svelte';
 	import * as Kbd from '$lib/components/ui/kbd';
+	import { toast } from 'svelte-sonner';
 
 	export let id: number;
 	let status: SandboxStatus = 'off';
@@ -15,45 +16,35 @@
 	}
 
 	async function toggle() {
-		if (status === 'starting') return;
+		if (status === 'starting') {
+			return;
+		}
 
-		if (status === 'on') {
-			try {
+
+		try {
+			if (status === 'on') {
 				await stopSandbox(id);
-				setStatus('off');
-				await getSandboxes();
-				port = null;
-				error = null;
-			} catch (e) {
-				setStatus('error');
-				error = e instanceof Error ? e.message : String(e);
+			} else if (status === 'off') {
+				await startSandbox(id);
+			} else if (status === 'error') {
+				await startSandbox(id);
 			}
-		} else {
-			setStatus('starting');
-			error = null;
-			try {
-				const addr = await startSandbox(id);
-				port = parseInt(addr.split(':').pop() || '0');
-			} catch (e) {
-				setStatus('error');
-				error = e instanceof Error ? e.message : String(e);
-			}
+			
+		} catch (e: any) {
+			toast.error(`API Error: ${e.message ?? String(e)}`);
 		}
 	}
 
 	const unsub = sandboxes.subscribe((map) => {
-		let info = map.get(id);
+		const info = map.get(id);
+		console.log(info)
 		if (!info) {
-			setStatus('off');
+			status = 'off';
+			error = null;
 		} else {
-			setStatus(info.status);
-			if (info.status == 'error') {
-				error = info.error || null;
-			}
-
-			if (info.status == 'on') {
-				port = info.port;
-			}
+			status = info.status;
+			error = info.error || null;
+			port = info.port;
 		}
 	});
 

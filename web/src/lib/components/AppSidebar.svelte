@@ -72,7 +72,8 @@
 										<div
 											class="size-[16px] min-w-[16px] animate-pulse rounded-full"
 											class:bg-green-700={info.status == 'on'}
-											class:bg-red-500={info.status == 'off'}
+											class:bg-orange-500={info.status == 'off'}
+											class:bg-red-500={info.status == 'error'}
 										></div>
 										<span>
 											{info.name}

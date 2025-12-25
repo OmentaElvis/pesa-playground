@@ -15,7 +15,9 @@ pub async fn start_sandbox(ctx: &AppContext, project_id: u32) -> Result<String> 
     let addr = format!("127.0.0.1:{}", port);
 
     let mut running = ctx.running.lock().await;
-    if running.contains_key(&project_id) {
+    if let Some(s) = running.get(&project_id)
+        && !s.handle.is_finished()
+    {
         return Ok(format!("http://{}", addr));
     }
 
@@ -29,12 +31,24 @@ pub async fn start_sandbox(ctx: &AppContext, project_id: u32) -> Result<String> 
     )?;
 
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
-    let handle = tokio::spawn(start_project_server(
-        project_id,
-        port,
-        ctx.clone(),
-        shutdown_rx,
-    ));
+    let ctx_clone = ctx.clone();
+    let handle = tokio::spawn(async move {
+        let server_result =
+            start_project_server(project_id, port, ctx_clone.clone(), shutdown_rx).await;
+
+        if let Err(e) = &server_result {
+            let _ = ctx_clone.event_manager.emit_all(
+                "sandbox_status",
+                json!({
+                    "project_id": project_id,
+                    "port": port,
+                    "status": "error",
+                    "error": e.to_string(),
+                }),
+            );
+        }
+        server_result
+    });
 
     running.insert(
         project_id,
