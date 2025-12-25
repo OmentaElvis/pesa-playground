@@ -35,6 +35,7 @@
 	import { settings } from '$lib/stores/settings';
 	import TransactionsNotification from '$lib/components/TransactionsNotification.svelte';
 	import { initSandboxStatus } from '$lib/stores/sandboxStatus';
+	import { get } from 'svelte/store';
 
 	const keymapManager: KeymapManager = createKeymapManager();
 
@@ -74,9 +75,10 @@
 	onMount(async () => {
 		await settings.init();
 		initSandboxStatus();
+		const appSettings = get(settings);
 		const projectSandboxKeymaps = await generateProjectSandboxKeymaps();
 		const allAppKeymapActions = [...globalKeymapActions, ...projectSandboxKeymaps];
-		keymapManager.initialize(allAppKeymapActions);
+		keymapManager.initialize(allAppKeymapActions, appSettings);
 		// Hide splash screen after a delay
 		setTimeout(() => {
 			showSplash = false;

@@ -5,7 +5,8 @@ import { toast } from 'svelte-sonner';
 // Default settings
 export const defaultAppSettings: AppSettings = {
 	theme: Theme.Dark,
-	server_log_level: LogLevel.Info
+	server_log_level: LogLevel.Info,
+	custom_keymaps: null
 };
 
 type SettingsStore = Writable<AppSettings> & {

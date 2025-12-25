@@ -1,5 +1,7 @@
 import { getContext, setContext } from 'svelte';
 import { writable, type Writable, get } from 'svelte/store';
+import { settings } from './stores/settings';
+import type { AppSettings } from './api';
 
 // --- Types ---
 
@@ -34,7 +36,6 @@ export const activeKeymaps: Writable<Map<string, KeymapAction>> = writable(new M
 // --- Keymap Manager ---
 
 const KEYMAP_CONTEXT_KEY = 'keymap_manager';
-const LOCAL_STORAGE_KEY_PREFIX = 'custom_keymap_';
 
 /**
  * Creates a canonical string representation of a keyboard shortcut from an event.
@@ -147,11 +148,12 @@ export class KeymapManager {
 	/**
 	 * Initializes and registers a list of default keymap actions.
 	 * This should be called once, typically in the root layout.
-	 * It also loads any custom keybindings from local storage.
-	 * @param defaults - An array of default KeymapAction objects.
+	 * It also loads any custom keybindings from the settings store.
+	 * @param defaults An array of default KeymapAction objects.
+	 * @param appSettings The current application settings from the backend.
 	 */
-	initialize(defaults: Omit<KeymapAction, 'shortcut'>[]) {
-		const customKeymaps = this.loadCustomKeymaps();
+	initialize(defaults: Omit<KeymapAction, 'shortcut'>[], appSettings: AppSettings) {
+		const customKeymaps = appSettings.custom_keymaps || {};
 		const resolvedKeymaps: KeymapAction[] = [];
 		const newAllKeymapActions = new Map<string, KeymapAction>();
 
@@ -183,33 +185,7 @@ export class KeymapManager {
 	}
 
 	/**
-	 * Loads custom keybindings from local storage.
-	 * @returns A map of action IDs to custom shortcut strings.
-	 */
-	private loadCustomKeymaps(): { [id: string]: string } {
-		try {
-			const json = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX);
-			return json ? JSON.parse(json) : {};
-		} catch (e) {
-			console.error('Failed to load custom keymaps from local storage:', e);
-			return {};
-		}
-	}
-
-	/**
-	 * Saves custom keybindings to local storage.
-	 * @param customKeymaps - A map of action IDs to custom shortcut strings.
-	 */
-	private saveCustomKeymaps(customKeymaps: { [id: string]: string }) {
-		try {
-			localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX, JSON.stringify(customKeymaps));
-		} catch (e) {
-			console.error('Failed to save custom keymaps to local storage:', e);
-		}
-	}
-
-	/**
-	 * Updates the shortcut for a specific action and saves it.
+	 * Updates the shortcut for a specific action and saves it to the backend settings.
 	 * @param actionId - The ID of the action to update.
 	 * @param newShortcut - The new shortcut string.
 	 */
@@ -243,9 +219,10 @@ export class KeymapManager {
 		action.shortcut = newShortcut;
 		allKeymapActions.update((map) => map.set(actionId, action)); // Update allKeymapActions with the new shortcut
 
-		const customKeymaps = this.loadCustomKeymaps();
-		customKeymaps[actionId] = newShortcut;
-		this.saveCustomKeymaps(customKeymaps);
+		const currentSettings = get(settings);
+		const newCustomKeymaps = { ...(currentSettings.custom_keymaps || {}) };
+		newCustomKeymaps[actionId] = newShortcut;
+		settings.set({ custom_keymaps: newCustomKeymaps });
 
 		// Rebuild activeKeymaps with the updated action
 		this.updateActiveKeymaps(Array.from(get(allKeymapActions).values()));
@@ -280,9 +257,10 @@ export class KeymapManager {
 		action.shortcut = action.defaultShortcut;
 		allKeymapActions.update((map) => map.set(actionId, action)); // Update allKeymapActions with the default shortcut
 
-		const customKeymaps = this.loadCustomKeymaps();
-		delete customKeymaps[actionId];
-		this.saveCustomKeymaps(customKeymaps);
+		const currentSettings = get(settings);
+		const newCustomKeymaps = { ...(currentSettings.custom_keymaps || {}) };
+		delete newCustomKeymaps[actionId];
+		settings.set({ custom_keymaps: newCustomKeymaps });
 
 		// Rebuild activeKeymaps with the updated action
 		this.updateActiveKeymaps(Array.from(get(allKeymapActions).values()));
@@ -292,7 +270,7 @@ export class KeymapManager {
 	 * Resets all custom keybindings to their defaults.
 	 */
 	resetAllKeybindings() {
-		localStorage.removeItem(LOCAL_STORAGE_KEY_PREFIX);
+		settings.set({ custom_keymaps: {} });
 		const resolvedKeymaps: KeymapAction[] = [];
 
 		allKeymapActions.update((map) => {
