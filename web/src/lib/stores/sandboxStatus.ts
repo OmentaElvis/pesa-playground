@@ -34,9 +34,14 @@ export async function getSandboxes() {
 
 export const sandboxes = writable<Map<number, SandboxInfo>>(new Map());
 
-export const unlisten = listen(
-	'sandbox_status',
-	async ({ payload }: { payload: SandboxStatusPayload }) => {
+let initialized = false;
+
+export function initSandboxStatus() {
+	if (initialized) {
+		return;
+	}
+
+	listen('sandbox_status', async ({ payload }: { payload: SandboxStatusPayload }) => {
 		let project = await getProject(payload.project_id);
 		let info: SandboxInfo = {
 			name: project.name,
@@ -54,7 +59,8 @@ export const unlisten = listen(
 
 			return m;
 		});
-	}
-);
+	});
 
-getSandboxes();
+	getSandboxes();
+	initialized = true;
+}

@@ -34,6 +34,7 @@
 	} from '$lib/actions/keymapActions';
 	import { settings } from '$lib/stores/settings';
 	import TransactionsNotification from '$lib/components/TransactionsNotification.svelte';
+	import { initSandboxStatus } from '$lib/stores/sandboxStatus';
 
 	const keymapManager: KeymapManager = createKeymapManager();
 
@@ -72,6 +73,7 @@
 
 	onMount(async () => {
 		await settings.init();
+		initSandboxStatus();
 		const projectSandboxKeymaps = await generateProjectSandboxKeymaps();
 		const allAppKeymapActions = [...globalKeymapActions, ...projectSandboxKeymaps];
 		keymapManager.initialize(allAppKeymapActions);
