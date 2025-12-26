@@ -1,14 +1,15 @@
-use axum::{extract::State, http::HeaderMap, Json};
+use axum::{Json, extract::State, http::HeaderMap};
 use chrono::DateTime;
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait};
 use strum::{Display, EnumString};
 
 use crate::{
     accounts::{paybill_accounts::PaybillAccount, till_accounts::TillAccount},
-    api_keys::ApiKey,
-    server::{access_token::AccessToken, ApiError, ApiState, MpesaError},
+    server::{ApiError, ApiState, MpesaError},
 };
 use serde::{Deserialize, Serialize};
+
+use super::auth;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Display, EnumString)]
 #[serde(rename_all = "PascalCase")]
@@ -47,77 +48,9 @@ pub async fn registerurl(
     State(state): State<ApiState>,
     Json(req): Json<RegisterUrlRequest>,
 ) -> Result<Json<RegisterUrlResponse>, ApiError> {
-    let invalid_access_token = "INVALID_ACCESS_TOKEN";
-    // let invalid_credentials = "INVALID_CREDENTIALS";
     let urls_already_registered = "URLS_ALREADY_REGISTERED";
 
-    let auth = if let Some(auth) = headers.get("Authorization") {
-        match auth.to_str() {
-            Err(_) => {
-                return Err(ApiError::new(
-                    MpesaError::InvalidAccessToken,
-                    invalid_access_token,
-                ))
-            }
-            Ok(auth) => auth,
-        }
-    } else {
-        return Err(ApiError::new(
-            MpesaError::InvalidAccessToken,
-            invalid_access_token,
-        ));
-    };
-
-    if !auth.starts_with("Bearer ") {
-        return Err(ApiError::new(
-            MpesaError::InvalidAccessToken,
-            invalid_access_token,
-        ));
-    }
-
-    let key = &auth[7..];
-    let access_token = AccessToken::read_by_token(&state.context.db, key)
-        .await
-        .map_err(|error| {
-            ApiError::new(
-                crate::server::MpesaError::InternalError,
-                format!("An internal error occured: {}", error),
-            )
-        })?;
-
-    if access_token.is_none() {
-        return Err(ApiError::new(
-            MpesaError::InvalidAccessToken,
-            invalid_access_token,
-        ));
-    }
-
-    let access_token = access_token.unwrap();
-    let now = DateTime::UNIX_EPOCH;
-
-    if now.gt(&access_token.expires_at) {
-        return Err(ApiError::new(
-            MpesaError::InvalidAccessToken,
-            "The access token has expired.",
-        ));
-    }
-
-    let api_key = ApiKey::read_by_project_id(&state.context.db, access_token.project_id)
-        .await
-        .map_err(|error| {
-            ApiError::new(
-                crate::server::MpesaError::InternalError,
-                format!("An internal error occured: {}", error),
-            )
-        })?;
-
-    if api_key.is_none() {
-        return Err(ApiError::new(
-            MpesaError::InvalidCredentials,
-            "Invalid credentials",
-        ));
-    }
-    let _api_key = api_key.unwrap();
+    let _api_key = auth::validate_bearer_token(&headers, &state).await?;
 
     let short_code = req.short_code;
     if let Some(paybill) = PaybillAccount::get_by_paybill_number(&state.context.db, short_code)

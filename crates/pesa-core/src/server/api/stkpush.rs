@@ -8,12 +8,13 @@ use crate::server::{ApiState, MpesaError};
 use crate::transactions::TransactionNote;
 use crate::{
     accounts::{paybill_accounts::PaybillAccount, till_accounts::TillAccount, user_profiles::User},
-    api_keys::ApiKey,
     business::Business,
     callbacks::stk::init::StkpushInit,
     projects::Project,
-    server::{ApiError, access_token::AccessToken},
+    server::ApiError,
 };
+
+use super::auth;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "PascalCase")]
@@ -58,76 +59,9 @@ pub async fn stkpush(
     State(state): State<ApiState>,
     Json(req): Json<StkPushRequest>,
 ) -> Result<Json<StkPushResponse>, ApiError> {
-    let invalid_access_token = "INVALID_ACCESS_TOKEN";
     let invalid_credentials = "INVALID_CREDENTIALS";
 
-    let auth = if let Some(auth) = headers.get("Authorization") {
-        match auth.to_str() {
-            Err(_) => {
-                return Err(ApiError::new(
-                    MpesaError::InvalidAccessToken,
-                    invalid_access_token,
-                ));
-            }
-            Ok(auth) => auth,
-        }
-    } else {
-        return Err(ApiError::new(
-            MpesaError::InvalidAccessToken,
-            invalid_access_token,
-        ));
-    };
-
-    if !auth.starts_with("Bearer ") {
-        return Err(ApiError::new(
-            MpesaError::InvalidAccessToken,
-            invalid_access_token,
-        ));
-    }
-
-    let key = &auth[7..];
-    let access_token = AccessToken::read_by_token(&state.context.db, key)
-        .await
-        .map_err(|error| {
-            ApiError::new(
-                crate::server::MpesaError::InternalError,
-                format!("An internal error occured: {}", error),
-            )
-        })?;
-
-    if access_token.is_none() {
-        return Err(ApiError::new(
-            MpesaError::InvalidAccessToken,
-            invalid_access_token,
-        ));
-    }
-
-    let access_token = access_token.unwrap();
-    let now = DateTime::UNIX_EPOCH;
-
-    if now.gt(&access_token.expires_at) {
-        return Err(ApiError::new(
-            MpesaError::InvalidAccessToken,
-            "The access token has expired.",
-        ));
-    }
-
-    let api_key = ApiKey::read_by_project_id(&state.context.db, access_token.project_id)
-        .await
-        .map_err(|error| {
-            ApiError::new(
-                crate::server::MpesaError::InternalError,
-                format!("An internal error occured: {}", error),
-            )
-        })?;
-
-    if api_key.is_none() {
-        return Err(ApiError::new(
-            MpesaError::InvalidCredentials,
-            "Invalid credentials",
-        ));
-    }
-    let api_key = api_key.unwrap();
+    let api_key = auth::validate_bearer_token(&headers, &state).await?;
     let passkey = api_key.passkey;
     let timestamp = req.timestamp;
 

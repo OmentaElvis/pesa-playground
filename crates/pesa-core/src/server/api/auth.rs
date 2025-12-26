@@ -6,7 +6,7 @@ use axum::{
     http::HeaderMap,
 };
 use base64::{Engine, engine::general_purpose};
-use chrono::{Duration, Utc};
+use chrono::{DateTime, Duration, Utc};
 use rand::{Rng, distributions::Alphanumeric};
 use sea_orm::ActiveModelTrait;
 use sea_orm::ColumnTrait;
@@ -14,7 +14,14 @@ use sea_orm::QueryFilter;
 use sea_orm::{EntityTrait, Set};
 use serde::{Deserialize, Serialize};
 
-use crate::server::{ApiError, ApiState};
+use crate::server::ApiState;
+use crate::{
+    api_keys::ApiKey,
+    server::{MpesaError, access_token::AccessToken},
+};
+
+use crate::server::ApiError;
+pub const INVALID_ACCESS_TOKEN: &str = "INVALID_ACCESS_TOKEN";
 
 #[derive(Deserialize, Debug)]
 pub struct OAuthQuery {
@@ -166,4 +173,77 @@ pub async fn oauth(
         access_token: access_token.to_string(),
         expires_in: Duration::hours(1).num_seconds().to_string(),
     }))
+}
+
+pub async fn validate_bearer_token(
+    headers: &HeaderMap,
+    state: &ApiState,
+) -> Result<ApiKey, ApiError> {
+    let auth = if let Some(auth) = headers.get("Authorization") {
+        match auth.to_str() {
+            Err(_) => {
+                return Err(ApiError::new(
+                    MpesaError::InvalidAccessToken,
+                    INVALID_ACCESS_TOKEN,
+                ));
+            }
+            Ok(auth) => auth,
+        }
+    } else {
+        return Err(ApiError::new(
+            MpesaError::InvalidAccessToken,
+            INVALID_ACCESS_TOKEN,
+        ));
+    };
+
+    if !auth.starts_with("Bearer ") {
+        return Err(ApiError::new(
+            MpesaError::InvalidAccessToken,
+            INVALID_ACCESS_TOKEN,
+        ));
+    }
+
+    let key = &auth[7..];
+    let access_token = AccessToken::read_by_token(&state.context.db, key)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                crate::server::MpesaError::InternalError,
+                format!("An internal error occured: {}", error),
+            )
+        })?;
+
+    if access_token.is_none() {
+        return Err(ApiError::new(
+            MpesaError::InvalidAccessToken,
+            INVALID_ACCESS_TOKEN,
+        ));
+    }
+
+    let access_token = access_token.unwrap();
+    let now = DateTime::UNIX_EPOCH;
+
+    if now.gt(&access_token.expires_at) {
+        return Err(ApiError::new(
+            MpesaError::InvalidAccessToken,
+            "The access token has expired.",
+        ));
+    }
+
+    let api_key = ApiKey::read_by_project_id(&state.context.db, access_token.project_id)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                crate::server::MpesaError::InternalError,
+                format!("An internal error occured: {}", error),
+            )
+        })?;
+
+    if api_key.is_none() {
+        return Err(ApiError::new(
+            MpesaError::InvalidCredentials,
+            "Invalid credentials",
+        ));
+    }
+    Ok(api_key.unwrap())
 }
