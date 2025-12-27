@@ -9,10 +9,10 @@ pub mod ui;
 
 #[derive(FromQueryResult, Debug, Serialize)]
 pub struct BusinessOperator {
-    id: u32,
-    username: String,
-    password: String,
-    business_id: u32,
+    pub id: u32,
+    pub username: String,
+    pub password: String,
+    pub business_id: u32,
 }
 
 impl From<db::Model> for BusinessOperator {

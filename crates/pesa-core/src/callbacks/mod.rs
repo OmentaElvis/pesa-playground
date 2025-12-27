@@ -1,18 +1,33 @@
+use chrono::Utc;
 use sea_orm::prelude::DateTimeUtc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter, Set,
+};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 pub mod db;
+pub mod dispatch;
+pub mod orchestrator;
 pub mod response;
 pub mod stk;
 
-#[derive(strum::EnumString, Deserialize, Serialize, Default)]
+#[derive(
+    Debug, Clone, strum::EnumString, strum::Display, Deserialize, Serialize, Default, PartialEq, Eq,
+)]
+#[strum(serialize_all = "snake_case")]
 pub enum CallbackType {
     #[default]
     StkPush,
-    C2b,
+    B2cResult,
+    C2bValidation,
+    C2bConfirmation,
 }
 
-#[derive(strum::EnumString, Deserialize, Serialize, Default)]
+#[derive(
+    Debug, Clone, strum::EnumString, strum::Display, Deserialize, Serialize, Default, PartialEq, Eq,
+)]
+#[strum(serialize_all = "snake_case")]
 pub enum CallbackStatus {
     #[default]
     Pending,
@@ -20,35 +35,65 @@ pub enum CallbackStatus {
     Failed,
 }
 
-#[derive(Deserialize, Serialize, Default)]
+/// A struct representing a single callback log record from the database.
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct CallbackLog {
     pub id: u32,
+    pub project_id: u32,
+    pub conversation_id: String,
+    pub originator_id: String,
     pub transaction_id: Option<String>,
-    pub checkout_request_id: Option<String>,
-    pub merchant_request_id: Option<String>,
     pub callback_url: String,
-    pub callback_type: CallbackType, // e.g. "stkpush", "c2b"
-    pub payload: String,             // raw JSON
+    pub callback_type: CallbackType,
+    pub payload: Value,
     pub response_status: Option<i32>,
     pub response_body: Option<String>,
-    pub status: CallbackStatus, // e.g. "delivered", "failed"
+    pub response_headers: Option<Value>,
+    pub status: CallbackStatus,
     pub error: Option<String>,
     pub created_at: DateTimeUtc,
     pub updated_at: Option<DateTimeUtc>,
+}
+
+/// Parameters for creating a new callback log.
+pub struct CreateCallbackParams {
+    pub project_id: u32,
+    pub callback_type: CallbackType,
+    pub url: String,
+    pub conversation_id: String,
+    pub originator_id: String,
+    pub payload: Value,
+    pub transaction_id: Option<String>,
+}
+
+/// Represents the outcome of a dispatch attempt.
+pub enum DispatchOutcome {
+    Delivered {
+        status_code: u16,
+        headers: Value,
+        body: String,
+    },
+    Failed {
+        error_message: String,
+    },
 }
 
 impl From<db::Model> for CallbackLog {
     fn from(value: db::Model) -> Self {
         Self {
             id: value.id,
+            project_id: value.project_id,
+            conversation_id: value.conversation_id,
+            originator_id: value.originator_id,
             transaction_id: value.transaction_id,
-            checkout_request_id: value.checkout_request_id,
-            merchant_request_id: value.merchant_request_id,
             callback_url: value.callback_url,
             callback_type: value.callback_type.parse().unwrap_or_default(),
-            payload: value.payload,
+            payload: serde_json::from_str(&value.payload).unwrap_or_default(),
             response_status: value.response_status,
             response_body: value.response_body,
+            response_headers: value
+                .response_headers
+                .and_then(|h| serde_json::from_str(&h).ok()),
             status: value.status.parse().unwrap_or_default(),
             error: value.error,
             created_at: value.created_at,
@@ -57,57 +102,102 @@ impl From<db::Model> for CallbackLog {
     }
 }
 
+// Public API for interacting with Callback Logs
 impl CallbackLog {
-    pub fn new(callback_type: CallbackType) -> Self {
-        Self {
-            id: 0,
-            callback_type,
+    /// Creates a new callback record in the database.
+    pub async fn create<C: ConnectionTrait>(
+        db: &C,
+        params: CreateCallbackParams,
+    ) -> Result<Self, DbErr> {
+        let model = db::ActiveModel {
+            project_id: Set(params.project_id),
+            conversation_id: Set(params.conversation_id),
+            originator_id: Set(params.originator_id),
+            transaction_id: Set(params.transaction_id),
+            callback_url: Set(params.url),
+            callback_type: Set(params.callback_type.to_string()),
+            payload: Set(serde_json::to_string(&params.payload).unwrap_or_default()),
+            status: Set(CallbackStatus::Pending.to_string()),
             ..Default::default()
         }
+        .insert(db)
+        .await?;
+        Ok(model.into())
     }
 
-    pub fn with_transaction_id(&mut self, transaction_id: &str) -> &mut Self {
-        self.transaction_id = Some(transaction_id.to_string());
-        self
+    /// Finds a callback by its primary ID.
+    pub async fn find_by_id<C: ConnectionTrait>(db: &C, id: u32) -> Result<Option<Self>, DbErr> {
+        db::Entity::find_by_id(id)
+            .one(db)
+            .await
+            .map(|opt| opt.map(Into::into))
     }
 
-    pub fn with_checkout_request_id(&mut self, checkout_request_id: &str) -> &mut Self {
-        self.checkout_request_id = Some(checkout_request_id.to_string());
-        self
+    /// Finds all callbacks for a given project.
+    pub async fn find_by_project<C: ConnectionTrait>(
+        db: &C,
+        project_id: u32,
+    ) -> Result<Vec<Self>, DbErr> {
+        db::Entity::find()
+            .filter(db::Column::ProjectId.eq(project_id))
+            .all(db)
+            .await
+            .map(|models| models.into_iter().map(Into::into).collect())
     }
 
-    pub fn with_merchant_request_id(&mut self, merchant_request_id: &str) -> &mut Self {
-        self.merchant_request_id = Some(merchant_request_id.to_string());
-        self
-    }
+    /// Updates the status of a callback after a dispatch attempt.
+    pub async fn update_dispatch_status<C: ConnectionTrait>(
+        &self,
+        db: &C,
+        outcome: DispatchOutcome,
+    ) -> Result<Self, DbErr> {
+        let mut model: db::ActiveModel = self.clone().into();
 
-    pub fn with_callback_url(&mut self, callback_url: &str) -> &mut Self {
-        self.callback_url = callback_url.to_string();
-        self
-    }
+        match outcome {
+            DispatchOutcome::Delivered {
+                status_code,
+                headers,
+                body,
+            } => {
+                model.status = Set(CallbackStatus::Delivered.to_string());
+                model.response_status = Set(Some(status_code as i32));
+                model.response_headers =
+                    Set(Some(serde_json::to_string(&headers).unwrap_or_default()));
+                model.response_body = Set(Some(body));
+            }
+            DispatchOutcome::Failed { error_message } => {
+                model.status = Set(CallbackStatus::Failed.to_string());
+                model.error = Set(Some(error_message));
+            }
+        }
+        model.updated_at = Set(Some(Utc::now().to_utc()));
 
-    pub fn with_payload(&mut self, payload: &str) -> &mut Self {
-        self.payload = payload.to_string();
-        self
+        let updated_model = model.update(db).await?;
+        Ok(updated_model.into())
     }
+}
 
-    pub fn with_response_status(&mut self, response_status: i32) -> &mut Self {
-        self.response_status = Some(response_status);
-        self
-    }
-
-    pub fn with_response_body(&mut self, response_body: &str) -> &mut Self {
-        self.response_body = Some(response_body.to_string());
-        self
-    }
-
-    pub fn with_status(&mut self, status: CallbackStatus) -> &mut Self {
-        self.status = status;
-        self
-    }
-
-    pub fn with_error(&mut self, error: &str) -> &mut Self {
-        self.error = Some(error.to_string());
-        self
+// Conversion from CallbackLog to ActiveModel for updates
+impl From<CallbackLog> for db::ActiveModel {
+    fn from(log: CallbackLog) -> Self {
+        Self {
+            id: Set(log.id),
+            project_id: Set(log.project_id),
+            conversation_id: Set(log.conversation_id),
+            originator_id: Set(log.originator_id),
+            transaction_id: Set(log.transaction_id),
+            callback_url: Set(log.callback_url),
+            callback_type: Set(log.callback_type.to_string()),
+            payload: Set(serde_json::to_string(&log.payload).unwrap_or_default()),
+            response_status: Set(log.response_status),
+            response_body: Set(log.response_body),
+            response_headers: Set(log
+                .response_headers
+                .map(|h| serde_json::to_string(&h).unwrap_or_default())),
+            status: Set(log.status.to_string()),
+            error: Set(log.error),
+            created_at: Set(log.created_at),
+            updated_at: Set(log.updated_at),
+        }
     }
 }
