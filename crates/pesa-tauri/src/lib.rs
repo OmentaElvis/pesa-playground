@@ -7,8 +7,8 @@ use pesa_core::{
     api_logs::{UpdateApiLogRequest, ui::ApiLogFilter},
     business::{CreateBusiness, UpdateBusiness},
     business_operators::ui::CreateOperatorPayload,
-    callbacks::stk::UserResponse,
     projects::{CreateProject, UpdateProject},
+    server::api::stkpush::ui::UserResponse,
     settings::models::AppSettings,
     transaction_costs::ui::TransactionCostData,
     transactions::{
@@ -149,7 +149,7 @@ generate_tauri_wrappers! {
     delete_transaction_cost(id: i32) => pesa_core::transaction_costs::ui::delete_transaction_cost,
     calculate_transaction_fee(txn_type: TransactionType, amount: i64) => pesa_core::transaction_costs::ui::calculate_transaction_fee,
 
-    resolve_stk_prompt(checkout_id: String, result: UserResponse) => pesa_core::callbacks::stk::ui::resolve_stk_prompt,
+    resolve_stk_prompt(checkout_id: String, result: UserResponse) => pesa_core::server::api::stkpush::ui::resolve_stk_prompt,
     #[no_context]
     get_app_info() => pesa_core::info::get_app_info,
 

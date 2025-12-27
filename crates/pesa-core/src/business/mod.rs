@@ -1,4 +1,7 @@
-use sea_orm::{ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter};
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, ConnectionTrait, DbErr, EntityTrait,
+    IntoActiveModel, QueryFilter,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::accounts::{mmf_accounts::MmfAccount, utility_accounts::UtilityAccount};
@@ -41,6 +44,30 @@ impl Business {
             .one(conn)
             .await?;
         Ok(business.as_ref().map(|b| b.into()))
+    }
+    pub async fn increment_charges_amount<C>(
+        conn: &C,
+        id: u32,
+        amount: i64,
+    ) -> Result<Business, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        let business = if let Some(business) = db::Entity::find_by_id(id).one(conn).await? {
+            let current_amount = business.charges_amount;
+            let mut business = business.into_active_model();
+            business.charges_amount = Set(current_amount + amount);
+            business.update(conn).await?
+        } else {
+            return Err(DbErr::Custom("Business not found".to_string()));
+        };
+
+        Ok(Business {
+            id: business.id,
+            name: business.name,
+            short_code: business.short_code,
+            charges_amount: business.charges_amount,
+        })
     }
 }
 

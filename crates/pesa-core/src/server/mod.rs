@@ -1,5 +1,11 @@
-use crate::AppContext;
-use api::{auth::oauth, c2b::registerurl, stkpush::stkpush};
+use crate::{
+    AppContext,
+    server::{
+        api::{b2c::task::B2C, c2b::register::registerurl, stkpush::task::Stkpush},
+        async_handler::handle_async_request,
+    },
+};
+use api::auth::oauth;
 use axum::{
     Router,
     routing::{get, post},
@@ -8,6 +14,7 @@ use tokio::sync::oneshot;
 
 pub mod access_token;
 pub mod api;
+pub mod async_handler;
 pub mod log;
 
 #[derive(Debug, Clone)]
@@ -213,8 +220,9 @@ ______              ______ _                                             _
     format!("{banner}\n\n🧪 Welcome to Pesa Playground Sandbox.\nTry /mpesa/stkpush/v1/processrequest")
 }))
     .route("/oauth/v1/generate", get(oauth))
-    .route("/mpesa/stkpush/v1/processrequest", post(stkpush))
-    .route("/mpesa/c2b/v1/registerurl", post(registerurl))
+    .route("/mpesa/stkpush/v1/processrequest", post(handle_async_request::<Stkpush>))
+    .route("/mpesa/c2b/v2/registerurl", post(registerurl))
+    .route("/mpesa/b2c/v3/paymentrequest", post(handle_async_request::<B2C>))
     .with_state(state.clone());
 
     if log {

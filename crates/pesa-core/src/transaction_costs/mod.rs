@@ -18,9 +18,10 @@ where
     C: ConnectionTrait,
 {
     let txn_type = match transaction_type {
-        TransactionType::Paybill | TransactionType::BuyGoods | TransactionType::SendMoney => {
-            TransactionType::SendMoney.to_string()
-        }
+        TransactionType::Paybill
+        | TransactionType::BuyGoods
+        | TransactionType::SendMoney
+        | TransactionType::Disbursment => TransactionType::SendMoney.to_string(),
         TransactionType::Withdraw => TransactionType::Withdraw.to_string(),
         TransactionType::Deposit => TransactionType::Deposit.to_string(),
         TransactionType::Airtime => TransactionType::Airtime.to_string(),

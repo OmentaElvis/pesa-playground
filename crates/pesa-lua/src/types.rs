@@ -15,7 +15,7 @@ wrap_core_types! {
     UpdateApiLogRequest from pesa_core::api_logs,
     ApiLogFilter from pesa_core::api_logs::ui,
     TransactionCostData from pesa_core::transaction_costs::ui,
-    UserResponse from pesa_core::callbacks::stk,
+    UserResponse from pesa_core::server::api::stkpush::ui,
     AccountType from pesa_core::accounts,
     TransactionNote from pesa_core::transactions
 }

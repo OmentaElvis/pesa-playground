@@ -6,6 +6,7 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: u32,
     pub name: String,
+    #[sea_orm(unique)]
     pub short_code: String, // M-Pesa short code
     pub charges_amount: i64,
 }

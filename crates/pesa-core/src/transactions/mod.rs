@@ -14,8 +14,8 @@ use strum::{Display, EnumString};
 use thiserror::Error;
 use tokio::sync::Mutex;
 
-use crate::accounts::Account;
 use crate::transactions_log::{TransactionLog, db::Direction};
+use crate::{accounts::Account, server::api::b2c};
 use serde_json;
 
 pub mod db;
@@ -59,6 +59,9 @@ pub enum TransactionNote {
     AccountSetupFunding {
         account_type: AccountTypeForFunding,
     },
+    Disbursment {
+        kind: b2c::CommandID,
+    },
 }
 
 static GLOBAL_LEDGER_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
@@ -76,6 +79,7 @@ pub enum TransactionType {
     Deposit,
     ChargeSettlement,
     RevenueSweep,
+    Disbursment,
     Unknown(String),
 }
 
@@ -154,7 +158,13 @@ impl Ledger {
                 return Err(TransactionEngineError::InsufficientFunds);
             }
 
-            source.balance -= amount + fee;
+            // fees should be added to business charges account
+            if matches!(txn_type, TransactionType::Disbursment) {
+                source.balance -= amount;
+            } else {
+                source.balance -= amount + fee;
+            }
+
             let acc = crate::accounts::db::ActiveModel {
                 id: Unchanged(source.id),
                 balance: Set(source.balance),

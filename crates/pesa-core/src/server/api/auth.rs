@@ -22,6 +22,7 @@ use crate::{
 
 use crate::server::ApiError;
 pub const INVALID_ACCESS_TOKEN: &str = "INVALID_ACCESS_TOKEN";
+pub const INVALID_CREDENTIALS: &str = "INVALID_CREDENTIALS";
 
 #[derive(Deserialize, Debug)]
 pub struct OAuthQuery {
