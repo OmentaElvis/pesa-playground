@@ -100,7 +100,7 @@ generate_tauri_wrappers! {
     #[no_context]
     generate_users(count: u32) => pesa_core::accounts::user_profiles::ui::generate_users,
     get_user_by_phone(phone: String) => pesa_core::accounts::user_profiles::ui::get_user_by_phone,
-    update_user(user_id: u32, name: Option<String>, balance: Option<i64>, pin: Option<String>) => pesa_core::accounts::user_profiles::ui::update_user,
+    update_user(user_id: u32, name: Option<String>, pin: Option<String>, phone: Option<String>) => pesa_core::accounts::user_profiles::ui::update_user,
 
     create_paybill_account(input: CreatePaybillAccount) => pesa_core::accounts::paybill_accounts::ui::create_paybill_account,
     get_paybill_account(id: u32) => pesa_core::accounts::paybill_accounts::ui::get_paybill_account,

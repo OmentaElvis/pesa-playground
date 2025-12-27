@@ -7,12 +7,12 @@
 	import { RadioGroup, RadioGroupItem } from '$lib/components/ui/radio-group';
 	import { Phone, CheckCircle, XCircle, WifiOff, Timer, X, Smartphone } from 'lucide-svelte';
 	import { formatAmount, formatPhoneNumber } from '$lib/utils';
-	import type { Project, UserDetails } from '$lib/api';
+	import type { Project, User } from '$lib/api';
 
 	interface StkPushData {
 		checkout_id: string;
 		project: Project;
-		user: UserDetails;
+		user: User;
 		business_name: string;
 		amount: number;
 	}
@@ -118,7 +118,7 @@
 				</div>
 				<div class="space-y-2">
 					<Label class="text-sm font-medium text-muted-foreground">M-Pesa Balance</Label>
-					<p class="font-semibold text-green-600">{formatAmount(user?.balance)}</p>
+					<p class="font-semibold text-green-600">{formatAmount(user?.balance / 100)}</p>
 				</div>
 				<div class="space-y-2">
 					<Label class="text-sm font-medium text-muted-foreground">Sending to</Label>

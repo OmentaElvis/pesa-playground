@@ -20,7 +20,7 @@
 		TransactionType,
 		transfer,
 		type TransactionHistoryEntry,
-		type UserDetails,
+		type User as UserDetails,
 		type HistoryFilter,
 		type FullTransactionLog
 	} from '$lib/api';
@@ -150,7 +150,7 @@
 								<span class="flex items-center gap-1">
 									<Wallet size={14} />
 									Balance:
-									<b class="text-green-600 dark:text-green-500">{formatAmount(user.balance)}</b>
+									<b class="text-green-600 dark:text-green-500">{formatAmount(user.balance / 100)}</b>
 								</span>
 							</div>
 						</div>

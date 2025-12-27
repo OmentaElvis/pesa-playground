@@ -29,4 +29,6 @@ thiserror = "2.0.12"
 tower = "0.5.2"
 rsa = "0.9.9"
 rand = "0.8.5"
+tracing = "0.1.44"
+dashmap = "6.1.0"
 

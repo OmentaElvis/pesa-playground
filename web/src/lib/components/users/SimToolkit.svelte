@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button } from '../ui/button';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import type { UserDetails, PaybillAccountDetails, TillAccountDetails } from '$lib/api';
+	import type { User as UserDetails, PaybillAccountDetails, TillAccountDetails } from '$lib/api';
 	import { ArrowLeft, LoaderCircle } from 'lucide-svelte';
 	import {
 		getUsers,
@@ -438,7 +438,7 @@
 		account_balance: {
 			title: 'Account Balance',
 			message: `Your Account balance is Ksh <b class="text-green-500">${
-				user.balance.toFixed(2) || '0.00'
+				(user.balance / 100).toFixed(2) || '0.00'
 			}</b>`,
 			isInfo: true,
 			options: []

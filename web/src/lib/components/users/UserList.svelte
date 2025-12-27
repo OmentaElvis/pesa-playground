@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Phone, Wallet, Settings, User as UserIcon, Plus, LoaderCircle } from 'lucide-svelte';
 	import { formatAmount, getInitials } from '$lib/utils';
-	import { getUsers, type UserDetails, generateUsers, createUser } from '$lib/api';
+	import { getUsers, type User as UserDetails, generateUsers, createUser } from '$lib/api';
 	import { onDestroy, onMount } from 'svelte';
 	import DiceBearAvatar from '$lib/components/ui/avatar/DiceBearAvatar.svelte';
 	import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
@@ -124,7 +124,7 @@
 						<div class="mt-1 flex items-center gap-2">
 							<Wallet size={12} class="" />
 							<span class="text-sm font-bold text-green-700 dark:text-green-600">
-								{formatAmount(user.balance)}
+								{formatAmount(user.balance / 100)}
 							</span>
 						</div>
 					</div>

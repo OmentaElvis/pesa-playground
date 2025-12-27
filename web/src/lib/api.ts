@@ -493,27 +493,25 @@ export interface User {
 	name: string;
 	phone: string;
 	pin: string;
+  balance: number,
+  disabled: boolean,
+  created_at: string,
+  registered_at: String,
+  last_swap_date?: String,
+  imsi: String,
 }
 
-export interface UserDetails {
-	id: number;
-	name: string;
-	phone: string;
-	pin: string;
-	balance: number;
-}
-
-export async function getUsers(): Promise<UserDetails[]> {
+export async function getUsers(): Promise<User[]> {
 	return await invoke('get_users');
 }
 
-export async function getUser(user_id: number): Promise<UserDetails | null> {
+export async function getUser(user_id: number): Promise<User | null> {
 	return await invoke('get_user', {
 		userId: user_id
 	});
 }
 
-export async function getUserByPhone(phone: string): Promise<UserDetails | null> {
+export async function getUserByPhone(phone: string): Promise<User | null> {
 	return await invoke('get_user_by_phone', {
 		phone
 	});
@@ -540,21 +538,21 @@ export async function removeUser(user_id: number): Promise<void> {
 export async function updateUser(
 	user_id: number,
 	name?: string,
-	balance?: number,
-	pin?: string
+	pin?: string,
+	phone?: string
 ): Promise<void> {
 	return await invoke('update_user', {
 		userId: user_id,
 		name,
-		balance,
-		pin
+		pin,
+		phone
 	});
 }
 
-export async function generateUser(): Promise<UserDetails> {
+export async function generateUser(): Promise<User> {
 	return await invoke('generate_user');
 }
-export async function generateUsers(count: number): Promise<UserDetails[]> {
+export async function generateUsers(count: number): Promise<User[]> {
 	return await invoke('generate_users', { count: count });
 }
 

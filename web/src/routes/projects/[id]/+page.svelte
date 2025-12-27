@@ -42,7 +42,7 @@
 		getTillAccountsByBusinessId,
 		type TillAccountDetails,
 		getUsers,
-		type UserDetails,
+		type User as UserDetails,
 		createUser,
 		generateUser,
 		type BusinessDetails
@@ -548,7 +548,7 @@
 													</span>
 													<span class="flex items-center gap-1">
 														<CreditCard class="h-3 w-3" />
-														KES {user.balance.toLocaleString()}
+														{formatAmount(user.balance / 100)}
 													</span>
 												</div>
 											</div>

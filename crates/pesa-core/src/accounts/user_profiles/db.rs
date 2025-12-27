@@ -8,6 +8,9 @@ pub struct Model {
     pub name: String,
     pub phone: String,
     pub pin: String, // we will not be hashing pins since we need clear text pins for ui
+    pub imsi: String,
+    pub registered_at: DateTimeUtc,
+    pub last_swap_date: Option<DateTimeUtc>,
 }
 
 #[derive(Clone, Copy, Debug, EnumIter)]

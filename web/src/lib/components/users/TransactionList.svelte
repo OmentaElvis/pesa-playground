@@ -2,7 +2,7 @@
 	import type {
 		CalculatedDirection as CalculatedTransactionDirection,
 		TransactionHistoryEntry,
-		UserDetails
+		User as UserDetails
 	} from '$lib/api';
 	import { MessageSquare, ArrowUpRight, ArrowDownLeft } from 'lucide-svelte';
 	import {
