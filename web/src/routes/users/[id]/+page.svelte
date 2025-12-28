@@ -138,7 +138,10 @@
 				<div class="flex items-center justify-between">
 					<div class="flex flex-1 items-center gap-3">
 						<div class="h-12 w-12">
-							<DiceBearAvatar seed={`${user.account_id}-${user.name}`} fallback={getInitials(user.name)} />
+							<DiceBearAvatar
+								seed={`${user.account_id}-${user.name}`}
+								fallback={getInitials(user.name)}
+							/>
 						</div>
 						<div>
 							<h1 class="text-xl font-semibold">{user.name}</h1>
@@ -150,7 +153,9 @@
 								<span class="flex items-center gap-1">
 									<Wallet size={14} />
 									Balance:
-									<b class="text-green-600 dark:text-green-500">{formatAmount(user.balance / 100)}</b>
+									<b class="text-green-600 dark:text-green-500">
+										{formatAmount(user.balance / 100)}
+									</b>
 								</span>
 							</div>
 						</div>

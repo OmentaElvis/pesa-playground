@@ -111,7 +111,10 @@
 								class="absolute top-0 right-0 z-10 h-4 w-4 rounded-full border-2 border-background bg-red-500"
 							></div>
 						{/if}
-						<DiceBearAvatar seed={`${user.account_id}-${user.name}`} fallback={getInitials(user.name)} />
+						<DiceBearAvatar
+							seed={`${user.account_id}-${user.name}`}
+							fallback={getInitials(user.name)}
+						/>
 					</div>
 					<div class="min-w-0 flex-1">
 						<div class="flex items-center justify-between">

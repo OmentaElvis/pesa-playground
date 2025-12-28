@@ -111,7 +111,12 @@
 				return;
 			}
 			let amount = Number(simFormData.amount) * 100;
-			let txn = await transfer(user.account_id, receiver.account_id, amount, TransactionType.SendMoney);
+			let txn = await transfer(
+				user.account_id,
+				receiver.account_id,
+				amount,
+				TransactionType.SendMoney
+			);
 			toast.info(`${txn.id}. Sent money to ${phone}. `);
 			resetMenu();
 		} catch (err) {

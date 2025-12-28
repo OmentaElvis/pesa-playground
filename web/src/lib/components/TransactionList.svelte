@@ -8,12 +8,8 @@
 		type SortDirection,
 		getBusiness,
 		getTransactionDirection,
-
 		listen,
-
 		type UnlistenFn
-
-
 	} from '$lib/api';
 	import {
 		Table,
@@ -154,19 +150,19 @@
 
 	let unlistenFns: UnlistenFn[] = [];
 
-	onMount(()=> {
-		listen("new_transaction", ()=> {
+	onMount(() => {
+		listen('new_transaction', () => {
 			loadTransactions();
-		}).then((unlisten)=> {
-			unlistenFns.push(unlisten)
+		}).then((unlisten) => {
+			unlistenFns.push(unlisten);
 		});
-	})
+	});
 
-	onMount(()=> {
-		for(const un of unlistenFns) {
+	onMount(() => {
+		for (const un of unlistenFns) {
 			un();
 		}
-	})
+	});
 
 	$effect(() => {
 		loadTransactions();
