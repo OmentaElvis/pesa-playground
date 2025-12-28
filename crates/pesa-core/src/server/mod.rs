@@ -1,5 +1,6 @@
 use crate::{
     AppContext,
+    projects::{self},
     server::{
         api::{b2c::task::B2C, c2b::register::registerurl, stkpush::task::Stkpush},
         async_handler::handle_async_request,
@@ -8,6 +9,7 @@ use crate::{
 use api::auth::oauth;
 use axum::{
     Router,
+    extract::State,
     routing::{get, post},
 };
 use tokio::sync::oneshot;
@@ -223,6 +225,7 @@ ______              ______ _                                             _
     .route("/mpesa/stkpush/v1/processrequest", post(handle_async_request::<Stkpush>))
     .route("/mpesa/c2b/v2/registerurl", post(registerurl))
     .route("/mpesa/b2c/v3/paymentrequest", post(handle_async_request::<B2C>))
+    .route("/debug/config", get(get_api_keys))
     .with_state(state.clone());
 
     if log {
@@ -233,6 +236,30 @@ ______              ______ _                                             _
     }
 
     router
+}
+
+pub async fn get_api_keys(
+    State(state): State<ApiState>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let project = projects::ui::get_project(&state.context, state.project_id)
+        .await
+        .map_err(|err| {
+            ApiError::new(
+                MpesaError::InternalError,
+                format!("Failed to get project: {}", err),
+            )
+        })?;
+
+    let settings = state.context.settings.get().await;
+
+    // yes, we are returning even the private keys in the settings
+    // private keys and passwords are not really private. They are kept clear text for easy debugging
+    Ok(Json(json!(
+        {
+            "project": project,
+            "settings": settings
+        }
+    )))
 }
 
 pub async fn start_project_server(
