@@ -62,7 +62,7 @@ impl Account {
                     balance: Set(0),
                     account_type: Set(AccountType::System.to_string()),
                     created_at: Set(Utc::now()),
-                    ..Default::default()
+                    disabled: Set(false),
                 };
 
                 let account = model.insert(conn).await?;

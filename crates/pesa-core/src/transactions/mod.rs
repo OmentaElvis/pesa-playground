@@ -129,12 +129,16 @@ impl Ledger {
 
         let mut source_account = if let Some(source) = source {
             let source_account = Account::get_account(conn, source).await?;
-            if source_account.is_none() {
+            if let Some(account) = source_account {
+                if matches!(account.account_type, crate::accounts::AccountType::System) {
+                    None
+                } else {
+                    Some(account)
+                }
+            } else {
                 // This is an error, We were given an accout that does not exist
                 return Err(TransactionEngineError::AccountNotFound(source));
             }
-
-            source_account
         } else {
             None
         };
