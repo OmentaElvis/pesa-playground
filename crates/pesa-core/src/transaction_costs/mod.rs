@@ -28,7 +28,9 @@ where
         TransactionType::Reversal => TransactionType::Reversal.to_string(),
         TransactionType::Unknown(s) => s.to_string(),
         // these should not incur a fee
-        TransactionType::ChargeSettlement | TransactionType::RevenueSweep => {
+        TransactionType::ChargeSettlement
+        | TransactionType::RevenueSweep
+        | TransactionType::TopupUtility => {
             return Ok(0);
         }
     };

@@ -493,12 +493,12 @@ export interface User {
 	name: string;
 	phone: string;
 	pin: string;
-  balance: number,
-  disabled: boolean,
-  created_at: string,
-  registered_at: String,
-  last_swap_date?: String,
-  imsi: String,
+	balance: number;
+	disabled: boolean;
+	created_at: string;
+	registered_at: String;
+	last_swap_date?: String;
+	imsi: String;
 }
 
 export async function getUsers(): Promise<User[]> {
@@ -592,7 +592,9 @@ export enum TransactionType {
 	Withdraw = 'withdraw',
 	Deposit = 'deposit',
 	ChargeSettlement = 'charge_settlement',
-	RevenueSweep = 'revenue_sweep'
+	Disbursment = 'disbursment',
+	RevenueSweep = 'revenue_sweep',
+	TopupUtility = 'topup_utility'
 }
 
 export interface Transaction {

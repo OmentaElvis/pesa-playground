@@ -79,6 +79,7 @@ pub enum TransactionType {
     Deposit,
     ChargeSettlement,
     RevenueSweep,
+    TopupUtility,
     Disbursment,
     Unknown(String),
 }
