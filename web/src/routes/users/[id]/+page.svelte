@@ -66,7 +66,7 @@
 
 		try {
 			addingDeposit = true;
-			await transfer(null, user_details.id, fundsToAdd * 100, TransactionType.Deposit);
+			await transfer(null, user_details.account_id, fundsToAdd * 100, TransactionType.Deposit);
 
 			toast.success(
 				`Deposited ${formatAmount(fundsToAdd)} to ${user_details.name} ${user_details.phone}`
@@ -138,7 +138,7 @@
 				<div class="flex items-center justify-between">
 					<div class="flex flex-1 items-center gap-3">
 						<div class="h-12 w-12">
-							<DiceBearAvatar seed={`${user.id}-${user.name}`} fallback={getInitials(user.name)} />
+							<DiceBearAvatar seed={`${user.account_id}-${user.name}`} fallback={getInitials(user.name)} />
 						</div>
 						<div>
 							<h1 class="text-xl font-semibold">{user.name}</h1>
@@ -274,7 +274,7 @@
 						<TransactionList
 							scope={{
 								type: 'User',
-								id: user.id
+								id: user.account_id
 							}}
 							{transactions}
 						/>

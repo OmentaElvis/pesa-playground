@@ -70,7 +70,7 @@
 			suggestionsLoading = true;
 			if (suggestionType === 'phone') {
 				suggestions = (await getUsers()).filter((u) => {
-					return u.id != user.id;
+					return u.account_id != user.account_id;
 				});
 			} else if (suggestionType === 'paybill') {
 				suggestions = await getPaybillAccounts();
@@ -111,7 +111,7 @@
 				return;
 			}
 			let amount = Number(simFormData.amount) * 100;
-			let txn = await transfer(user.id, receiver.id, amount, TransactionType.SendMoney);
+			let txn = await transfer(user.account_id, receiver.account_id, amount, TransactionType.SendMoney);
 			toast.info(`${txn.id}. Sent money to ${phone}. `);
 			resetMenu();
 		} catch (err) {
@@ -219,13 +219,13 @@
 
 	async function selectFromPhonebook() {
 		const users = (await getUsers()).filter((u) => {
-			return u.id != user.id;
+			return u.account_id != user.account_id;
 		});
 
 		simMenus.phonebook = {
 			title: 'Phonebook',
 			options: users.map((user, i) => ({
-				id: `user_${user.id}`,
+				id: `user_${user.account_id}`,
 				label: `${i + 1}. ${user.name}`,
 				action: () => {
 					simFormData.phone = user.phone;

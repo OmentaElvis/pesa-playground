@@ -28,6 +28,23 @@ pub struct User {
 }
 
 impl User {
+    pub async fn get_users<C>(conn: &C) -> anyhow::Result<Vec<User>>
+    where
+        C: ConnectionTrait,
+    {
+        let users: Vec<User> = crate::accounts::user_profiles::db::Entity::find()
+            .join(sea_orm::JoinType::InnerJoin, db::Relation::Account.def())
+            .select_column(db::Column::AccountId)
+            .select_column(accounts::db::Column::Balance)
+            .select_column(accounts::db::Column::AccountType)
+            .select_column(accounts::db::Column::CreatedAt)
+            .select_column(accounts::db::Column::Disabled)
+            .into_model::<User>()
+            .all(conn)
+            .await?;
+
+        Ok(users)
+    }
     pub async fn create_from<C>(
         conn: &C,
         phone: String,

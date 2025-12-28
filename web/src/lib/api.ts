@@ -489,7 +489,7 @@ export async function deleteProject(id: number): Promise<void> {
 }
 
 export interface User {
-	id: number;
+	account_id: number;
 	name: string;
 	phone: string;
 	pin: string;
@@ -1017,7 +1017,7 @@ export async function resolveAccountAndNavigate(
 		case AccountType.User:
 			let user = await getUser(account.id);
 			if (!user) return;
-			await goto(`/users/${user.id}`);
+			await goto(`/users/${user.account_id}`);
 			break;
 	}
 }

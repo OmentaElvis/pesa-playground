@@ -517,7 +517,7 @@
 					</CardHeader>
 					<CardContent>
 						<div class="space-y-4">
-							{#each users as user (user.id)}
+							{#each users as user (user.account_id)}
 								<div class="rounded-lg border p-4">
 									<div class="flex items-center justify-between">
 										<div class="flex items-center gap-4">
@@ -525,13 +525,13 @@
 												class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10"
 											>
 												<DiceBearAvatar
-													seed={`${user.id}-${user.name}`}
+													seed={`${user.account_id}-${user.name}`}
 													fallback={getInitials(user.name)}
 												/>
 											</div>
 											<div>
 												<h4 class="font-medium">
-													<a href="/users/{user.id}" class="hover:underline">{user.name}</a>
+													<a href="/users/{user.account_id}" class="hover:underline">{user.name}</a>
 												</h4>
 												<div class="flex items-center gap-4 text-sm text-muted-foreground">
 													<span class="flex items-center gap-1">

@@ -1,42 +1,11 @@
-use super::{User, db as user_profiles};
+use super::User;
 use crate::{AppContext, accounts::db as accounts};
 use anyhow::{Context, Result};
 use sea_orm::{ActiveValue::Set, TransactionTrait, prelude::*};
-use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Clone)]
-pub struct UserDetails {
-    pub id: u32,
-    pub name: String,
-    pub pin: String,
-    pub phone: String,
-    pub balance: f64,
-}
-
-impl UserDetails {}
-
-pub async fn get_users(ctx: &AppContext) -> Result<Vec<UserDetails>, String> {
-    let users = accounts::Entity::find()
-        .filter(accounts::Column::AccountType.eq(crate::accounts::AccountType::User.to_string()))
-        .find_also_related(user_profiles::Entity)
-        .all(&ctx.db)
-        .await
-        .map_err(|err| format!("Failed to read user profiles {} ", err))?;
-
-    let users_info = users
-        .into_iter()
-        .filter_map(|(acct, profiles)| {
-            profiles.map(|p| UserDetails {
-                id: acct.id,
-                phone: p.phone,
-                name: p.name,
-                pin: p.pin,
-                balance: acct.balance as f64 / 100.0,
-            })
-        })
-        .collect();
-
-    Ok(users_info)
+pub async fn get_users(ctx: &AppContext) -> anyhow::Result<Vec<User>> {
+    let users = User::get_users(&ctx.db).await?;
+    Ok(users)
 }
 
 pub async fn create_user(
