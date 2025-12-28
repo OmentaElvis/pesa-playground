@@ -1,5 +1,6 @@
 use crate::{
     AppContext,
+    accounts::user_profiles::User,
     projects::{self},
     server::{
         api::{b2c::task::B2C, c2b::register::registerurl, stkpush::task::Stkpush},
@@ -226,6 +227,7 @@ ______              ______ _                                             _
     .route("/mpesa/c2b/v2/registerurl", post(registerurl))
     .route("/mpesa/b2c/v3/paymentrequest", post(handle_async_request::<B2C>))
     .route("/debug/config", get(get_api_keys))
+    .route("/debug/users", get(get_users))
     .with_state(state.clone());
 
     if log {
@@ -260,6 +262,17 @@ pub async fn get_api_keys(
             "settings": settings
         }
     )))
+}
+
+pub async fn get_users(State(state): State<ApiState>) -> Result<Json<Vec<User>>, ApiError> {
+    let users = User::get_users(&state.context.db).await.map_err(|err| {
+        ApiError::new(
+            MpesaError::InternalError,
+            format!("Failed to fetch user list: {}", err),
+        )
+    })?;
+
+    Ok(Json(users))
 }
 
 pub async fn start_project_server(
