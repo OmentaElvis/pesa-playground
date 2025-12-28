@@ -14,6 +14,7 @@ pub mod callbacks;
 pub mod db;
 pub mod events;
 pub mod info;
+pub mod migrations;
 pub mod projects;
 pub mod sandboxes;
 pub mod server;

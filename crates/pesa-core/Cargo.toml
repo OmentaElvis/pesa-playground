@@ -31,4 +31,5 @@ rsa = "0.9.9"
 rand = "0.8.5"
 tracing = "0.1.44"
 dashmap = "6.1.0"
+sea-orm-migration = "1.1.19"
 

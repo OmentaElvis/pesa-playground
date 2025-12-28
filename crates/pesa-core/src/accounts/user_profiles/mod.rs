@@ -166,7 +166,7 @@ impl User {
             }
         }
     }
-    fn random_registration_date() -> DateTime<Utc> {
+    pub fn random_registration_date() -> DateTime<Utc> {
         let now = Utc::now();
         let two_years_ago = now - Duration::days(365 * 2);
 
@@ -180,7 +180,7 @@ impl User {
         format!("{:04}", (0..=9999).fake::<u16>()) // 4-digit PIN
     }
 
-    fn generate_test_imsi() -> String {
+    pub fn generate_test_imsi() -> String {
         let mcc = "001"; // test MCC
         let mnc = "01"; // test MNC
 
