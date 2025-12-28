@@ -116,6 +116,7 @@ impl CallbackLog {
             callback_type: Set(params.callback_type.to_string()),
             payload: Set(serde_json::to_string(&params.payload).unwrap_or_default()),
             status: Set(CallbackStatus::Pending.to_string()),
+            created_at: Set(Utc::now().to_utc()),
             ..Default::default()
         }
         .insert(db)
