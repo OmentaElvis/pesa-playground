@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/OmentaElvis/pesa-playground/compare/v1.3.0...v1.3.1) (2026-01-01)
+
+
+### Bug Fixes
+
+* **ci:** tauri windows build upload the correct artifact version ([baa7a9b](https://github.com/OmentaElvis/pesa-playground/commit/baa7a9b6dd4fc2ad01c0c9cef9343d7bfafc8b89))
+
 # [1.3.0](https://github.com/OmentaElvis/pesa-playground/compare/v1.2.0...v1.3.0) (2026-01-01)
 
 
