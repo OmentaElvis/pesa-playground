@@ -9,7 +9,7 @@
 	import { getKeymapManager, getAllKeymapActionsStore } from '$lib/keymap';
 	import { Button } from '$lib/components/ui/button';
 	import * as Select from '$lib/components/ui/select/index.js';
-	import * as Item from "$lib/components/ui/item/index.js";
+	import * as Item from '$lib/components/ui/item/index.js';
 	import { settings } from '$lib/stores/settings';
 	import { ArrowRight, MoonIcon, ScrollText, SunIcon, TestTubeDiagonal } from 'lucide-svelte';
 
@@ -78,25 +78,27 @@
 						<Item.Media>
 							<TestTubeDiagonal />
 						</Item.Media>
-					  <Item.Content>
-					    <Item.Title>Self Diagnostics</Item.Title>
-					    <Item.Description>Perform self diagnostics to verify integrity of the app, database and daraja APIs.</Item.Description>
-					  </Item.Content>
-					  <Item.Actions>
-				      <Button variant="outline" size="sm" href="/self_test">Open <ArrowRight /></Button>
-				    </Item.Actions>
-					  <Item.Actions />
+						<Item.Content>
+							<Item.Title>Self Diagnostics</Item.Title>
+							<Item.Description>
+								Perform self diagnostics to verify integrity of the app, database and daraja APIs.
+							</Item.Description>
+						</Item.Content>
+						<Item.Actions>
+							<Button variant="outline" size="sm" href="/self_test">Open <ArrowRight /></Button>
+						</Item.Actions>
+						<Item.Actions />
 					</Item.Root>
 					<!-- log level -->
 					<Item.Root variant="outline">
 						<Item.Media>
 							<ScrollText />
 						</Item.Media>
-					  <Item.Content>
-					    <Item.Title>Log level</Item.Title>
-					    <Item.Description>The level of logging by the app backend.</Item.Description>
-					  </Item.Content>
-					  <Item.Actions>
+						<Item.Content>
+							<Item.Title>Log level</Item.Title>
+							<Item.Description>The level of logging by the app backend.</Item.Description>
+						</Item.Content>
+						<Item.Actions>
 							<Select.Root type="single" bind:value={$settings.server_log_level}>
 								<Select.Trigger>
 									Level - {$settings.server_log_level}
@@ -109,8 +111,8 @@
 									</Select.Group>
 								</Select.Content>
 							</Select.Root>
-				    </Item.Actions>
-					  <Item.Actions />
+						</Item.Actions>
+						<Item.Actions />
 					</Item.Root>
 					<!-- theme -->
 					<Item.Root variant="outline">
@@ -122,11 +124,11 @@
 								class="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0"
 							/>
 						</Item.Media>
-					  <Item.Content>
-					    <Item.Title>Theme</Item.Title>
-					    <Item.Description>The theme to use for the application.</Item.Description>
-					  </Item.Content>
-					  <Item.Actions>
+						<Item.Content>
+							<Item.Title>Theme</Item.Title>
+							<Item.Description>The theme to use for the application.</Item.Description>
+						</Item.Content>
+						<Item.Actions>
 							<Select.Root type="single" bind:value={$settings.theme}>
 								<Select.Trigger>
 									Theme - {$settings.theme}
@@ -139,8 +141,8 @@
 									</Select.Group>
 								</Select.Content>
 							</Select.Root>
-				    </Item.Actions>
-					  <Item.Actions />
+						</Item.Actions>
+						<Item.Actions />
 					</Item.Root>
 					<hr class="my-4" />
 					<div>

@@ -1110,7 +1110,6 @@ export async function lipa(args: LipaArgs): Promise<void> {
 	return await invoke('lipa', { args });
 }
 
-
 export type TestStatus = 'pending' | 'running' | 'passed' | 'failed' | 'panicked' | 'timed_out';
 export type TestMode = 'Fresh' | 'Clone';
 
@@ -1130,36 +1129,36 @@ export async function startSelfTest(mode: TestMode) {
 }
 
 export enum TestEvents {
-	Start = "self_test_start",
-	Plan = "self_test_plan",
-	StepUpdate = "self_test_step_update",
-	Finish = "self_test_finish",
-	ProgressLog = "self_test_progress_log",
+	Start = 'self_test_start',
+	Plan = 'self_test_plan',
+	StepUpdate = 'self_test_step_update',
+	Finish = 'self_test_finish',
+	ProgressLog = 'self_test_progress_log'
 }
 
 export interface TestStartEvent {
-	mode: TestMode,
-	working_dir: String
+	mode: TestMode;
+	working_dir: String;
 }
 
 export interface TestPlanEvent {
-	steps: TestStep[]
+	steps: TestStep[];
 }
 
 export interface TestStepUpdateEvent {
-	index: number,
-	name: String,
-	status: TestStatus,
-	message?: String
+	index: number;
+	name: String;
+	status: TestStatus;
+	message?: String;
 }
 
 export interface TestFinishEvent {
-	status: TestStatus
+	status: TestStatus;
 }
 
 export interface TestProgressLogEvent {
-  name: String | "main",
-  index: number,
-  message: String,
-  runner: true
+	name: String | 'main';
+	index: number;
+	message: String;
+	runner: true;
 }

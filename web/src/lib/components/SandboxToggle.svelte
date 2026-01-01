@@ -7,10 +7,13 @@
 	import { toast } from 'svelte-sonner';
 	import { spin } from '$lib/transitions/spin';
 
-	let { id, port = $bindable(), host = $bindable() }: { id: number, port: number, host: string} = $props();
+	let {
+		id,
+		port = $bindable(),
+		host = $bindable()
+	}: { id: number; port: number; host: string } = $props();
 	let status: SandboxStatus = $state('off');
 	let error: string | null = $state(null);
-	
 
 	async function toggle() {
 		if (status === 'starting') {
@@ -32,8 +35,8 @@
 
 	onMount(() => {
 		port = 8000 + id;
-		host = "127.0.0.1";
-	})
+		host = '127.0.0.1';
+	});
 
 	const unsub = sandboxes.subscribe((map) => {
 		const info = map.get(id);

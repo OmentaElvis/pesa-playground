@@ -140,17 +140,17 @@
 				self_test_finish: await listen<TestFinishEvent>(TestEvents.Finish, ({ payload }) => {
 					// This will be 'passed' or 'failed'
 					switch (payload.status) {
-						case "failed":
-						case "panicked":
-						case "timed_out":
-							 uiState = "failed";
-							 break;
-						case "running":
-						case "pending":
-							uiState = "running";
+						case 'failed':
+						case 'panicked':
+						case 'timed_out':
+							uiState = 'failed';
 							break;
-						case "passed":
-						   uiState = "passed";
+						case 'running':
+						case 'pending':
+							uiState = 'running';
+							break;
+						case 'passed':
+							uiState = 'passed';
 					}
 					// If the suite finished, but some tests are still pending, mark them as cancelled
 					for (let i = 0; i < tests.length; i++) {
@@ -252,17 +252,18 @@
 	}
 </script>
 
-<div class="p-4 lg:p-8 h-full flex flex-col">
+<div class="flex h-full flex-col p-4 lg:p-8">
 	{#if $mode != 'Fresh' && $mode != 'Clone'}
-		<div class="flex-grow flex flex-col items-center justify-center space-y-6 text-center">
+		<div class="flex flex-grow flex-col items-center justify-center space-y-6 text-center">
 			<div class="space-y-2">
 				<div class="flex justify-center">
-					<PesaPlaygroundLogo width="256" variant="color" height="128" /></div>
+					<PesaPlaygroundLogo width="256" variant="color" height="128" />
+				</div>
 				<h2 class="text-3xl font-bold tracking-tight">Self Diagnostic</h2>
-				<p class="text-muted-foreground max-w-xl">
+				<p class="max-w-xl text-muted-foreground">
 					Choose a test mode to run a series of automated checks against the application's core
-					components. This tests will emulate transactions, api interactions and other core functionality interactions.
-					These tests are not expected to fail.
+					components. This tests will emulate transactions, api interactions and other core
+					functionality interactions. These tests are not expected to fail.
 				</p>
 			</div>
 			<div class="flex w-full max-w-xl flex-col gap-6">
@@ -272,11 +273,11 @@
 						class="cursor-pointer items-center hover:border-green-500"
 						onclick={() => startTests('Fresh')}
 					>
-						<Item.Header class="flex justify-center items-center">
+						<Item.Header class="flex items-center justify-center">
 							<LayoutGrid size="48" />
 						</Item.Header>
 						<Item.Content>
-							<Item.Title class="text-xl text-center mx-auto">Fresh</Item.Title>
+							<Item.Title class="mx-auto text-center text-xl">Fresh</Item.Title>
 							<Item.Description>Do diagnostics on fresh instance of the app</Item.Description>
 						</Item.Content>
 					</Item.Root>
@@ -285,15 +286,14 @@
 						class="cursor-pointer items-center hover:border-green-500"
 						onclick={() => startTests('Clone')}
 					>
-						<Item.Header class="flex justify-center items-center">
+						<Item.Header class="flex items-center justify-center">
 							<FilesIcon size="48" />
 						</Item.Header>
 						<Item.Content>
-							<Item.Title class="text-xl text-center mx-auto">Clone</Item.Title>
-							<Item.Description
-								>Clones your existing database and configurations and starts tests on that
-								copy.</Item.Description
-							>
+							<Item.Title class="mx-auto text-center text-xl">Clone</Item.Title>
+							<Item.Description>
+								Clones your existing database and configurations and starts tests on that copy.
+							</Item.Description>
 						</Item.Content>
 					</Item.Root>
 				</Item.Group>
@@ -309,7 +309,7 @@
 			</div>
 		</div>
 		<div
-			class={cn('flex flex-row gap-2 items-center p-2 mb-2 text-sm', {
+			class={cn('mb-2 flex flex-row items-center gap-2 p-2 text-sm', {
 				'text-red-500': uiState === 'failed'
 			})}
 		>
@@ -332,20 +332,22 @@
 		</div>
 		<PaneGroup direction="horizontal" class="flex-grow">
 			<Pane defaultSize={30} minSize={20}>
-				<div class="flex flex-col h-full space-y-4 pr-2">
-					<div class="border rounded-md bg-muted/20 flex-grow overflow-y-auto">
+				<div class="flex h-full flex-col space-y-4 pr-2">
+					<div class="flex-grow overflow-y-auto rounded-md border bg-muted/20">
 						<ul class="divide-y divide-border">
 							{#each tests as test, index (test.name)}
 								{@const Icon = getStatusIcon(test)}
 								<button
 									class={cn(
-										'flex gap-4 p-2 items-center text-left text-sm cursor-pointer w-full',
+										'flex w-full cursor-pointer items-center gap-4 p-2 text-left text-sm',
 										selectedTestIndex === index && 'bg-primary/10 text-accent-foreground',
-										(test.inferredStatus === 'pending' || test.inferredStatus === 'cancelled') && 'opacity-50 cursor-not-allowed',
-										(test.inferredStatus === 'passed') && 'bg-green-500/10',
-										(test.inferredStatus == "pending") && 'bg-orange-500/10'
+										(test.inferredStatus === 'pending' || test.inferredStatus === 'cancelled') &&
+											'cursor-not-allowed opacity-50',
+										test.inferredStatus === 'passed' && 'bg-green-500/10',
+										test.inferredStatus == 'pending' && 'bg-orange-500/10'
 									)}
-									disabled={test.inferredStatus === 'pending' || test.inferredStatus === 'cancelled'}
+									disabled={test.inferredStatus === 'pending' ||
+										test.inferredStatus === 'cancelled'}
 									onclick={() => selectTest(index)}
 									onkeydown={(e) => e.key === 'Enter' && selectTest(index)}
 								>
@@ -359,9 +361,12 @@
 									<span
 										class={cn(
 											'truncate',
-											test.inferredStatus === 'passed' && 'text-green-700 dark:text-green-500 font-bold'
-										)}>{test.name}</span
+											test.inferredStatus === 'passed' &&
+												'font-bold text-green-700 dark:text-green-500'
+										)}
 									>
+										{test.name}
+									</span>
 								</button>
 							{/each}
 						</ul>
@@ -369,9 +374,9 @@
 				</div>
 			</Pane>
 			<Pane>
-				<div class="flex flex-col h-full border rounded-md bg-muted/20">
+				<div class="flex h-full flex-col rounded-md border bg-muted/20">
 					{#if selectedTest}
-						<div class="p-3 border-b bg-muted/50 flex items-center justify-between">
+						<div class="flex items-center justify-between border-b bg-muted/50 p-3">
 							<div>
 								<h3 class="font-semibold">{selectedTest.name}</h3>
 								<p class="text-sm text-muted-foreground">{selectedTest.description}</p>
@@ -394,16 +399,16 @@
 							{#if selectedTest.inferredStatus === 'failed' || selectedTest.inferredStatus === 'panicked' || selectedTest.inferredStatus === 'timed_out'}
 								{#if selectedTest.message && selectedTest.message.length > 0}
 									<div
-										class="bg-destructive/10 border-l-4 border-destructive text-destructive p-3 m-2 rounded-md"
+										class="m-2 rounded-md border-l-4 border-destructive bg-destructive/10 p-3 text-destructive"
 									>
-										<p class="font-bold mb-1">Error Details:</p>
-										<p class="whitespace-pre-wrap text-sm font-mono">
+										<p class="mb-1 font-bold">Error Details:</p>
+										<p class="font-mono text-sm whitespace-pre-wrap">
 											{selectedTest.message}
 										</p>
 									</div>
 								{/if}
 							{/if}
-							<div class="text-xs whitespace-pre-wrap p-4 text-left font-mono">
+							<div class="p-4 text-left font-mono text-xs whitespace-pre-wrap">
 								{#each selectedTest.logs as log}
 									{log}
 								{:else}
@@ -412,7 +417,7 @@
 							</div>
 						</div>
 					{:else}
-						<div class="flex-grow flex items-center justify-center">
+						<div class="flex flex-grow items-center justify-center">
 							<p class="text-muted-foreground">Select a test step to see its logs.</p>
 						</div>
 					{/if}
