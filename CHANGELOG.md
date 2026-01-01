@@ -1,3 +1,11 @@
+## [1.4.1](https://github.com/OmentaElvis/pesa-playground/compare/v1.4.0...v1.4.1) (2026-01-01)
+
+
+### Bug Fixes
+
+* **core:** fix db nuke logic that failed due to FK constraints ([5e4872a](https://github.com/OmentaElvis/pesa-playground/commit/5e4872aecf2a5461827b462e9d927695672ffee1))
+* **users:** users were generating with absurd high values due to currency unit mismatch ([8bd31c0](https://github.com/OmentaElvis/pesa-playground/commit/8bd31c0c008f48377d44384415f33e2d590b9800))
+
 # [1.4.0](https://github.com/OmentaElvis/pesa-playground/compare/v1.3.1...v1.4.0) (2026-01-01)
 
 
