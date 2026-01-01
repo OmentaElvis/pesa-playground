@@ -10,6 +10,7 @@ use crate::{
 };
 
 pub mod b2c;
+pub mod balance_query;
 pub mod c2b;
 pub mod create_project;
 pub mod send_money;
@@ -40,6 +41,11 @@ define_tests!(
         name: "b2c",
         description: "Performs B2C tests",
         ctor: b2c::B2CTest
+    },
+    BalanceQuery {
+        name: "balance_query",
+        description: "Performs Balance Query tests",
+        ctor: balance_query::BalanceQueryTest
     },
 );
 

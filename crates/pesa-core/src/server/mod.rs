@@ -3,7 +3,10 @@ use crate::{
     accounts::user_profiles::User,
     projects::{self},
     server::{
-        api::{b2c::task::B2C, c2b::register::registerurl, stkpush::task::Stkpush},
+        api::{
+            b2c::task::B2C, balance_query::task::BalanceQuery, c2b::register::registerurl,
+            stkpush::task::Stkpush,
+        },
         async_handler::handle_async_request,
     },
 };
@@ -227,6 +230,7 @@ ______              ______ _                                             _
     .route("/mpesa/stkpush/v1/processrequest", post(handle_async_request::<Stkpush>))
     .route("/mpesa/c2b/v2/registerurl", post(registerurl))
     .route("/mpesa/b2c/v3/paymentrequest", post(handle_async_request::<B2C>))
+    .route("/mpesa/accountbalance/v1/query", post(handle_async_request::<BalanceQuery>))
     .route("/debug/config", get(get_api_keys))
     .route("/debug/users", get(get_users))
     .with_state(state.clone());

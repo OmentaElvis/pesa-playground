@@ -202,8 +202,8 @@ impl PpgAsyncRequest for B2C {
             B2CRequestResponse {
                 conversation_id: conversation_id.to_string(),
                 originator_conversation_id: req.originator_conversation_id.clone(),
-                response_code: B2CResultCodes::Success.to_string(),
-                response_description: String::new(),
+                response_code: B2CResultCodes::Success.code().to_string(),
+                response_description: B2CResultCodes::Success.to_string(),
             },
             Self {
                 conversation_id: conversation_id.to_string(),

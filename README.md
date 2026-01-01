@@ -166,7 +166,7 @@ This is a unified api that is used by Business To Pochi and Business To Customer
 
 - ✅ B2C Payment Request - simulate disbursements to mobile numbers
 - [ ] Transaction Status query
-- [ ] Balance query
+- ✅ Balance query
 
 #### Business to Business (B2B)
 This is a unified api that is used by Tax remitance, Business Paybill, Business Buy Goods and B2C Account Top Up

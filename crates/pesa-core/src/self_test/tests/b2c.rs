@@ -7,7 +7,7 @@ use serde_json::Value;
 use crate::{
     accounts::{Account, user_profiles::User},
     business::{self, BusinessSummary},
-    business_operators::{self, BusinessOperator},
+    business_operators::BusinessOperator,
     projects::ProjectDetails,
     self_test::{
         callback::{CallbackCall, CallbackManager},
@@ -58,23 +58,13 @@ impl TestStep for B2CTest {
             .context("Failed to get base_url from TestContext")?
             .unwrap();
 
-        context
-            .log(">> Creating Business Operator for B2C tests...")
-            .await;
-        let operator_password = "test_password".to_string();
-        let operator = business_operators::ui::create_operator(
-            &context.app_context,
-            business_operators::ui::CreateOperatorPayload {
-                username: "b2c_operator".to_string(),
-                password: operator_password.clone(),
-                business_id: business.id,
-            },
-        )
-        .await
-        .context("Failed to create B2C business operator")?;
+        let operator: BusinessOperator = context
+            .get("operator")
+            .context("Failed to get operator from TestContext")?
+            .unwrap();
 
         context
-            .log(&format!("Created operator: {:#?}", operator))
+            .log(&format!("Using operator: {:#?}", operator))
             .await;
 
         let current_settings = context.app_context.settings.get().await;
