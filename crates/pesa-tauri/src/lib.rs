@@ -8,6 +8,7 @@ use pesa_core::{
     business::{CreateBusiness, UpdateBusiness},
     business_operators::ui::CreateOperatorPayload,
     projects::{CreateProject, UpdateProject},
+    self_test::context::TestMode,
     server::api::stkpush::ui::UserResponse,
     settings::models::AppSettings,
     transaction_costs::ui::TransactionCostData,
@@ -20,7 +21,6 @@ use pesa_core::{
 
 use pesa_lua::ScriptManager;
 use pesa_macros::generate_tauri_wrappers;
-use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::{Emitter, Manager, Runtime, State};
 use tokio::sync::{Mutex, broadcast};
@@ -69,7 +69,7 @@ generate_tauri_wrappers! {
     generate_security_credential(password: String) => pesa_core::settings::ui::generate_security_credential,
 
     // Existing commands
-    start_sandbox(project_id: u32) => pesa_core::sandboxes::ui::start_sandbox,
+    start_sandbox(project_id: u32, host: Option<String>) => pesa_core::sandboxes::ui::start_sandbox,
     stop_sandbox(project_id: u32) => pesa_core::sandboxes::ui::stop_sandbox,
     sandbox_status(project_id: u32) => pesa_core::sandboxes::ui::sandbox_status,
     list_running_sandboxes() => pesa_core::sandboxes::ui::list_running_sandboxes,
@@ -162,7 +162,9 @@ generate_tauri_wrappers! {
     get_utility_account_by_business_id(business_id: u32) => pesa_core::accounts::utility_accounts::ui::get_utility_account_by_business_id,
     get_mmf_account(id: u32) => pesa_core::accounts::mmf_accounts::ui::get_mmf_account,
     get_mmf_account_by_business_id(business_id: u32) => pesa_core::accounts::mmf_accounts::ui::get_mmf_account_by_business_id,
-    revenue_settlement(business_id: u32) => pesa_core::business::ui::revenue_settlement
+    revenue_settlement(business_id: u32) => pesa_core::business::ui::revenue_settlement,
+
+    run_self_tests(mode: TestMode) => pesa_core::self_test::ui::run_self_tests
 }
 
 #[tauri::command]
@@ -240,7 +242,8 @@ pub fn run() {
                     db: db.conn.clone(),
                     settings: settings_manager,
                     event_manager: event_manager.clone(),
-                    running: Arc::new(Mutex::new(HashMap::new())),
+                    running: Arc::new(pesa_core::dashmap::DashMap::new()),
+                    app_root: app_dir.clone(),
                 };
 
                 // Initialize ScriptManager
@@ -372,6 +375,7 @@ pub fn run() {
             get_mmf_account_by_business_id,
             get_utility_account_by_business_id,
             revenue_settlement,
+            run_self_tests
         ]);
 
     app.run(tauri::generate_context!())

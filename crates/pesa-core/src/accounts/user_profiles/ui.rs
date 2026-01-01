@@ -1,7 +1,7 @@
 use super::User;
-use crate::{AppContext, accounts::db as accounts};
+use crate::AppContext;
 use anyhow::{Context, Result};
-use sea_orm::{ActiveValue::Set, TransactionTrait, prelude::*};
+use sea_orm::TransactionTrait;
 
 pub async fn get_users(ctx: &AppContext) -> anyhow::Result<Vec<User>> {
     let users = User::get_users(&ctx.db).await?;
@@ -36,22 +36,9 @@ pub async fn create_user(
     Ok(user)
 }
 
-pub async fn remove_user(ctx: &AppContext, user_id: u32) -> Result<(), String> {
+pub async fn remove_user(ctx: &AppContext, user_id: u32) -> Result<()> {
     // just mark the user as deleted rather than actually yeating them.
-    let account = accounts::Entity::find_by_id(user_id)
-        .one(&ctx.db)
-        .await
-        .map_err(|err| format!("Failed to get user ({}): {}", user_id, err))?;
-
-    let mut account: accounts::ActiveModel = account
-        .ok_or_else(|| format!("User ({}) not found.", user_id))?
-        .into();
-    account.disabled = Set(true);
-    account
-        .update(&ctx.db)
-        .await
-        .map_err(|err| format!("Failed to update user account: {}", err))?;
-
+    User::disable_user(&ctx.db, user_id).await?;
     Ok(())
 }
 pub async fn get_user(ctx: &AppContext, user_id: u32) -> anyhow::Result<Option<User>> {

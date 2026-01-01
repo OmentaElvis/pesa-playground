@@ -11,7 +11,7 @@ use crate::{
 };
 
 /// Request to register validation and confirmation URLs
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct RegisterUrlRequest {
     #[serde(rename = "ShortCode")]
     pub short_code: u32,
@@ -24,7 +24,7 @@ pub struct RegisterUrlRequest {
 }
 
 /// Response after registering URLs
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RegisterUrlResponse {
     #[serde(rename = "ResponseCode")]
     pub response_code: String,
@@ -108,7 +108,7 @@ pub async fn registerurl(
 
         // TODO Generate valid conversation id
         return Ok(Json(RegisterUrlResponse {
-            response_code: "000000".to_string(),
+            response_code: "0".to_string(),
             originator_conversation_id: uuid::Uuid::new_v4().to_string(),
             response_description: "Success".to_string(),
         }));

@@ -5,14 +5,14 @@ use serde::{Deserialize, Serialize};
 pub mod task;
 pub mod ui;
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize, Serialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub enum TransactionType {
     CustomerPayBillOnline,
     CustomerBuyGoodsOnline,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize, Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct StkPushRequest {
     pub business_short_code: String,
@@ -28,7 +28,7 @@ pub struct StkPushRequest {
     pub transaction_desc: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct StkPushResponse {
     #[serde(rename = "MerchantRequestID")]
@@ -43,7 +43,7 @@ pub struct StkPushResponse {
     pub customer_message: String,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Deserialize)]
 pub struct CallbackItem {
     #[serde(rename = "Name")]
     pub name: String,
@@ -51,13 +51,13 @@ pub struct CallbackItem {
     pub value: serde_json::Value,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Deserialize)]
 pub struct CallbackMetadata {
     #[serde(rename = "Item")]
-    item: Vec<CallbackItem>,
+    pub item: Vec<CallbackItem>,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Deserialize)]
 pub struct StkCallback {
     #[serde(rename = "MerchantRequestID")]
     pub merchant_request_id: String,
@@ -68,16 +68,16 @@ pub struct StkCallback {
     #[serde(rename = "ResultDesc")]
     pub result_desc: String,
     #[serde(rename = "CallbackMetadata")]
-    metadata: Option<CallbackMetadata>,
+    pub metadata: Option<CallbackMetadata>,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Deserialize)]
 pub struct StkCallbackBody {
     #[serde(rename = "stkCallback")]
-    callback: StkCallback,
+    pub callback: StkCallback,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Deserialize)]
 pub struct StkCallbackBodyWrapper {
     #[serde(rename = "Body")]
     pub body: StkCallbackBody,

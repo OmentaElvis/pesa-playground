@@ -13,7 +13,7 @@ use axum::{
     extract::State,
     routing::{get, post},
 };
-use tokio::sync::oneshot;
+use tokio::{net::TcpListener, sync::oneshot};
 
 pub mod access_token;
 pub mod api;
@@ -277,16 +277,18 @@ pub async fn get_users(State(state): State<ApiState>) -> Result<Json<Vec<User>>,
 
 pub async fn start_project_server(
     project_id: u32,
-    port: u16,
+    listener: TcpListener,
     context: AppContext,
     shutdown_rx: oneshot::Receiver<()>,
+    host: String,
+    port: u16,
 ) -> anyhow::Result<()> {
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
     context.event_manager.emit_all(
         "sandbox_status",
         json!({
             "project_id": project_id,
             "port": port,
+            "host": host,
             "status": "on",
         }),
     )?;
@@ -300,7 +302,7 @@ pub async fn start_project_server(
     Ok(())
 }
 
-async fn shutdown_signal(shutdown_rx: oneshot::Receiver<()>) {
+pub async fn shutdown_signal(shutdown_rx: oneshot::Receiver<()>) {
     shutdown_rx.await.ok();
 }
 

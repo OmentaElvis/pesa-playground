@@ -21,7 +21,7 @@ use serde_json;
 pub mod db;
 pub mod ui;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum TransactionEngineError {
     #[error("Database error: {0}")]
     Database(#[from] DbErr),
@@ -95,7 +95,7 @@ pub enum TransactionStatus {
     Unknown(String),
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct Transaction {
     pub id: String,
     pub from: Option<u32>,

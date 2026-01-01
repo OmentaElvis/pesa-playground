@@ -2,8 +2,10 @@ use serde::Serialize;
 
 pub mod ui;
 
+#[derive(Debug)]
 pub struct RunningSandbox {
     pub port: u16,
+    pub host: String,
     pub shutdown: tokio::sync::oneshot::Sender<()>,
     pub handle: tokio::task::JoinHandle<anyhow::Result<()>>,
 }

@@ -69,6 +69,9 @@
 	let apiLogsLoading: boolean = $state(false);
 	let paybills: PaybillAccountDetails[] = $state([]);
 	let tills: TillAccountDetails[] = $state([]);
+	let port = $state(0);
+	let host = $state("127.0.0.1");
+	let derivedEndpoint = $derived(`http://${host}:${port}`);
 
 	// New user form
 	let creatingUser = $state(false);
@@ -208,7 +211,7 @@
 					</Button>
 				</div>
 			</div>
-			<SandboxToggle id={Number(id)} />
+			<SandboxToggle id={Number(id)} bind:port={port} bind:host={host} />
 		</div>
 
 		<!-- Key Information -->
@@ -227,20 +230,24 @@
 						<div class="flex items-center gap-2">
 							<Input
 								type="text"
-								value={`http://localhost:${Number(project?.id) + 8000}/`}
+								bind:value={derivedEndpoint}
 								readonly
 								class="flex-1"
 							/>
 							<Button
 								size="icon"
 								variant="outline"
-								onclick={() => copyToClipboard(`http://localhost:${Number(project?.id) + 8000}/`)}
+								onclick={() => copyToClipboard(derivedEndpoint)}
 							>
 								<Copy class="h-4 w-4" />
 							</Button>
 						</div>
 						<small class="text-muted-foreground">
-							The opened port is 8000+[project id], allowing multiple sandboxes to run concurrently
+							{#if port == (Number(project.id) + 8000)}
+								The opened port is 8000+[project id], allowing multiple sandboxes to run concurrently
+							{:else}
+								The current opened port is {port}. This is non standard port due to inability to bind {8000+Number(project.id)}. This is a randomly OS assigned port.
+							{/if}
 						</small>
 					</div>
 					<div class="space-y-1">

@@ -17,7 +17,7 @@ use sea_orm::PaginatorTrait;
 use sea_orm::QueryFilter;
 use sea_orm::QuerySelect;
 use sea_query::ExprTrait;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::AppContext;
 use crate::accounts::Account;
@@ -27,6 +27,7 @@ use crate::accounts::user_profiles::User;
 use crate::accounts::utility_accounts;
 use crate::accounts::utility_accounts::UtilityAccount;
 use crate::api_logs::ApiLog;
+use crate::business::Business;
 use crate::events::DomainEventDispatcher;
 use crate::projects;
 use crate::server::api::c2b::C2bTransactionType;
@@ -337,13 +338,13 @@ pub struct TransactionStats {
     pub total_fees: i64,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 pub enum LipaPaymentType {
     Paybill,
     Till,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct LipaArgs {
     pub user_phone: String,
     pub amount: i64,
@@ -446,6 +447,10 @@ pub async fn c2b_lipa_logic(ctx: &AppContext, args: LipaArgs) -> Result<()> {
             business_id
         ))?;
 
+    let business = Business::get_by_id(conn, business_id)
+        .await?
+        .context(format!("Failed to get business by id: {}", business_id))?;
+
     let user_account = Account::get_account(conn, user.account_id)
         .await
         .context("Failed to get user account.")?;
@@ -488,6 +493,7 @@ pub async fn c2b_lipa_logic(ctx: &AppContext, args: LipaArgs) -> Result<()> {
             bill_ref_number: args.account_number,
             business_id,
             notes,
+            business,
         },
         ctx.clone(),
     ));
@@ -511,6 +517,7 @@ struct ProcessLipaArgs {
     bill_ref_number: Option<String>,
     business_id: u32,
     notes: TransactionNote,
+    business: Business,
 }
 
 async fn process_lipa<C: ConnectionTrait>(conn: C, args: ProcessLipaArgs, ctx: AppContext) {
@@ -548,17 +555,17 @@ async fn process_lipa<C: ConnectionTrait>(conn: C, args: ProcessLipaArgs, ctx: A
                 },
                 // TODO confirm that a transaction_id is different for validation and confirmation request.
                 transaction_id: trasaction_id.to_string(),
-                transaction_amount: format!("{}", args.amount as f64 / 100.0),
+                transaction_amount: format!("{:.2}", args.amount as f64 / 100.0),
                 first_name: first_name.to_string(),
                 last_name: last_name.to_string(),
                 middle_name: middle_name.to_string(),
                 third_party_transaction_id: third_party_transaction_id.to_string(),
                 transaction_time: timestamp(),
-                business_shortcode: String::new(),
+                business_shortcode: args.business.short_code.clone(),
                 bill_ref_number: args.bill_ref_number.clone().unwrap_or_default(),
                 invoice_number: String::new(),
                 // TODO org balance does not seem to be in validation request in sandbox, but we will send it anyway
-                org_account_balance: format!("{}", args.destination.balance as f64 / 100.0),
+                org_account_balance: format!("{:.2}", args.destination.balance as f64 / 100.0),
                 msisdn: msisdn.to_string(),
             });
 
@@ -649,6 +656,13 @@ async fn process_lipa<C: ConnectionTrait>(conn: C, args: ProcessLipaArgs, ctx: A
 
     // send the confirmation request.
     if let Some(confirmation_url) = &confirmation_url {
+        let destination = Account::get_account(&conn, args.destination.account_id)
+            .await
+            .expect("Failed to fetch business utility account")
+            .expect(
+                "Expected business account to exist during the entire lifetime of the transaction",
+            );
+
         let req: reqwest::RequestBuilder = reqwest::Client::new()
             .post(confirmation_url.to_string())
             .json(&ValidationRequest {
@@ -657,16 +671,16 @@ async fn process_lipa<C: ConnectionTrait>(conn: C, args: ProcessLipaArgs, ctx: A
                     LipaPaymentType::Till => C2bTransactionType::Till,
                 },
                 transaction_id: txn_res.id.to_string(),
-                transaction_amount: format!("{}", args.amount as f64 / 100.0),
+                transaction_amount: format!("{:.2}", args.amount as f64 / 100.0),
                 first_name: first_name.to_string(),
                 last_name: last_name.to_string(),
                 middle_name: middle_name.to_string(),
                 third_party_transaction_id,
                 transaction_time: timestamp(),
-                business_shortcode: String::new(),
+                business_shortcode: args.business.short_code,
                 bill_ref_number: args.bill_ref_number.unwrap_or_default(),
                 invoice_number: String::new(),
-                org_account_balance: format!("{}", args.destination.balance as f64 / 100.0),
+                org_account_balance: format!("{:.2}", destination.balance as f64 / 100.0),
                 msisdn,
             });
 

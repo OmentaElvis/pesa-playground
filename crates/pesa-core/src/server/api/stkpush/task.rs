@@ -1,7 +1,9 @@
 use std::time::Duration;
 
+use anyhow::Context;
 use base64::{Engine, engine::general_purpose};
 use chrono::Utc;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tokio::sync::oneshot;
 
@@ -41,6 +43,15 @@ pub struct Stkpush {
     pub merchant_id: String,
     pub checkout_id: String,
     pub transaction_type: TransactionType,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct StkpushEvent {
+    pub checkout_id: String,
+    pub project: Project,
+    pub user: User,
+    pub business_name: String,
+    pub amount: f64,
 }
 
 impl IntoCallbackPayload<Stkpush, StkCallbackBodyWrapper> for StkPushResultCode {
@@ -288,18 +299,20 @@ impl PpgAsyncRequest for Stkpush {
         let (tx, rx) = oneshot::channel();
         STK_RESPONSE_REGISTRY.insert(checkout_id.clone(), tx);
 
+        let event = StkpushEvent {
+            checkout_id: checkout_id.to_string(),
+            project: project.clone(),
+            user: user.clone(),
+            business_name: self.business.name.clone(),
+            amount: self.amount as f64 / 100.0,
+        };
+
         if state
             .context
             .event_manager
             .emit_all(
                 "stk_push",
-                json!({
-                    "checkout_id": checkout_id,
-                    "project": project,
-                    "user": user,
-                    "business_name": self.business.name,
-                    "amount": self.amount as f64 / 100.0
-                }),
+                serde_json::to_value(event).context("Failed to serialize stkpush event")?,
             )
             .is_err()
         {

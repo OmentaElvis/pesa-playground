@@ -6,6 +6,7 @@ export type SandboxStatus = 'off' | 'starting' | 'on' | 'error';
 
 interface SandboxStatusPayload {
 	project_id: number;
+	host: string;
 	port: number;
 	status: SandboxStatus;
 	error?: string;
@@ -49,7 +50,8 @@ export function initSandboxStatus() {
 			port: payload.port,
 			project_id: payload.project_id,
 			status: payload.status,
-			error: payload.error
+			error: payload.error,
+			host: payload.host
 		};
 
 		if (payload.status === 'on') {

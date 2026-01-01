@@ -33,7 +33,7 @@ fn get_app_context_from_lua(lua: &Lua) -> mlua::Result<AppContext> {
 }
 
 generate_lua_bindings! {
-    start_sandbox(project_id: u32) => pesa_core::sandboxes::ui::start_sandbox,
+    start_sandbox(project_id: u32, host: Option<String>) => pesa_core::sandboxes::ui::start_sandbox,
     stop_sandbox(project_id: u32) => pesa_core::sandboxes::ui::stop_sandbox,
     sandbox_status(project_id: u32) => pesa_core::sandboxes::ui::sandbox_status,
     list_running_sandboxes() => pesa_core::sandboxes::ui::list_running_sandboxes,
@@ -118,7 +118,8 @@ generate_lua_bindings! {
     get_utility_account(id: u32) => pesa_core::accounts::utility_accounts::ui::get_utility_account,
     get_mmf_account(id: u32) => pesa_core::accounts::mmf_accounts::ui::get_mmf_account,
 
-    revenue_settlement(business_id: u32) => pesa_core::business::ui::revenue_settlement
+    revenue_settlement(business_id: u32) => pesa_core::business::ui::revenue_settlement,
+    run_self_tests(#[wrap] mode: TestMode) => pesa_core::self_test::ui::run_self_tests
 }
 
 type ListenerMap = Arc<Mutex<HashMap<String, Vec<RegistryKey>>>>;

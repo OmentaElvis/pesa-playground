@@ -37,10 +37,10 @@ enum GrantType {
     Unknown,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AuthResponse {
-    access_token: String,
-    expires_in: String,
+    pub access_token: String,
+    pub expires_in: String,
 }
 
 fn generate_access_token() -> String {

@@ -12,7 +12,7 @@ pub enum ResponseType {
     Cancelled,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub enum C2bTransactionType {
     #[serde(rename = "Pay Bill")]
     PayBill,
@@ -20,7 +20,7 @@ pub enum C2bTransactionType {
     Till,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct ValidationRequest {
     #[serde(rename = "TransactionType")]
     pub transaction_type: C2bTransactionType,
@@ -50,7 +50,7 @@ pub struct ValidationRequest {
     pub last_name: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub enum ResultCode {
     C2B00011,
     C2B00012,

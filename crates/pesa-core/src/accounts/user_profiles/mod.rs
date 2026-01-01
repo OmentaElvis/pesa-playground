@@ -6,14 +6,14 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, ConnectionTrait, DbErr, EntityTrait,
     FromQueryResult, QueryFilter, QuerySelect, RelationTrait, SelectColumns, prelude::DateTimeUtc,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::accounts::{self, Account, AccountType};
 
 pub mod db;
 pub mod ui;
 
-#[derive(Serialize, FromQueryResult)]
+#[derive(Serialize, FromQueryResult, Deserialize, Debug, Clone)]
 pub struct User {
     pub account_id: u32,
     pub phone: String,
@@ -245,5 +245,39 @@ impl User {
 
     pub fn generate_users(count: u32) -> Vec<User> {
         (0..count).map(|_| Self::generate()).collect()
+    }
+
+    pub async fn disable_user<C>(conn: &C, user_id: u32) -> anyhow::Result<()>
+    where
+        C: ConnectionTrait,
+    {
+        let account = accounts::db::Entity::find_by_id(user_id)
+            .one(conn)
+            .await
+            .context(format!("Failed to get user account ({})", user_id))?;
+
+        let mut account: accounts::db::ActiveModel = account
+            .ok_or_else(|| anyhow::anyhow!("User ({}) not found.", user_id))?
+            .into();
+        account.disabled = Set(true);
+        account
+            .update(conn)
+            .await
+            .context("Failed to update user account")?;
+
+        Ok(())
+    }
+
+    pub async fn delete_user<C>(conn: &C, user_id: u32) -> anyhow::Result<()>
+    where
+        C: ConnectionTrait,
+    {
+        // First delete the user_profile, which has a foreign key to account
+        db::Entity::delete_by_id(user_id).exec(conn).await?;
+
+        // Then delete the account
+        accounts::db::Entity::delete_by_id(user_id).exec(conn).await?;
+
+        Ok(())
     }
 }

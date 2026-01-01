@@ -9,8 +9,9 @@
 	import { getKeymapManager, getAllKeymapActionsStore } from '$lib/keymap';
 	import { Button } from '$lib/components/ui/button';
 	import * as Select from '$lib/components/ui/select/index.js';
-	import * as Field from '$lib/components/ui/field/index.js';
+	import * as Item from "$lib/components/ui/item/index.js";
 	import { settings } from '$lib/stores/settings';
+	import { ArrowRight, MoonIcon, ScrollText, SunIcon, TestTubeDiagonal } from 'lucide-svelte';
 
 	const keymapManager = getKeymapManager();
 	const allKeymapActions = getAllKeymapActionsStore();
@@ -41,9 +42,9 @@
 
 	<Tabs.Root value="general" class="w-full">
 		<Tabs.List>
+			<Tabs.Trigger value="general">General</Tabs.Trigger>
 			<Tabs.Trigger value="transaction-costs">Transaction Costs</Tabs.Trigger>
 			<Tabs.Trigger value="keymaps">Keymaps</Tabs.Trigger>
-			<Tabs.Trigger value="general">General</Tabs.Trigger>
 			<!-- Add other settings tabs here -->
 		</Tabs.List>
 		<Tabs.Content value="keymaps">
@@ -73,39 +74,74 @@
 					<Card.Description>General application settings.</Card.Description>
 				</Card.Header>
 				<Card.Content class="space-y-4">
-					<Field.Group>
-						<Field.Label>Log Level</Field.Label>
-						<Field.Description>The level of logging by the app backend.</Field.Description>
-						<Select.Root type="single" bind:value={$settings.server_log_level}>
-							<Select.Trigger>
-								Level - {$settings.server_log_level}
-							</Select.Trigger>
-							<Select.Content>
-								<Select.Group>
-									{#each logLevels as level}
-										<Select.Item value={level}>{level}</Select.Item>
-									{/each}
-								</Select.Group>
-							</Select.Content>
-						</Select.Root>
-					</Field.Group>
+					<Item.Root variant="outline" class="border-green-500 bg-green-500/10">
+						<Item.Media>
+							<TestTubeDiagonal />
+						</Item.Media>
+					  <Item.Content>
+					    <Item.Title>Self Diagnostics</Item.Title>
+					    <Item.Description>Perform self diagnostics to verify integrity of the app, database and daraja APIs.</Item.Description>
+					  </Item.Content>
+					  <Item.Actions>
+				      <Button variant="outline" size="sm" href="/self_test">Open <ArrowRight /></Button>
+				    </Item.Actions>
+					  <Item.Actions />
+					</Item.Root>
+					<!-- log level -->
+					<Item.Root variant="outline">
+						<Item.Media>
+							<ScrollText />
+						</Item.Media>
+					  <Item.Content>
+					    <Item.Title>Log level</Item.Title>
+					    <Item.Description>The level of logging by the app backend.</Item.Description>
+					  </Item.Content>
+					  <Item.Actions>
+							<Select.Root type="single" bind:value={$settings.server_log_level}>
+								<Select.Trigger>
+									Level - {$settings.server_log_level}
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Group>
+										{#each logLevels as level}
+											<Select.Item value={level}>{level}</Select.Item>
+										{/each}
+									</Select.Group>
+								</Select.Content>
+							</Select.Root>
+				    </Item.Actions>
+					  <Item.Actions />
+					</Item.Root>
 					<!-- theme -->
-					<Field.Group>
-						<Field.Label>Theme</Field.Label>
-						<Field.Description>The theme to use for the application.</Field.Description>
-						<Select.Root type="single" bind:value={$settings.theme}>
-							<Select.Trigger>
-								Theme - {$settings.theme}
-							</Select.Trigger>
-							<Select.Content>
-								<Select.Group>
-									{#each themes as theme}
-										<Select.Item value={theme}>{theme}</Select.Item>
-									{/each}
-								</Select.Group>
-							</Select.Content>
-						</Select.Root>
-					</Field.Group>
+					<Item.Root variant="outline">
+						<Item.Media>
+							<SunIcon
+								class="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90"
+							/>
+							<MoonIcon
+								class="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0"
+							/>
+						</Item.Media>
+					  <Item.Content>
+					    <Item.Title>Theme</Item.Title>
+					    <Item.Description>The theme to use for the application.</Item.Description>
+					  </Item.Content>
+					  <Item.Actions>
+							<Select.Root type="single" bind:value={$settings.theme}>
+								<Select.Trigger>
+									Theme - {$settings.theme}
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Group>
+										{#each themes as theme}
+											<Select.Item value={theme}>{theme}</Select.Item>
+										{/each}
+									</Select.Group>
+								</Select.Content>
+							</Select.Root>
+				    </Item.Actions>
+					  <Item.Actions />
+					</Item.Root>
 					<hr class="my-4" />
 					<div>
 						<h3 class="mb-2 text-lg font-semibold">Danger Zone</h3>
