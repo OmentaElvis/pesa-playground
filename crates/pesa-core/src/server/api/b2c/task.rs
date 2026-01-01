@@ -1,4 +1,5 @@
 use anyhow::Context;
+use base64::{Engine, engine::general_purpose};
 use chrono::Local;
 use rsa::{Pkcs1v15Encrypt, RsaPrivateKey, pkcs8::DecodePrivateKey};
 use sea_orm::TransactionTrait;
@@ -138,8 +139,17 @@ impl PpgAsyncRequest for B2C {
             )
         })?;
 
+        let credential_decode = general_purpose::STANDARD
+            .decode(req.security_credential)
+            .map_err(|err| {
+                ApiError::new(
+                    MpesaError::InternalError,
+                    format!("Failed to decode security credential base64: {}", err),
+                )
+            })?;
+
         let decrypted = private_key
-            .decrypt(Pkcs1v15Encrypt, req.security_credential.as_bytes())
+            .decrypt(Pkcs1v15Encrypt, &credential_decode)
             .map_err(|err| {
                 ApiError::new(
                     MpesaError::InvalidCredentials,
