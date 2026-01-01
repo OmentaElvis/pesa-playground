@@ -1,3 +1,18 @@
+# [1.4.0](https://github.com/OmentaElvis/pesa-playground/compare/v1.3.1...v1.4.0) (2026-01-01)
+
+
+### Bug Fixes
+
+* **b2c:** correctly dispatch transaction events on disbursment complete ([14e4242](https://github.com/OmentaElvis/pesa-playground/commit/14e4242c9a9f083a2903b54a34b73d3bbc8a5a54))
+* **b2c:** decode security credential from base64 before decrypting ([81d15a7](https://github.com/OmentaElvis/pesa-playground/commit/81d15a716f04e7634a97cbc975a467e460e2d21e))
+
+
+### Features
+
+* **api:** added balance inquiry api ([86ff50d](https://github.com/OmentaElvis/pesa-playground/commit/86ff50d3066c7e6140d3547dff2c173d1b124231))
+* **api:** include internal error message in api error headers ([07a61d0](https://github.com/OmentaElvis/pesa-playground/commit/07a61d0d2fa169fe2f37c586b76b88ef267079ca))
+* **b2c:** added self test for b2c disbursment ([24f9882](https://github.com/OmentaElvis/pesa-playground/commit/24f98828ae4ec5eeb16dd1ea8d8f45c8c59c05ad))
+
 ## [1.3.1](https://github.com/OmentaElvis/pesa-playground/compare/v1.3.0...v1.3.1) (2026-01-01)
 
 
