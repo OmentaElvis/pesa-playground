@@ -74,7 +74,23 @@ jobs:
 
       - name: Find generated installer
         id: find_installer
-        run: echo "::set-output name=installer_path::$(find target/x86_64-pc-windows-msvc/release/bundle/nsis -name '*.exe' -print -quit)"
+        run: |
+          TAG="${{ inputs.tag_name }}"
+          VERSION="$TAG"
+
+          if [[ "$VERSION" == v* ]]; then
+            VERSION="${VERSION#v}"
+          fi
+
+          INSTALLER="target/x86_64-pc-windows-msvc/release/bundle/nsis/pesa-playground_${VERSION}_x64-setup.exe"
+
+          if [ ! -f "$INSTALLER" ]; then
+            echo "::error::Expected installer not found: $INSTALLER"
+            ls -lah target/x86_64-pc-windows-msvc/release/bundle/nsis || true
+            exit 1
+          fi
+
+          echo "installer_path=$INSTALLER" >> "$GITHUB_OUTPUT"
 
       - name: Upload release artifacts
         env:
