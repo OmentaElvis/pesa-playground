@@ -7,7 +7,9 @@
 		TransactionStatus,
 		type SortDirection,
 		getBusiness,
-		getTransactionDirection
+		getTransactionDirection,
+		listen,
+		type UnlistenFn
 	} from '$lib/api';
 	import {
 		Table,
@@ -35,6 +37,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Pagination from '$lib/components/ui/pagination/index.js';
+	import { onMount } from 'svelte';
 
 	type SortKey = 'date' | 'amount' | 'status';
 
@@ -144,6 +147,22 @@
 			sortDirection = 'Desc';
 		}
 	}
+
+	let unlistenFns: UnlistenFn[] = [];
+
+	onMount(() => {
+		listen('new_transaction', () => {
+			loadTransactions();
+		}).then((unlisten) => {
+			unlistenFns.push(unlisten);
+		});
+	});
+
+	onMount(() => {
+		for (const un of unlistenFns) {
+			un();
+		}
+	});
 
 	$effect(() => {
 		loadTransactions();

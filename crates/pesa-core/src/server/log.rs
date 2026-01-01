@@ -5,6 +5,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
+use chrono::Utc;
 use http_body_util::BodyExt;
 use serde_json::json;
 use std::collections::HashMap;
@@ -39,6 +40,19 @@ pub fn generate_request_id() -> String {
         .collect();
 
     format!("{}-{}-{}-{}{}", part1, part2, part3, part4, part5)
+}
+
+pub fn generate_conversation_id() -> String {
+    let mut rng = rng();
+
+    let part1: String = "AG".to_string();
+    let part2 = Utc::now().format("%Y%m%d").to_string();
+
+    let part3: String = (0..10)
+        .map(|_| rng.gen_range(0..16))
+        .map(|x| format!("{:x}", x))
+        .collect();
+    format!("{}_{}_{}", part1, part2, part3)
 }
 
 use super::ApiError;

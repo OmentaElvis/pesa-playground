@@ -51,7 +51,7 @@
 
 			const userAccounts = users.map((u) => ({
 				label: `User: ${u.name} (${u.phone})`,
-				value: u.id.toString()
+				value: u.account_id.toString()
 			}));
 
 			allAccounts = [...userAccounts];

@@ -9,7 +9,7 @@ use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter, Set,
 };
 use sea_orm::{PaginatorTrait, QuerySelect};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use self::db::{ActiveModel, Direction};
 use crate::accounts::{self, Account};
@@ -24,7 +24,7 @@ pub struct TransactionLog {
     pub new_balance: i64,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Deserialize, Debug, PartialEq)]
 pub struct FullTransactionLog {
     pub transaction_id: String,
     pub transaction_date: DateTimeUtc,

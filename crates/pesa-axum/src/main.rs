@@ -1,5 +1,6 @@
+use pesa_core::self_test::context::TestMode;
+use pesa_core::server::api::stkpush::ui::UserResponse;
 use serde::Deserialize;
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -26,7 +27,6 @@ use pesa_core::{
     api_logs::{UpdateApiLogRequest, ui::ApiLogFilter},
     business::{CreateBusiness, UpdateBusiness},
     business_operators::ui::CreateOperatorPayload,
-    callbacks::stk::UserResponse,
     projects::{CreateProject, UpdateProject},
     settings::models::AppSettings,
     transaction_costs::ui::TransactionCostData,
@@ -111,7 +111,7 @@ async fn handle_socket(socket: WebSocket, event_manager: Arc<AxumEventManager>) 
 // The original macro-generated handler is renamed to `rpc_handler_inner`
 generate_axum_rpc_handler! {
     rpc_handler_inner,
-    start_sandbox(project_id: u32) => pesa_core::sandboxes::ui::start_sandbox,
+    start_sandbox(project_id: u32, host: Option<String>) => pesa_core::sandboxes::ui::start_sandbox,
     stop_sandbox(project_id: u32) => pesa_core::sandboxes::ui::stop_sandbox,
     sandbox_status(project_id: u32) => pesa_core::sandboxes::ui::sandbox_status,
     list_running_sandboxes() => pesa_core::sandboxes::ui::list_running_sandboxes,
@@ -142,7 +142,7 @@ generate_axum_rpc_handler! {
     #[no_context]
     generate_users(count: u32) => pesa_core::accounts::user_profiles::ui::generate_users,
     get_user_by_phone(phone: String) => pesa_core::accounts::user_profiles::ui::get_user_by_phone,
-    update_user(user_id: u32, name: Option<String>, balance: Option<i64>, pin: Option<String>) => pesa_core::accounts::user_profiles::ui::update_user,
+    update_user(user_id: u32, name: Option<String>, pin: Option<String>, phone: Option<String>) => pesa_core::accounts::user_profiles::ui::update_user,
 
     create_paybill_account(input: CreatePaybillAccount) => pesa_core::accounts::paybill_accounts::ui::create_paybill_account,
     get_paybill_account(id: u32) => pesa_core::accounts::paybill_accounts::ui::get_paybill_account,
@@ -191,7 +191,7 @@ generate_axum_rpc_handler! {
     delete_transaction_cost(id: i32) => pesa_core::transaction_costs::ui::delete_transaction_cost,
     calculate_transaction_fee(txn_type: TransactionType, amount: i64) => pesa_core::transaction_costs::ui::calculate_transaction_fee,
 
-    resolve_stk_prompt(checkout_id: String, result: UserResponse) => pesa_core::callbacks::stk::ui::resolve_stk_prompt,
+    resolve_stk_prompt(checkout_id: String, result: UserResponse) => pesa_core::server::api::stkpush::ui::resolve_stk_prompt,
     #[no_context]
     get_app_info() => pesa_core::info::get_app_info,
 
@@ -208,7 +208,9 @@ generate_axum_rpc_handler! {
     get_utility_account_by_business_id(business_id: u32) => pesa_core::accounts::utility_accounts::ui::get_utility_account_by_business_id,
     get_mmf_account(id: u32) => pesa_core::accounts::mmf_accounts::ui::get_mmf_account,
     get_mmf_account_by_business_id(business_id: u32) => pesa_core::accounts::mmf_accounts::ui::get_mmf_account_by_business_id,
-    revenue_settlement(business_id: u32) => pesa_core::business::ui::revenue_settlement
+    revenue_settlement(business_id: u32) => pesa_core::business::ui::revenue_settlement,
+
+    run_self_tests(mode: TestMode) => pesa_core::self_test::ui::run_self_tests
 }
 
 pub async fn rpc_handler(
@@ -445,7 +447,8 @@ async fn main() {
         db: db.conn.clone(),
         settings: settings_manager,
         event_manager: axum_event_manager.clone(),
-        running: Arc::new(Mutex::new(HashMap::new())),
+        running: Arc::new(pesa_core::dashmap::DashMap::new()),
+        app_root: data_dir.clone(),
     };
 
     let script_manager = ScriptManager::new(core_context.clone(), &data_dir)

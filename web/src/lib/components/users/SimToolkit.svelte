@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button } from '../ui/button';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import type { UserDetails, PaybillAccountDetails, TillAccountDetails } from '$lib/api';
+	import type { User as UserDetails, PaybillAccountDetails, TillAccountDetails } from '$lib/api';
 	import { ArrowLeft, LoaderCircle } from 'lucide-svelte';
 	import {
 		getUsers,
@@ -70,7 +70,7 @@
 			suggestionsLoading = true;
 			if (suggestionType === 'phone') {
 				suggestions = (await getUsers()).filter((u) => {
-					return u.id != user.id;
+					return u.account_id != user.account_id;
 				});
 			} else if (suggestionType === 'paybill') {
 				suggestions = await getPaybillAccounts();
@@ -111,7 +111,12 @@
 				return;
 			}
 			let amount = Number(simFormData.amount) * 100;
-			let txn = await transfer(user.id, receiver.id, amount, TransactionType.SendMoney);
+			let txn = await transfer(
+				user.account_id,
+				receiver.account_id,
+				amount,
+				TransactionType.SendMoney
+			);
 			toast.info(`${txn.id}. Sent money to ${phone}. `);
 			resetMenu();
 		} catch (err) {
@@ -219,13 +224,13 @@
 
 	async function selectFromPhonebook() {
 		const users = (await getUsers()).filter((u) => {
-			return u.id != user.id;
+			return u.account_id != user.account_id;
 		});
 
 		simMenus.phonebook = {
 			title: 'Phonebook',
 			options: users.map((user, i) => ({
-				id: `user_${user.id}`,
+				id: `user_${user.account_id}`,
 				label: `${i + 1}. ${user.name}`,
 				action: () => {
 					simFormData.phone = user.phone;
@@ -438,7 +443,7 @@
 		account_balance: {
 			title: 'Account Balance',
 			message: `Your Account balance is Ksh <b class="text-green-500">${
-				user.balance.toFixed(2) || '0.00'
+				(user.balance / 100).toFixed(2) || '0.00'
 			}</b>`,
 			isInfo: true,
 			options: []

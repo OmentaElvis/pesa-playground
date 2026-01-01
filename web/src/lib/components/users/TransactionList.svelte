@@ -2,7 +2,7 @@
 	import type {
 		CalculatedDirection as CalculatedTransactionDirection,
 		TransactionHistoryEntry,
-		UserDetails
+		User as UserDetails
 	} from '$lib/api';
 	import { MessageSquare, ArrowUpRight, ArrowDownLeft } from 'lucide-svelte';
 	import {
@@ -81,7 +81,7 @@
 	<ScrollArea class="mx-auto h-full">
 		{#if transactions.length > 0}
 			{#each transactions as transaction (transaction.transaction_id)}
-				{@const direction = getTransactionDirection(transaction, user?.id)}
+				{@const direction = getTransactionDirection(transaction, user?.account_id)}
 				{@const { date, time, amount, cost, newBalance, transactionId } = formatValues(
 					transaction,
 					direction

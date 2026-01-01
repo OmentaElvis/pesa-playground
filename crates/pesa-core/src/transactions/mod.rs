@@ -14,14 +14,14 @@ use strum::{Display, EnumString};
 use thiserror::Error;
 use tokio::sync::Mutex;
 
-use crate::accounts::Account;
 use crate::transactions_log::{TransactionLog, db::Direction};
+use crate::{accounts::Account, server::api::b2c};
 use serde_json;
 
 pub mod db;
 pub mod ui;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum TransactionEngineError {
     #[error("Database error: {0}")]
     Database(#[from] DbErr),
@@ -59,6 +59,9 @@ pub enum TransactionNote {
     AccountSetupFunding {
         account_type: AccountTypeForFunding,
     },
+    Disbursment {
+        kind: b2c::CommandID,
+    },
 }
 
 static GLOBAL_LEDGER_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
@@ -76,6 +79,8 @@ pub enum TransactionType {
     Deposit,
     ChargeSettlement,
     RevenueSweep,
+    TopupUtility,
+    Disbursment,
     Unknown(String),
 }
 
@@ -90,7 +95,7 @@ pub enum TransactionStatus {
     Unknown(String),
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct Transaction {
     pub id: String,
     pub from: Option<u32>,
@@ -125,12 +130,16 @@ impl Ledger {
 
         let mut source_account = if let Some(source) = source {
             let source_account = Account::get_account(conn, source).await?;
-            if source_account.is_none() {
+            if let Some(account) = source_account {
+                if matches!(account.account_type, crate::accounts::AccountType::System) {
+                    None
+                } else {
+                    Some(account)
+                }
+            } else {
                 // This is an error, We were given an accout that does not exist
                 return Err(TransactionEngineError::AccountNotFound(source));
             }
-
-            source_account
         } else {
             None
         };
@@ -154,7 +163,13 @@ impl Ledger {
                 return Err(TransactionEngineError::InsufficientFunds);
             }
 
-            source.balance -= amount + fee;
+            // fees should be added to business charges account
+            if matches!(txn_type, TransactionType::Disbursment) {
+                source.balance -= amount;
+            } else {
+                source.balance -= amount + fee;
+            }
+
             let acc = crate::accounts::db::ActiveModel {
                 id: Unchanged(source.id),
                 balance: Set(source.balance),

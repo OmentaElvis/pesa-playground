@@ -1,16 +1,19 @@
 <script lang="ts">
 	import { Play, Cog, Loader2, CircleX } from 'lucide-svelte';
-	import { getSandboxes, sandboxes, type SandboxStatus } from '$lib/stores/sandboxStatus';
+	import { sandboxes, type SandboxStatus } from '$lib/stores/sandboxStatus';
 	import { startSandbox, stopSandbox } from '$lib/api';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import * as Kbd from '$lib/components/ui/kbd';
 	import { toast } from 'svelte-sonner';
 	import { spin } from '$lib/transitions/spin';
 
-	export let id: number;
-	let status: SandboxStatus = 'off';
-	let port: number | null = null;
-	let error: string | null = null;
+	let {
+		id,
+		port = $bindable(),
+		host = $bindable()
+	}: { id: number; port: number; host: string } = $props();
+	let status: SandboxStatus = $state('off');
+	let error: string | null = $state(null);
 
 	async function toggle() {
 		if (status === 'starting') {
@@ -30,6 +33,11 @@
 		}
 	}
 
+	onMount(() => {
+		port = 8000 + id;
+		host = '127.0.0.1';
+	});
+
 	const unsub = sandboxes.subscribe((map) => {
 		const info = map.get(id);
 		if (!info) {
@@ -39,6 +47,7 @@
 			status = info.status;
 			error = info.error || null;
 			port = info.port;
+			host = info.host;
 		}
 	});
 
@@ -54,7 +63,7 @@
 		class:bg-gray-400={status === 'off'}
 		class:bg-yellow-400={status === 'starting'}
 		class:bg-red-400={status === 'error'}
-		on:click={toggle}
+		onclick={toggle}
 	>
 		<div
 			class="absolute top-0 flex h-6 w-6 items-center justify-center rounded-full bg-white shadow-md transition-all duration-300"

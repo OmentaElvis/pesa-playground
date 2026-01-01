@@ -34,7 +34,7 @@
 			switch (account.account_type) {
 				case AccountType.User:
 					const user = await getUser(account.id);
-					if (user) goto(`/users/${user.id}`, { replaceState: true });
+					if (user) goto(`/users/${user.account_id}`, { replaceState: true });
 					else error = 'Associated user profile not found.';
 					break;
 				case AccountType.Mmf:

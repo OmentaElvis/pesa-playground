@@ -2,6 +2,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Separator } from '$lib/components/ui/separator';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
@@ -18,7 +19,9 @@
 		type ProjectSummary,
 		type BusinessDetails,
 		type BusinessOperator,
-		revenueSettlements
+		revenueSettlements,
+		transfer,
+		TransactionType
 	} from '$lib/api';
 	import { goto } from '$app/navigation';
 	import {
@@ -26,6 +29,8 @@
 		ChevronsLeftRightEllipsis,
 		DollarSign,
 		HandCoins,
+		Plus,
+		ArrowRightLeft,
 		LoaderCircle,
 		PiggyBank,
 		Save,
@@ -55,6 +60,11 @@
 	let businessId: number | undefined = $state(undefined);
 	let updatingBusiness = $state(false);
 	let reconciling = $state(false);
+
+	let showDepositDialog = $state(false);
+	let showMoveFundsDialog = $state(false);
+	let depositAmount = $state(0);
+	let moveFundsAmount = $state(0);
 
 	$effect(() => {
 		if (page.params.id) {
@@ -155,6 +165,56 @@
 		}
 	}
 
+	async function handleDeposit() {
+		try {
+			showDepositDialog = false;
+
+			if (!business) return;
+
+			let txn = await transfer(
+				0,
+				business.mmf_account.account_id,
+				depositAmount * 100,
+				TransactionType.Deposit,
+				{
+					type: 'AccountSetupFunding',
+					data: {
+						account_type: 'Mmf'
+					}
+				}
+			);
+
+			toast.success(`Success ${txn.id}: Deposited ${depositAmount} to Working (MMF) account.`);
+			loadBusinessDetails();
+		} catch (err) {
+			toast.error(`Failed to deposit funds to mmf account: ${err}`);
+		} finally {
+			depositAmount = 0;
+		}
+	}
+
+	async function handleMoveFunds() {
+		try {
+			showMoveFundsDialog = false;
+
+			if (!business) return;
+
+			let txn = await transfer(
+				business.mmf_account.account_id,
+				business.utility_account.account_id,
+				moveFundsAmount * 100,
+				TransactionType.TopupUtility
+			);
+			loadBusinessDetails();
+
+			toast.success(`Success ${txn.id}: Moved Ksh ${moveFundsAmount} to utility account.`);
+		} catch (err) {
+			toast.error(`Failed to move funds: ${err}`);
+		} finally {
+			moveFundsAmount = 0;
+		}
+	}
+
 	onMount(() => {
 		const tab = page.url.searchParams.get('biz_tab');
 		if (tab && tab !== currentTab) {
@@ -165,44 +225,70 @@
 
 <main class="container mx-auto space-y-6 p-6">
 	{#if business && businessId}
-		<div>
+		<div class="flex items-start justify-between">
 			<div>
 				<h1 class="text-3xl font-bold tracking-tight text-foreground">{business.name}</h1>
 				<p class="text-sm text-muted-foreground">Manage business information.</p>
 				<div>Shortcode: <Badge>#{business.short_code}</Badge></div>
 			</div>
+			<div class="hidden flex-col items-end md:flex">
+				<div>
+					<p class="text-sm text-muted-foreground">Utility Balance</p>
+					<p class="text-3xl font-bold text-green-600 dark:text-green-500">
+						{formatAmount(business.utility_account.balance / 100)}
+					</p>
+				</div>
+				<div class="flex items-center">
+					<PiggyBank class="mr-2 h-4 w-4 text-muted-foreground" />
+					<p class="text-lg font-semibold">{formatAmount(business.mmf_account.balance / 100)}</p>
+				</div>
+			</div>
 		</div>
 		<div class="grid grid-cols-3 gap-4 max-md:grid-cols-2 max-sm:grid-cols-1">
-			<Card.Root>
+			<Card.Root class="flex flex-col">
 				<Card.Header>
 					<Card.Title class="flex items-center gap-2"><PiggyBank /> Working account</Card.Title>
 					<Card.Description>
 						Funds parked in the working (MMF) account for liquidity and balance management.
 					</Card.Description>
 				</Card.Header>
-				<Card.Content>
-					<p class="font-bold">{formatAmount(business.mmf_account.balance / 100)}</p>
+				<Card.Content class="flex flex-grow flex-col justify-end">
+					<div class="flex gap-2">
+						<Button size="sm" variant="outline" onclick={() => (showDepositDialog = true)}>
+							<Plus class="mr-1 h-4 w-4" /> Deposit
+						</Button>
+						<Button size="sm" variant="outline" onclick={() => (showMoveFundsDialog = true)}>
+							<ArrowRightLeft class="mr-1 h-4 w-4" /> Move
+						</Button>
+					</div>
 				</Card.Content>
+				<Card.Footer>
+					<p class="font-bold">{formatAmount(business.mmf_account.balance / 100)}</p>
+				</Card.Footer>
 			</Card.Root>
-			<Card.Root>
+			<Card.Root class="flex flex-col">
 				<Card.Header>
 					<Card.Title class="flex items-center gap-2"><Wallet /> Utility account</Card.Title>
 					<Card.Description>
-						Operational balance used to process business payment transactions.
+						This is the primary operational account. All incoming payments to the business are
+						deposited here (like C2B paybill/till), and all outgoing payments (like B2C
+						disbursements) are made from this account.
 					</Card.Description>
 				</Card.Header>
-				<Card.Content>
+				<Card.Content class="flex-grow" />
+				<Card.Footer>
 					<p class="font-bold">{formatAmount(business.utility_account.balance / 100)}</p>
-				</Card.Content>
+				</Card.Footer>
 			</Card.Root>
-			<Card.Root>
+			<Card.Root class="flex flex-col">
 				<Card.Header>
 					<Card.Title class="flex items-center gap-2"><HandCoins /> Business charges</Card.Title>
 					<Card.Description>
 						Cumulative charges applied to business transactions. Needs tobe reconciled.
 					</Card.Description>
 				</Card.Header>
-				<Card.Content class="flex items-center">
+				<Card.Content class="flex-grow" />
+				<Card.Footer class="flex items-center">
 					<p
 						class="flex-1 cursor-pointer font-bold {business.charges_amount < 0
 							? 'text-red-500'
@@ -222,7 +308,7 @@
 						{/if}
 						Reconcile
 					</Button>
-				</Card.Content>
+				</Card.Footer>
 			</Card.Root>
 		</div>
 		<Separator />
@@ -322,6 +408,75 @@
 				></DangerAction>
 			</Tabs.Content>
 		</Tabs.Root>
+
+		<AlertDialog.Root bind:open={showDepositDialog}>
+			<AlertDialog.Content>
+				<AlertDialog.Header>
+					<AlertDialog.Title>Deposit Funds</AlertDialog.Title>
+					<AlertDialog.Description>
+						<div class="space-y-4">
+							<p>Choose an amount to deposit or enter a custom amount.</p>
+							<div class="flex flex-wrap gap-2">
+								<Button size="sm" onclick={() => (depositAmount = depositAmount + 100)}>
+									+100
+								</Button>
+								<Button size="sm" onclick={() => (depositAmount = depositAmount + 500)}>
+									+500
+								</Button>
+								<Button size="sm" onclick={() => (depositAmount = depositAmount * 2)}>x2</Button>
+								<Button size="sm" onclick={() => (depositAmount = 0)}>Clear</Button>
+							</div>
+							<div class="grid gap-2">
+								<Label for="deposit-amount">Amount</Label>
+								<Input
+									id="deposit-amount"
+									type="number"
+									min="0"
+									bind:value={depositAmount}
+									placeholder="Enter amount"
+								/>
+							</div>
+						</div>
+					</AlertDialog.Description>
+				</AlertDialog.Header>
+				<AlertDialog.Footer>
+					<AlertDialog.Cancel onclick={() => (depositAmount = 0)}>Cancel</AlertDialog.Cancel>
+					<AlertDialog.Action onclick={handleDeposit} disabled={depositAmount <= 0}>
+						Deposit
+					</AlertDialog.Action>
+				</AlertDialog.Footer>
+			</AlertDialog.Content>
+		</AlertDialog.Root>
+
+		<AlertDialog.Root bind:open={showMoveFundsDialog}>
+			<AlertDialog.Content>
+				<AlertDialog.Header>
+					<AlertDialog.Title>Move Funds to Utility Account</AlertDialog.Title>
+					<AlertDialog.Description>
+						<div class="grid gap-2">
+							<Label for="transfer-amount">Amount</Label>
+							<Input
+								id="transfer-amount"
+								type="number"
+								min="1"
+								max={business.mmf_account.balance / 100}
+								bind:value={moveFundsAmount}
+								placeholder="Enter amount"
+							/>
+						</div>
+					</AlertDialog.Description>
+				</AlertDialog.Header>
+				<AlertDialog.Footer>
+					<AlertDialog.Cancel onclick={() => (moveFundsAmount = 0)}>Cancel</AlertDialog.Cancel>
+					<AlertDialog.Action
+						onclick={handleMoveFunds}
+						disabled={moveFundsAmount <= 0 || moveFundsAmount > business.mmf_account.balance / 100}
+					>
+						Transfer
+					</AlertDialog.Action>
+				</AlertDialog.Footer>
+			</AlertDialog.Content>
+		</AlertDialog.Root>
 	{:else}
 		<p><LoaderCircle class="animate-spin" /> Loading business details...</p>
 	{/if}

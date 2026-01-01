@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Phone, Wallet, Settings, User as UserIcon, Plus, LoaderCircle } from 'lucide-svelte';
 	import { formatAmount, getInitials } from '$lib/utils';
-	import { getUsers, type UserDetails, generateUsers, createUser } from '$lib/api';
+	import { getUsers, type User, generateUsers, createUser } from '$lib/api';
 	import { onDestroy, onMount } from 'svelte';
 	import DiceBearAvatar from '$lib/components/ui/avatar/DiceBearAvatar.svelte';
 	import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
@@ -11,7 +11,7 @@
 	import { transactionLogStore } from '$lib/stores/transactionLogStore';
 	import { Button } from '../ui/button';
 
-	let users: UserDetails[] = $state([]);
+	let users: User[] = $state([]);
 	let generating = $state(false);
 	const unlistenFunctions: UnlistenFn[] = [];
 
@@ -96,13 +96,13 @@
 		</div>
 	</div>
 	<ScrollArea class="min-h-0 flex-1">
-		{#each users as user (user.id)}
+		{#each users as user (user.account_id)}
 			{@const hasUnread = $transactionLogStore.some(
-				(log) => log.to_id === user.id || log.from_id === user.id
+				(log) => log.to_id === user.account_id || log.from_id === user.account_id
 			)}
 			<a
 				class="block w-full border-b p-4 text-left duration-200 dark:border-none"
-				href="/users/{user.id}"
+				href="/users/{user.account_id}"
 			>
 				<div class="flex items-center gap-3">
 					<div class="relative h-16 w-16">
@@ -111,7 +111,10 @@
 								class="absolute top-0 right-0 z-10 h-4 w-4 rounded-full border-2 border-background bg-red-500"
 							></div>
 						{/if}
-						<DiceBearAvatar seed={`${user.id}-${user.name}`} fallback={getInitials(user.name)} />
+						<DiceBearAvatar
+							seed={`${user.account_id}-${user.name}`}
+							fallback={getInitials(user.name)}
+						/>
 					</div>
 					<div class="min-w-0 flex-1">
 						<div class="flex items-center justify-between">
@@ -124,7 +127,7 @@
 						<div class="mt-1 flex items-center gap-2">
 							<Wallet size={12} class="" />
 							<span class="text-sm font-bold text-green-700 dark:text-green-600">
-								{formatAmount(user.balance)}
+								{formatAmount(user.balance / 100)}
 							</span>
 						</div>
 					</div>

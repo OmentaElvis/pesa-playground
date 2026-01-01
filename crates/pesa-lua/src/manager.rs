@@ -33,7 +33,7 @@ fn get_app_context_from_lua(lua: &Lua) -> mlua::Result<AppContext> {
 }
 
 generate_lua_bindings! {
-    start_sandbox(project_id: u32) => pesa_core::sandboxes::ui::start_sandbox,
+    start_sandbox(project_id: u32, host: Option<String>) => pesa_core::sandboxes::ui::start_sandbox,
     stop_sandbox(project_id: u32) => pesa_core::sandboxes::ui::stop_sandbox,
     sandbox_status(project_id: u32) => pesa_core::sandboxes::ui::sandbox_status,
     list_running_sandboxes() => pesa_core::sandboxes::ui::list_running_sandboxes,
@@ -60,7 +60,7 @@ generate_lua_bindings! {
     #[no_context]
     generate_users(count: u32) => pesa_core::accounts::user_profiles::ui::generate_users,
     get_user_by_phone(phone: String) => pesa_core::accounts::user_profiles::ui::get_user_by_phone,
-    update_user(user_id: u32, name: Option<String>, balance: Option<i64>, pin: Option<String>) => pesa_core::accounts::user_profiles::ui::update_user,
+    update_user(user_id: u32, name: Option<String>, pin: Option<String>, phone: Option<String>) => pesa_core::accounts::user_profiles::ui::update_user,
 
     create_paybill_account(#[wrap] input: CreatePaybillAccount) => pesa_core::accounts::paybill_accounts::ui::create_paybill_account,
     get_paybill_account(id: u32) => pesa_core::accounts::paybill_accounts::ui::get_paybill_account,
@@ -108,7 +108,7 @@ generate_lua_bindings! {
     delete_transaction_cost(id: i32) => pesa_core::transaction_costs::ui::delete_transaction_cost,
     calculate_transaction_fee(#[wrap] txn_type: TransactionType, amount: i64) => pesa_core::transaction_costs::ui::calculate_transaction_fee,
 
-    resolve_stk_prompt(checkout_id: String, #[wrap] result: UserResponse) => pesa_core::callbacks::stk::ui::resolve_stk_prompt,
+    resolve_stk_prompt(checkout_id: String, #[wrap] result: UserResponse) => pesa_core::server::api::stkpush::ui::resolve_stk_prompt,
     #[no_context]
     get_app_info() => pesa_core::info::get_app_info,
 
@@ -118,7 +118,8 @@ generate_lua_bindings! {
     get_utility_account(id: u32) => pesa_core::accounts::utility_accounts::ui::get_utility_account,
     get_mmf_account(id: u32) => pesa_core::accounts::mmf_accounts::ui::get_mmf_account,
 
-    revenue_settlement(business_id: u32) => pesa_core::business::ui::revenue_settlement
+    revenue_settlement(business_id: u32) => pesa_core::business::ui::revenue_settlement,
+    run_self_tests(#[wrap] mode: TestMode) => pesa_core::self_test::ui::run_self_tests
 }
 
 type ListenerMap = Arc<Mutex<HashMap<String, Vec<RegistryKey>>>>;

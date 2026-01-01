@@ -489,31 +489,29 @@ export async function deleteProject(id: number): Promise<void> {
 }
 
 export interface User {
-	id: number;
-	name: string;
-	phone: string;
-	pin: string;
-}
-
-export interface UserDetails {
-	id: number;
+	account_id: number;
 	name: string;
 	phone: string;
 	pin: string;
 	balance: number;
+	disabled: boolean;
+	created_at: string;
+	registered_at: String;
+	last_swap_date?: String;
+	imsi: String;
 }
 
-export async function getUsers(): Promise<UserDetails[]> {
+export async function getUsers(): Promise<User[]> {
 	return await invoke('get_users');
 }
 
-export async function getUser(user_id: number): Promise<UserDetails | null> {
+export async function getUser(user_id: number): Promise<User | null> {
 	return await invoke('get_user', {
 		userId: user_id
 	});
 }
 
-export async function getUserByPhone(phone: string): Promise<UserDetails | null> {
+export async function getUserByPhone(phone: string): Promise<User | null> {
 	return await invoke('get_user_by_phone', {
 		phone
 	});
@@ -540,21 +538,21 @@ export async function removeUser(user_id: number): Promise<void> {
 export async function updateUser(
 	user_id: number,
 	name?: string,
-	balance?: number,
-	pin?: string
+	pin?: string,
+	phone?: string
 ): Promise<void> {
 	return await invoke('update_user', {
 		userId: user_id,
 		name,
-		balance,
-		pin
+		pin,
+		phone
 	});
 }
 
-export async function generateUser(): Promise<UserDetails> {
+export async function generateUser(): Promise<User> {
 	return await invoke('generate_user');
 }
-export async function generateUsers(count: number): Promise<UserDetails[]> {
+export async function generateUsers(count: number): Promise<User[]> {
 	return await invoke('generate_users', { count: count });
 }
 
@@ -594,7 +592,9 @@ export enum TransactionType {
 	Withdraw = 'withdraw',
 	Deposit = 'deposit',
 	ChargeSettlement = 'charge_settlement',
-	RevenueSweep = 'revenue_sweep'
+	Disbursment = 'disbursment',
+	RevenueSweep = 'revenue_sweep',
+	TopupUtility = 'topup_utility'
 }
 
 export interface Transaction {
@@ -1019,7 +1019,7 @@ export async function resolveAccountAndNavigate(
 		case AccountType.User:
 			let user = await getUser(account.id);
 			if (!user) return;
-			await goto(`/users/${user.id}`);
+			await goto(`/users/${user.account_id}`);
 			break;
 	}
 }
@@ -1108,4 +1108,57 @@ export interface LipaArgs {
 
 export async function lipa(args: LipaArgs): Promise<void> {
 	return await invoke('lipa', { args });
+}
+
+export type TestStatus = 'pending' | 'running' | 'passed' | 'failed' | 'panicked' | 'timed_out';
+export type TestMode = 'Fresh' | 'Clone';
+
+export interface TestStep {
+	name: string;
+	description: string;
+}
+
+export interface TestStepInfo extends TestStep {
+	message: String;
+	status: TestStatus;
+	logs: string[];
+}
+
+export async function startSelfTest(mode: TestMode) {
+	await invoke('run_self_tests', { mode });
+}
+
+export enum TestEvents {
+	Start = 'self_test_start',
+	Plan = 'self_test_plan',
+	StepUpdate = 'self_test_step_update',
+	Finish = 'self_test_finish',
+	ProgressLog = 'self_test_progress_log'
+}
+
+export interface TestStartEvent {
+	mode: TestMode;
+	working_dir: String;
+}
+
+export interface TestPlanEvent {
+	steps: TestStep[];
+}
+
+export interface TestStepUpdateEvent {
+	index: number;
+	name: String;
+	status: TestStatus;
+	message?: String;
+}
+
+export interface TestFinishEvent {
+	status: TestStatus;
+}
+
+export interface TestProgressLogEvent {
+	name: String | 'main';
+	index: number;
+	message: String;
+	runner: true;
 }

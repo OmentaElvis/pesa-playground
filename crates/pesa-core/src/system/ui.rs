@@ -1,9 +1,11 @@
 use anyhow::Context;
-use sea_orm::{ConnectionTrait, EntityName};
+use sea_orm::{ConnectionTrait, EntityName, TransactionTrait};
+use sea_orm_migration::MigratorTrait;
 use sea_query::{Alias, IntoIden};
 
 use crate::{
-    AppContext, accounts, api_keys, api_logs, business, business_operators, callbacks, db,
+    AppContext, accounts, api_keys, api_logs, business, business_operators, callbacks,
+    migrations::Migrator,
     projects, sandboxes,
     server::{self},
     transaction_costs, transactions, transactions_log,
@@ -20,12 +22,10 @@ pub async fn clear_all_data(context: &AppContext) -> anyhow::Result<()> {
             })?;
     }
 
-    let db_conn = &context.db;
+    let txn = context.db.begin().await?;
 
     // Execute PRAGMA to disable foreign key checks for this connection
-    db_conn
-        .execute_unprepared("PRAGMA foreign_keys = OFF;")
-        .await?;
+    txn.execute_unprepared("PRAGMA foreign_keys = OFF;").await?;
 
     // 2. Drop all tables. The order does not matter now.
     let tables_to_drop = vec![
@@ -49,32 +49,37 @@ pub async fn clear_all_data(context: &AppContext) -> anyhow::Result<()> {
             .table_name()
             .to_string(),
         accounts::db::Entity.table_name().to_string(),
+        "seaql_migrations".to_string(),
     ];
 
     for table in tables_to_drop {
-        db_conn
-            .execute(
-                db_conn.get_database_backend().build(
-                    sea_query::Table::drop()
-                        .table(sea_orm::sea_query::TableRef::Table(
-                            Alias::new(&table).into_iden(),
-                        ))
-                        .if_exists(),
-                ),
-            )
-            .await
-            .with_context(|| format!("Failed to drop table {}", table))?;
+        txn.execute(
+            txn.get_database_backend().build(
+                sea_query::Table::drop()
+                    .table(sea_orm::sea_query::TableRef::Table(
+                        Alias::new(&table).into_iden(),
+                    ))
+                    .if_exists(),
+            ),
+        )
+        .await
+        .with_context(|| format!("Failed to drop table {}", table))?;
     }
 
     // Re-enable foreign key checks
-    db_conn
-        .execute_unprepared("PRAGMA foreign_keys = ON;")
-        .await?;
+    txn.execute_unprepared("PRAGMA foreign_keys = ON;").await?;
 
-    // 3. Re-run migrations to create a fresh set of tables and default data
-    db::run_migrations(db_conn)
+    // 3. Re-run migrations to create a fresh set of tables
+    Migrator::up(&txn, None)
         .await
-        .context("Failed to re-run migrations after clearing data")?;
+        .context("Failed to run migrations after clearing data")?;
+
+    // 4. Re-seed default data
+    transaction_costs::init_default_costs(&txn)
+        .await
+        .context("Failed to re-seed default data after clearing")?;
+
+    txn.commit().await?;
 
     Ok(())
 }

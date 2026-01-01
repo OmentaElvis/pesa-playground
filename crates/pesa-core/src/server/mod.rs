@@ -1,13 +1,23 @@
-use crate::AppContext;
-use api::{auth::oauth, c2b::registerurl, stkpush::stkpush};
+use crate::{
+    AppContext,
+    accounts::user_profiles::User,
+    projects::{self},
+    server::{
+        api::{b2c::task::B2C, c2b::register::registerurl, stkpush::task::Stkpush},
+        async_handler::handle_async_request,
+    },
+};
+use api::auth::oauth;
 use axum::{
     Router,
+    extract::State,
     routing::{get, post},
 };
-use tokio::sync::oneshot;
+use tokio::{net::TcpListener, sync::oneshot};
 
 pub mod access_token;
 pub mod api;
+pub mod async_handler;
 pub mod log;
 
 #[derive(Debug, Clone)]
@@ -213,8 +223,11 @@ ______              ______ _                                             _
     format!("{banner}\n\n🧪 Welcome to Pesa Playground Sandbox.\nTry /mpesa/stkpush/v1/processrequest")
 }))
     .route("/oauth/v1/generate", get(oauth))
-    .route("/mpesa/stkpush/v1/processrequest", post(stkpush))
-    .route("/mpesa/c2b/v1/registerurl", post(registerurl))
+    .route("/mpesa/stkpush/v1/processrequest", post(handle_async_request::<Stkpush>))
+    .route("/mpesa/c2b/v2/registerurl", post(registerurl))
+    .route("/mpesa/b2c/v3/paymentrequest", post(handle_async_request::<B2C>))
+    .route("/debug/config", get(get_api_keys))
+    .route("/debug/users", get(get_users))
     .with_state(state.clone());
 
     if log {
@@ -227,18 +240,55 @@ ______              ______ _                                             _
     router
 }
 
+pub async fn get_api_keys(
+    State(state): State<ApiState>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let project = projects::ui::get_project(&state.context, state.project_id)
+        .await
+        .map_err(|err| {
+            ApiError::new(
+                MpesaError::InternalError,
+                format!("Failed to get project: {}", err),
+            )
+        })?;
+
+    let settings = state.context.settings.get().await;
+
+    // yes, we are returning even the private keys in the settings
+    // private keys and passwords are not really private. They are kept clear text for easy debugging
+    Ok(Json(json!(
+        {
+            "project": project,
+            "settings": settings
+        }
+    )))
+}
+
+pub async fn get_users(State(state): State<ApiState>) -> Result<Json<Vec<User>>, ApiError> {
+    let users = User::get_users(&state.context.db).await.map_err(|err| {
+        ApiError::new(
+            MpesaError::InternalError,
+            format!("Failed to fetch user list: {}", err),
+        )
+    })?;
+
+    Ok(Json(users))
+}
+
 pub async fn start_project_server(
     project_id: u32,
-    port: u16,
+    listener: TcpListener,
     context: AppContext,
     shutdown_rx: oneshot::Receiver<()>,
+    host: String,
+    port: u16,
 ) -> anyhow::Result<()> {
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
     context.event_manager.emit_all(
         "sandbox_status",
         json!({
             "project_id": project_id,
             "port": port,
+            "host": host,
             "status": "on",
         }),
     )?;
@@ -252,7 +302,7 @@ pub async fn start_project_server(
     Ok(())
 }
 
-async fn shutdown_signal(shutdown_rx: oneshot::Receiver<()>) {
+pub async fn shutdown_signal(shutdown_rx: oneshot::Receiver<()>) {
     shutdown_rx.await.ok();
 }
 

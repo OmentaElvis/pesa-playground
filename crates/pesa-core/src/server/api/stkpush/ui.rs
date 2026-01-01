@@ -1,16 +1,13 @@
-use std::collections::HashMap;
-
+use dashmap::DashMap;
 use once_cell::sync::Lazy;
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
-use tokio::sync::{Mutex, oneshot};
+use tokio::sync::oneshot;
 
-pub mod init;
-pub mod process;
-pub mod ui;
+use crate::AppContext;
 
-pub static STK_RESPONSE_REGISTRY: Lazy<Mutex<HashMap<String, oneshot::Sender<UserResponse>>>> =
-    Lazy::new(|| Mutex::new(HashMap::new()));
+pub static STK_RESPONSE_REGISTRY: Lazy<DashMap<String, oneshot::Sender<UserResponse>>> =
+    Lazy::new(DashMap::new);
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "snake_case")]
@@ -118,4 +115,15 @@ impl StkCodes {
         let mut rng = rand::thread_rng();
         FAILURES.choose(&mut rng).unwrap().clone()
     }
+}
+
+pub async fn resolve_stk_prompt(
+    _: &AppContext,
+    checkout_id: String,
+    result: UserResponse,
+) -> anyhow::Result<()> {
+    if let Some((_, sender)) = STK_RESPONSE_REGISTRY.remove(&checkout_id) {
+        let _ = sender.send(result);
+    }
+    Ok(())
 }

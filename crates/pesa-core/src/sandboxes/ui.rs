@@ -5,36 +5,82 @@ use crate::{
 };
 use anyhow::{Context, Result, anyhow};
 use serde_json::{Value, json};
-use tokio::sync::oneshot;
+use tokio::{net::TcpListener, sync::oneshot};
 
-pub async fn start_sandbox(ctx: &AppContext, project_id: u32) -> Result<String> {
-    let port: u16 = (8000 + (project_id % 1000))
-        .try_into()
-        .context("Failed to create port".to_string())?;
+async fn try_bind_preferred(host: &str, port: u16) -> Option<TcpListener> {
+    TcpListener::bind((host, port)).await.ok()
+}
 
-    let addr = format!("127.0.0.1:{}", port);
+async fn bind_fallback(host: &str) -> anyhow::Result<TcpListener> {
+    Ok(TcpListener::bind(format!("{}:0", host)).await?)
+}
 
-    let mut running = ctx.running.lock().await;
-    if let Some(s) = running.get(&project_id)
+async fn bind_sandbox_port(
+    project_id: u32,
+    host: &str,
+) -> anyhow::Result<(TcpListener, u16, bool)> {
+    let preferred = 8000 + (project_id % 1000) as u16;
+
+    if let Some(listener) = try_bind_preferred(host, preferred).await {
+        return Ok((listener, preferred, true));
+    }
+
+    let listener = bind_fallback(host).await?;
+    let port = listener.local_addr()?.port();
+
+    Ok((listener, port, false))
+}
+
+pub async fn start_sandbox(
+    ctx: &AppContext,
+    project_id: u32,
+    host: Option<String>,
+) -> Result<String> {
+    if let Some(s) = ctx.running.get(&project_id)
         && !s.handle.is_finished()
     {
+        let addr = format!("{}:{}", s.host, s.port);
         return Ok(format!("http://{}", addr));
     }
+
+    let host = host.unwrap_or("127.0.0.1".to_string());
+    let (listener, port, derived) = bind_sandbox_port(project_id, &host)
+        .await
+        .context("Failed to bind to port")?;
+
+    if !derived {
+        tracing::warn!(
+            project_id,
+            port,
+            "preferred sandbox port unavailable, using fallback"
+        );
+    }
+
+    let addr = format!("{}:{}", host, port);
 
     ctx.event_manager.emit_all(
         "sandbox_status",
         json!({
             "project_id": project_id,
             "port": port,
+            "host": host,
             "status": "starting",
         }),
     )?;
 
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
     let ctx_clone = ctx.clone();
+    let host_clone = host.clone();
     let handle = tokio::spawn(async move {
-        let server_result =
-            start_project_server(project_id, port, ctx_clone.clone(), shutdown_rx).await;
+        let server_result = start_project_server(
+            project_id,
+            listener,
+            ctx_clone.clone(),
+            shutdown_rx,
+            host_clone.clone(),
+            port,
+        )
+        .await;
 
         if let Err(e) = &server_result {
             let _ = ctx_clone.event_manager.emit_all(
@@ -42,6 +88,7 @@ pub async fn start_sandbox(ctx: &AppContext, project_id: u32) -> Result<String> 
                 json!({
                     "project_id": project_id,
                     "port": port,
+                    "host": host_clone,
                     "status": "error",
                     "error": e.to_string(),
                 }),
@@ -50,12 +97,13 @@ pub async fn start_sandbox(ctx: &AppContext, project_id: u32) -> Result<String> 
         server_result
     });
 
-    running.insert(
+    ctx.running.insert(
         project_id,
         RunningSandbox {
             shutdown: shutdown_tx,
             handle,
             port,
+            host,
         },
     );
 
@@ -63,8 +111,7 @@ pub async fn start_sandbox(ctx: &AppContext, project_id: u32) -> Result<String> 
 }
 
 pub async fn stop_sandbox(ctx: &AppContext, project_id: u32) -> Result<()> {
-    let mut running = ctx.running.lock().await;
-    let rs = if let Some(rs) = running.remove(&project_id) {
+    let rs = if let Some((_, rs)) = ctx.running.remove(&project_id) {
         rs
     } else {
         return Ok(());
@@ -81,6 +128,7 @@ pub async fn stop_sandbox(ctx: &AppContext, project_id: u32) -> Result<()> {
         json!({
             "project_id": project_id,
             "port": rs.port,
+            "host": rs.host,
             "status": "off",
         }),
     )?;
@@ -89,8 +137,7 @@ pub async fn stop_sandbox(ctx: &AppContext, project_id: u32) -> Result<()> {
 }
 
 pub async fn sandbox_status(ctx: &AppContext, project_id: u32) -> Result<Value> {
-    let mut running = ctx.running.lock().await;
-    if let Some(rs) = running.get(&project_id) {
+    if let Some(rs) = ctx.running.get(&project_id) {
         if !rs.handle.is_finished() {
             return Ok(json! ({
                 "status": "on",
@@ -104,7 +151,7 @@ pub async fn sandbox_status(ctx: &AppContext, project_id: u32) -> Result<Value> 
         }));
     }
 
-    let rs = running.remove(&project_id).unwrap();
+    let (_, rs) = ctx.running.remove(&project_id).unwrap();
 
     match rs.handle.await {
         Err(err) => Ok(json! ({
@@ -127,12 +174,10 @@ pub async fn sandbox_status(ctx: &AppContext, project_id: u32) -> Result<Value> 
 }
 
 pub async fn list_running_sandboxes(ctx: &AppContext) -> Result<Vec<Status>> {
-    let mut running = ctx.running.lock().await;
-
     let mut instances: Vec<Status> = Vec::new();
-    for (project_id, rs) in running.iter_mut() {
+    for rs in ctx.running.iter() {
         let mut status = Status {
-            project_id: *project_id,
+            project_id: *rs.key(),
             port: rs.port,
             error: None,
             status: "on".to_string(),
