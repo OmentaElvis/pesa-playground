@@ -8,6 +8,7 @@ use crate::{
     accounts::{mmf_accounts::MmfAccount, user_profiles::User, utility_accounts::UtilityAccount},
     business::Business,
     business_operators::BusinessOperator,
+    events::DomainEventDispatcher,
     projects::Project,
     server::{
         ApiError, MpesaError,
@@ -236,7 +237,7 @@ impl PpgAsyncRequest for B2C {
             return Ok(self.create_response(B2CResultCodes::InsufficientBalance, &receipt));
         }
 
-        let (transaction, _) = Ledger::transfer(
+        let (transaction, events) = Ledger::transfer(
             &txn,
             Some(self.utility_account.account_id),
             self.user.account_id,
@@ -263,6 +264,9 @@ impl PpgAsyncRequest for B2C {
         {
             self.utility_account = utility_account;
         }
+
+        DomainEventDispatcher::dispatch_events(&state.context, events)
+            .context("Failed to emit events ")?;
 
         txn.commit()
             .await
