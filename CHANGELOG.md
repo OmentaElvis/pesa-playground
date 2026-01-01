@@ -1,3 +1,25 @@
+# [1.3.0](https://github.com/OmentaElvis/pesa-playground/compare/v1.2.0...v1.3.0) (2026-01-01)
+
+
+### Bug Fixes
+
+* **core:** fail to insert callback log causing failed api callback delivery ([3ba512a](https://github.com/OmentaElvis/pesa-playground/commit/3ba512a6282cecc7705527dc072bdc37f03cc52e))
+* **core:** unable to transfer funds from system account ([f355d48](https://github.com/OmentaElvis/pesa-playground/commit/f355d483f42bd1decf252226af45e5e99959acd1))
+* **web:** include fields for storing custom keymaps ([9c6cf5d](https://github.com/OmentaElvis/pesa-playground/commit/9c6cf5d07a2aef4fa34ed4ff6df51f8b81ad4024))
+* **web:** wrong fetch of users list type ([f55c9ce](https://github.com/OmentaElvis/pesa-playground/commit/f55c9cee5eb0af2a6a5b9f01733c53246ba6115f))
+
+
+### Features
+
+* add ability to transfer funds to utility account from mmf ([6a0e2d2](https://github.com/OmentaElvis/pesa-playground/commit/6a0e2d21116b4d0373d509e7b309d6167148c38d))
+* added [project url]/debug/config ([a2a9bea](https://github.com/OmentaElvis/pesa-playground/commit/a2a9bea0abf4cc5b69bd25105e6df279f403799b))
+* added [project url]/debug/users ([f7c1413](https://github.com/OmentaElvis/pesa-playground/commit/f7c1413da4701aa87c57cea4083eec3dae13a4d5))
+* added self diagnostics for core api ([fd571f7](https://github.com/OmentaElvis/pesa-playground/commit/fd571f76aaccdb81bf0d993b13858038d44ee8a4))
+* **core:** added db migration strategy ([d8a84f2](https://github.com/OmentaElvis/pesa-playground/commit/d8a84f252e9778221bf0b563fcd4f47d001c8d1b))
+* **core:** generic async request handler for all apis ([e4e8bf4](https://github.com/OmentaElvis/pesa-playground/commit/e4e8bf4a5c1841d52e2569d9e1b5d6129d7ba7df))
+* **users:** include imsi and registered date to users table ([8d2763f](https://github.com/OmentaElvis/pesa-playground/commit/8d2763fbc7b76746cd7c2e7e157c6fef0b6a6e9a))
+* **web:** auto refresh transaction list on new transaction event ([a671129](https://github.com/OmentaElvis/pesa-playground/commit/a6711296af61c065652739d6404b07e4f08d2964))
+
 # [1.2.0](https://github.com/OmentaElvis/pesa-playground/compare/v1.1.1...v1.2.0) (2025-12-25)
 
 
