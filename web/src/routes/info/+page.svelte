@@ -42,7 +42,7 @@
 
 	<Separator class="my-8" />
 
-	<div class="mx-auto grid w-full max-w-4xl grid-cols-1 gap-6 md:grid-cols-2">
+	<div class="mx-auto grid w-full max-w-4xl grid-cols-1 gap-6 md:grid-cols-3">
 		<Card.Root class="transition-colors hover:bg-muted/50">
 			<a
 				href="https://github.com/OmentaElvis/pesa-playground"
@@ -55,6 +55,26 @@
 					<Card.Title>Contribute on GitHub</Card.Title>
 					<Card.Description class="mt-2">
 						Found a bug or have an idea? The project is open-source. Contributions are welcome!
+					</Card.Description>
+				</Card.Header>
+			</a>
+		</Card.Root>
+		<Card.Root class="transition-colors hover:bg-muted/50">
+			<a
+				href="https://discord.gg/jSbVJbTV6J"
+				target="_blank"
+				rel="noopener noreferrer"
+				class="block p-6"
+			>
+				<Card.Header class="p-0">
+					<img
+						src="https://pngimg.com/uploads/discord/discord_PNG7.png"
+						alt="Discord"
+						class="mb-4 h-8 w-auto"
+					/>
+					<Card.Title>Join our Discord</Card.Title>
+					<Card.Description class="mt-2">
+						Connect with other developers and get support.
 					</Card.Description>
 				</Card.Header>
 			</a>

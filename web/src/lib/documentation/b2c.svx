@@ -1,0 +1,95 @@
+---
+title: 'B2C Payment'
+order: 4
+summary: 'Learn how to programmatically send money from a business shortcode to a customer''s M-Pesa wallet.'
+---
+
+# B2C (Business-to-Customer) Payment
+
+The B2C API allows an organization to make payments from its M-Pesa shortcode to a customer's mobile money wallet. It's commonly used for disbursements like salary payments, promotional payouts, refunds, and more.
+
+## Request
+
+To initiate a B2C payment, you need to make a `POST` request to the following endpoint. This requires a valid access token obtained via the [Daraja Auth API](/info/daraja-auth).
+
+```http
+POST /mpesa/b2c/v1/paymentrequest
+```
+
+### Request Body
+
+The body of the request contains all the details required for the disbursement.
+
+```json
+{
+    "OriginatorConversationID": "AG_20240101_123456789",
+    "InitiatorName": "test_operator",
+    "SecurityCredential": "...",
+    "CommandID": "BusinessPayment",
+    "Amount": "100",
+    "PartyA": "9999991",
+    "PartyB": "254712345678",
+    "Remarks": "Monthly Salary",
+    "QueueTimeOutURL": "https://mydomain.com/b2c/timeout",
+    "ResultURL": "https://mydomain.com/b2c/result",
+    "Occassion": "January Pay"
+}
+```
+
+- `OriginatorConversationID`: A unique ID for this specific transaction request.
+- `InitiatorName`: The username of the business operator with permissions to make B2C payments.
+- `SecurityCredential`: A Base64 encoded and encrypted value of the Initiator's password. In Pesa Playground, this is generated for you.
+- `CommandID`: The type of B2C transaction. Can be `BusinessPayment`, `SalaryPayment`, or `PromotionPayment`.
+- `Amount`: The amount of money to be sent.
+- `PartyA`: The shortcode of the organization making the payment.
+- `PartyB`: The M-Pesa phone number of the customer receiving the payment (in the format 254xxxxxxxxx).
+- `Remarks`: Comments about the transaction.
+- `QueueTimeOutURL`: The URL to which a timeout response will be sent.
+- `ResultURL`: The URL to which the asynchronous B2C result will be sent.
+- `Occassion`: Optional additional information about the transaction.
+
+## Initial Response
+
+If the request is valid and accepted, Daraja responds immediately with a confirmation that the request is being processed.
+
+```json
+{
+  "ConversationID": "AG_20240101_123456789",
+  "OriginatorConversationID": "test-originator-conv-id",
+  "ResponseCode": "0",
+  "ResponseDescription": "Accept the request for processing"
+}
+```
+
+This response only confirms receipt. The final transaction status is delivered asynchronously to the `ResultURL`.
+
+## Callback Response
+
+After processing the payment, Daraja sends a `POST` request to the `ResultURL`. The body contains the final outcome.
+
+### Successful Callback Example
+
+```json
+{
+  "Result": {
+    "ResultType": 0,
+    "ResultCode": "0",
+    "ResultDesc": "The service request is processed successfully.",
+    "OriginatorConversationID": "test-originator-conv-id",
+    "ConversationID": "AG_20240101_123456789",
+    "TransactionID": "SDA12345678",
+    "ResultParameters": {
+      "ResultParameter": [
+        { "Key": "TransactionAmount", "Value": 100.00 },
+        { "Key": "ReceiverPartyPublicName", "Value": "254712345678 - John Doe" },
+        // ... other parameters
+      ]
+    },
+    "ReferenceData": { "ReferenceItem": { "Key": "QueueTimeoutURL", "Value": "..." } }
+  }
+}
+```
+
+- `ResultCode`: `0` indicates a successful transaction. A non-zero value indicates a failure.
+- `ResultDesc`: A description of the outcome.
+- `ResultParameters`: An object containing detailed key-value pairs about the transaction, such as the amount, recipient details, and account balances.
