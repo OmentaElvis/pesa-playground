@@ -164,7 +164,7 @@ Core M-Pesa API coverage roadmap for **Pesa Playground**.
 #### Business to Customer (B2C)
 This is a unified api that is used by Business To Pochi and Business To Customer (B2C)
 
-- [ ] B2C Payment Request - simulate disbursements to mobile numbers
+- ✅ B2C Payment Request - simulate disbursements to mobile numbers
 - [ ] Transaction Status query
 - [ ] Balance query
 

@@ -276,7 +276,9 @@ impl User {
         db::Entity::delete_by_id(user_id).exec(conn).await?;
 
         // Then delete the account
-        accounts::db::Entity::delete_by_id(user_id).exec(conn).await?;
+        accounts::db::Entity::delete_by_id(user_id)
+            .exec(conn)
+            .await?;
 
         Ok(())
     }

@@ -7,7 +7,7 @@ use serde::Serialize;
 pub mod db;
 pub mod ui;
 
-#[derive(FromQueryResult, Debug, Serialize)]
+#[derive(FromQueryResult, Debug, Serialize, Clone)]
 pub struct BusinessOperator {
     pub id: u32,
     pub username: String,

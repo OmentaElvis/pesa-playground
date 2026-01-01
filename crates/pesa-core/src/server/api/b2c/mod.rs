@@ -14,7 +14,7 @@ pub enum CommandID {
     PromotionPayment,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct B2CRequest {
     #[serde(rename = "OriginatorConversationID")]
     pub originator_conversation_id: String,
@@ -40,7 +40,7 @@ pub struct B2CRequest {
     pub occassion: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct B2CRequestResponse {
     #[serde(rename = "ConversationID")]
     pub conversation_id: String,
@@ -52,47 +52,47 @@ pub struct B2CRequestResponse {
     pub response_description: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ResultParameters {
     #[serde(rename = "ResultParameter")]
-    result_parameter: Vec<KeyValueEntry>,
+    pub result_parameter: Vec<KeyValueEntry>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct KeyValueEntry {
     #[serde(rename = "Key")]
-    key: String,
+    pub key: String,
     #[serde(rename = "Value")]
-    value: serde_json::Value,
+    pub value: serde_json::Value,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ReferenceData {
     #[serde(rename = "ReferenceItem")]
-    reference_item: KeyValueEntry,
+    pub reference_item: KeyValueEntry,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CallbackResult {
     #[serde(rename = "ResultType")]
     result_type: u16,
     #[serde(rename = "ResultCode")]
-    result_code: String,
+    pub result_code: String,
     #[serde(rename = "ResultDesc")]
-    result_desc: String,
+    pub result_desc: String,
     #[serde(rename = "OriginatorConversationID")]
-    originator_conversation_id: String,
+    pub originator_conversation_id: String,
     #[serde(rename = "ConversationID")]
-    conversation_id: String,
+    pub conversation_id: String,
     #[serde(rename = "TransactionID")]
-    transaction_id: String,
+    pub transaction_id: String,
     #[serde(rename = "ResultParameters")]
-    result_parameters: Option<ResultParameters>,
+    pub result_parameters: Option<ResultParameters>,
     #[serde(rename = "ReferenceData")]
-    reference_data: ReferenceData,
+    pub reference_data: ReferenceData,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct B2CCallbackResponse {
     #[serde(rename = "Result")]
     pub result: CallbackResult,
