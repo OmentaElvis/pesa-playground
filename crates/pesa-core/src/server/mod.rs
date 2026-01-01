@@ -11,6 +11,7 @@ use api::auth::oauth;
 use axum::{
     Router,
     extract::State,
+    http::HeaderValue,
     routing::{get, post},
 };
 use tokio::{net::TcpListener, sync::oneshot};
@@ -353,6 +354,11 @@ impl IntoResponse for ApiError {
         });
 
         let mut response = (status, Json(body)).into_response();
+        response.headers_mut().insert(
+            "X-Internal-Desc",
+            HeaderValue::from_str(&self.internal_description)
+                .unwrap_or(HeaderValue::from_str("").unwrap()),
+        );
         response.extensions_mut().insert(self);
 
         response
