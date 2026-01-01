@@ -1,4 +1,5 @@
 use anyhow::Context;
+use base64::{Engine, engine::general_purpose};
 use chrono::Local;
 use rsa::{Pkcs1v15Encrypt, RsaPrivateKey, pkcs8::DecodePrivateKey};
 use sea_orm::TransactionTrait;
@@ -7,6 +8,7 @@ use crate::{
     accounts::{mmf_accounts::MmfAccount, user_profiles::User, utility_accounts::UtilityAccount},
     business::Business,
     business_operators::BusinessOperator,
+    events::DomainEventDispatcher,
     projects::Project,
     server::{
         ApiError, MpesaError,
@@ -138,8 +140,17 @@ impl PpgAsyncRequest for B2C {
             )
         })?;
 
+        let credential_decode = general_purpose::STANDARD
+            .decode(req.security_credential)
+            .map_err(|err| {
+                ApiError::new(
+                    MpesaError::InternalError,
+                    format!("Failed to decode security credential base64: {}", err),
+                )
+            })?;
+
         let decrypted = private_key
-            .decrypt(Pkcs1v15Encrypt, req.security_credential.as_bytes())
+            .decrypt(Pkcs1v15Encrypt, &credential_decode)
             .map_err(|err| {
                 ApiError::new(
                     MpesaError::InvalidCredentials,
@@ -191,8 +202,8 @@ impl PpgAsyncRequest for B2C {
             B2CRequestResponse {
                 conversation_id: conversation_id.to_string(),
                 originator_conversation_id: req.originator_conversation_id.clone(),
-                response_code: B2CResultCodes::Success.to_string(),
-                response_description: String::new(),
+                response_code: B2CResultCodes::Success.code().to_string(),
+                response_description: B2CResultCodes::Success.to_string(),
             },
             Self {
                 conversation_id: conversation_id.to_string(),
@@ -226,7 +237,7 @@ impl PpgAsyncRequest for B2C {
             return Ok(self.create_response(B2CResultCodes::InsufficientBalance, &receipt));
         }
 
-        let (transaction, _) = Ledger::transfer(
+        let (transaction, events) = Ledger::transfer(
             &txn,
             Some(self.utility_account.account_id),
             self.user.account_id,
@@ -253,6 +264,9 @@ impl PpgAsyncRequest for B2C {
         {
             self.utility_account = utility_account;
         }
+
+        DomainEventDispatcher::dispatch_events(&state.context, events)
+            .context("Failed to emit events ")?;
 
         txn.commit()
             .await

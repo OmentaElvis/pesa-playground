@@ -6,10 +6,8 @@ use crate::AppEventManager;
 use super::context::TestMode;
 
 // Re-export this so it's in one place
-pub use super::runner::{
-    SELF_TEST_FINISH, SELF_TEST_PLAN, SELF_TEST_START, SELF_TEST_STEP_UPDATE,
-};
 pub use super::context::SELF_TEST_PROGRESS_LOG;
+pub use super::runner::{SELF_TEST_FINISH, SELF_TEST_PLAN, SELF_TEST_START, SELF_TEST_STEP_UPDATE};
 
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
@@ -71,8 +69,7 @@ impl MainUiEmitter {
     }
 
     fn emit(&self, event: &str, payload: impl Serialize) -> anyhow::Result<()> {
-        self.emitter
-            .emit_all(event, serde_json::to_value(payload)?)
+        self.emitter.emit_all(event, serde_json::to_value(payload)?)
     }
 
     pub fn emit_start(&self, payload: &TestStartPayload) -> anyhow::Result<()> {

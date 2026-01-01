@@ -1,0 +1,115 @@
+---
+title: 'Balance Query'
+order: 5
+summary: 'Learn how to query the balance of an M-Pesa shortcode''s utility and working accounts.'
+---
+
+# Account Balance Query
+
+The Account Balance API is used to inquire about the real-time balance of an M-Pesa shortcode's working account, utility account, and charges paid account.
+
+## Request
+
+To initiate a balance query, you need to make a `POST` request to the following endpoint. This requires a valid access token obtained via the [Daraja Auth API](/info/daraja-auth).
+
+```http
+POST /mpesa/accountbalance/v1/query
+```
+
+### Request Body
+
+The body of the request specifies which account you are querying.
+
+```json
+{
+    "Initiator": "test_operator",
+    "SecurityCredential": "...",
+    "CommandID": "AccountBalance",
+    "PartyA": "9999991",
+    "IdentifierType": "4",
+    "Remarks": "Balance Check",
+    "QueueTimeOutURL": "https://mydomain.com/balance/timeout",
+    "ResultURL": "https://mydomain.com/balance/result"
+}
+```
+
+- `Initiator`: The username of the business operator with permissions to make balance queries.
+- `SecurityCredential`: A Base64 encoded and encrypted value of the Initiator's password.
+- `CommandID`: The type of balance query. `AccountBalance` is a common value.
+- `PartyA`: The shortcode of the organization whose balance is being queried.
+- `IdentifierType`: A number specifying the type of `PartyA`. `4` is used for Organization ShortCode.
+- `Remarks`: Comments about the transaction.
+- `QueueTimeOutURL`: The URL to which a timeout response will be sent.
+- `ResultURL`: The URL to which the asynchronous balance query result will be sent.
+
+
+## Initial Response
+
+If the request is valid, Daraja provides an immediate synchronous response confirming the request has been accepted for processing.
+
+```json
+{
+  "ConversationID": "AG_20240101_ABCDEF123",
+  "OriginatorConversationID": "test-originator-id-balance",
+  "ResponseCode": "0",
+  "ResponseDescription": "Accept the request for processing"
+}
+```
+
+This response only confirms receipt. The actual account balances are delivered asynchronously to the `ResultURL`.
+
+## Callback Response
+
+After fetching the account balances, Daraja sends a `POST` request to the `ResultURL`. The body contains the results.
+
+### Successful Callback Example
+
+```json
+{
+  "Result": {
+    "ResultType": 0,
+    "ResultCode": "0",
+    "ResultDesc": "The service request is processed successfully.",
+    "OriginatorConversationID": "test-originator-id-balance",
+    "ConversationID": "AG_20240101_ABCDEF123",
+    "TransactionID": "SDB12345678",
+    "ResultParameters": {
+      "ResultParameter": [
+        {
+          "Key": "AccountBalance",
+          "Value": "Working Account|KES|100000.00|100000.00|0.00|0.00&Float Account|...&Utility Account|KES|4926.00|4926.00|0.00|0.00&..."
+        },
+        {
+          "Key": "BOCompletedTime",
+          "Value": "20240101112233"
+        }
+      ]
+    },
+    "ReferenceData": { "ReferenceItem": { "Key": "QueueTimeoutURL", "Value": "..." } }
+  }
+}
+```
+
+- `ResultCode`: `0` indicates a successful query.
+- `ResultParameters`: Contains the results of the query.
+- `AccountBalance`: This is a complex string containing a breakdown of various account balances. The format is a series of account entries separated by an ampersand (`&`). Each account entry is further broken down by pipe (`|`) delimiters.
+
+  The general format for each account entry is:
+  ```
+  {Account Name}|{Currency}|{Available Funds}|{Uncleared Funds}|{Reserved Funds}|{Credit/Debit Limit}
+  ```
+
+  **Example Breakdown:**
+
+  Given an `AccountBalance` string like:
+  `Working Account|KES|100000.00|100000.00|0.00|0.00&Utility Account|KES|4926.00|4926.00|0.00|0.00&Charges Paid Account|KES|-1540.00|-1540.00|0.00|0.00`
+
+  This is broken down to.
+  - `Working Account` : (Account Name) This identifies the type of account.
+  - `KES`: (Currency) The currency of the balance (e.g., Kenyan Shillings).
+  - `100000.00`: (Available Funds) The amount of money immediately available in this account.
+  - `100000.00`: (Uncleared Funds) The amount of money that has been transacted but not yet fully settled or cleared.
+  - `0.00`: (Reserved Funds) The amount of money held in reserve.
+  - `0.00`: (Credit/Debit Limit) The credit or debit limit for the account.
+
+  This detailed breakdown applies similarly to "Utility Account", "Charges Paid Account", and any other account types present in the string.

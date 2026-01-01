@@ -7,6 +7,9 @@ order: 1
 
 This is your guide to getting started with Pesa Playground. Here you'll find information on how to use the application, integrate with its APIs, and understand its core features.
 
+> Please note that these docs are a working progress.
+> They will contain things which you need to talk with the api and other pesa playground utilities.
+> You are welcome to contribute to the inbuilt docs if you noticed mistakes or want to make further enhancements.
 
 ## Key Features
 
@@ -16,4 +19,5 @@ This is your guide to getting started with Pesa Playground. Here you'll find inf
 
 ## Next Steps
 
-Explore the sidebar to learn more about specific topics like API Keys, Transaction Costs, and more.
+Explore the sidebar to learn more about specific topics like API Keys, Stk Push, and more.
+
