@@ -214,18 +214,9 @@ impl User {
         let phone = Self::generate_phone_number(&mut set);
         let pin = Self::generate_pin();
         // available balances to select in cents
-        let balance = [
-            250_000 * 100,
-            1000 * 100,
-            0,
-            200 * 100,
-            42000 * 100,
-            14 * 100,
-            120000 * 100,
-            3_141_592 * 100,
-        ]
-        .choose(&mut rand::thread_rng())
-        .unwrap();
+        let balance = [250_000, 1000, 0, 200, 42000, 14, 120000, 3_141_592]
+            .choose(&mut rand::thread_rng())
+            .unwrap();
         let imsi = Self::generate_test_imsi();
         let registered_at = Self::random_registration_date();
 
@@ -276,7 +267,9 @@ impl User {
         db::Entity::delete_by_id(user_id).exec(conn).await?;
 
         // Then delete the account
-        accounts::db::Entity::delete_by_id(user_id).exec(conn).await?;
+        accounts::db::Entity::delete_by_id(user_id)
+            .exec(conn)
+            .await?;
 
         Ok(())
     }

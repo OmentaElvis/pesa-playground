@@ -2,12 +2,12 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, ConnectionTrait, EntityTrait, FromQueryResult,
     QueryFilter,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 pub mod db;
 pub mod ui;
 
-#[derive(FromQueryResult, Debug, Serialize)]
+#[derive(FromQueryResult, Debug, Serialize, Deserialize, Clone)]
 pub struct BusinessOperator {
     pub id: u32,
     pub username: String,

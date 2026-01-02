@@ -66,6 +66,19 @@ impl TestStep for InitProjectTest {
             (initial_utility_balance * 100.0) as i64,
             "Expected funds to be deposited in utility working account."
         );
+
+        context.log("Creating test operator...").await;
+        let operator = crate::business_operators::ui::create_operator(
+            app,
+            crate::business_operators::ui::CreateOperatorPayload {
+                username: "test_operator".to_string(),
+                password: "test_password".to_string(),
+                business_id: business.id,
+            },
+        )
+        .await
+        .context("Failed to create test operator")?;
+
         context.log("Creating test project...").await;
 
         // ==== Project =====
@@ -164,6 +177,7 @@ impl TestStep for InitProjectTest {
         context.set("rich_user", &rich_user)?;
         context.set("average_user", &average_user)?;
         context.set("base_url", &url)?;
+        context.set("operator", &operator)?;
 
         Ok(())
     }

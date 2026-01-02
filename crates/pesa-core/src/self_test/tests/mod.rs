@@ -9,6 +9,8 @@ use crate::{
     server::api::auth::AuthResponse,
 };
 
+pub mod b2c;
+pub mod balance_query;
 pub mod c2b;
 pub mod create_project;
 pub mod send_money;
@@ -34,6 +36,16 @@ define_tests!(
         name: "c2b",
         description: "Performs C2B tests",
         ctor: c2b::C2BTest
+    },
+    B2C {
+        name: "b2c",
+        description: "Performs B2C tests",
+        ctor: b2c::B2CTest
+    },
+    BalanceQuery {
+        name: "balance_query",
+        description: "Performs Balance Query tests",
+        ctor: balance_query::BalanceQueryTest
     },
 );
 

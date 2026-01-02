@@ -3,7 +3,10 @@ use crate::{
     accounts::user_profiles::User,
     projects::{self},
     server::{
-        api::{b2c::task::B2C, c2b::register::registerurl, stkpush::task::Stkpush},
+        api::{
+            b2c::task::B2C, balance_query::task::BalanceQuery, c2b::register::registerurl,
+            stkpush::task::Stkpush,
+        },
         async_handler::handle_async_request,
     },
 };
@@ -11,6 +14,7 @@ use api::auth::oauth;
 use axum::{
     Router,
     extract::State,
+    http::HeaderValue,
     routing::{get, post},
 };
 use tokio::{net::TcpListener, sync::oneshot};
@@ -226,6 +230,7 @@ ______              ______ _                                             _
     .route("/mpesa/stkpush/v1/processrequest", post(handle_async_request::<Stkpush>))
     .route("/mpesa/c2b/v2/registerurl", post(registerurl))
     .route("/mpesa/b2c/v3/paymentrequest", post(handle_async_request::<B2C>))
+    .route("/mpesa/accountbalance/v1/query", post(handle_async_request::<BalanceQuery>))
     .route("/debug/config", get(get_api_keys))
     .route("/debug/users", get(get_users))
     .with_state(state.clone());
@@ -353,6 +358,11 @@ impl IntoResponse for ApiError {
         });
 
         let mut response = (status, Json(body)).into_response();
+        response.headers_mut().insert(
+            "X-Internal-Desc",
+            HeaderValue::from_str(&self.internal_description)
+                .unwrap_or(HeaderValue::from_str("").unwrap()),
+        );
         response.extensions_mut().insert(self);
 
         response
