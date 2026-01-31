@@ -1,10 +1,10 @@
-pub use pesa_core::*;
 use pesa_core::{
     accounts::{
         paybill_accounts::{CreatePaybillAccount, UpdatePaybillAccount},
         till_accounts::{CreateTillAccount, UpdateTillAccount},
     },
     api_logs::{UpdateApiLogRequest, ui::ApiLogFilter},
+    app::PesaApp,
     business::{CreateBusiness, UpdateBusiness},
     business_operators::ui::CreateOperatorPayload,
     projects::{CreateProject, UpdateProject},
@@ -17,12 +17,12 @@ use pesa_core::{
         ui::{LipaArgs, TransactionFilter},
     },
     transactions_log::ui::HistoryFilter,
+    *,
 };
-
 use pesa_lua::ScriptManager;
 use pesa_macros::generate_tauri_wrappers;
 use std::sync::Arc;
-use tauri::{Emitter, Manager, Runtime, State};
+use tauri::{AppHandle, Emitter, Manager, Runtime, State, WindowEvent};
 use tokio::sync::{Mutex, broadcast};
 
 const WEBSOCKET_CHANNEL_CAPACITY: usize = 100;
@@ -57,7 +57,8 @@ impl<R: Runtime> AppEventManager for TauriEventManager<R> {
 
 // Define the Tauri application state
 pub struct TauriAppState {
-    pub context: AppContext,
+    pub app: Arc<Mutex<PesaApp>>,
+    pub context: Arc<AppContext>,
     pub script_manager: Arc<Mutex<ScriptManager>>,
 }
 
@@ -164,7 +165,13 @@ generate_tauri_wrappers! {
     get_mmf_account_by_business_id(business_id: u32) => pesa_core::accounts::mmf_accounts::ui::get_mmf_account_by_business_id,
     revenue_settlement(business_id: u32) => pesa_core::business::ui::revenue_settlement,
 
+    get_transaction_manager_stats() => pesa_core::system::ui::get_transaction_manager_stats,
     run_self_tests(mode: TestMode) => pesa_core::self_test::ui::run_self_tests
+}
+
+#[tauri::command]
+async fn reboot(app_handle: AppHandle) {
+    app_handle.restart();
 }
 
 #[tauri::command]
@@ -212,14 +219,14 @@ async fn scripts_execute(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
-        .setup(move |app| {
+        .setup(|app| {
             let handle = app.handle().clone();
             let app_dir = handle.path().app_data_dir().expect("failed to get app dir");
             let db_path = app_dir.join("database.sqlite");
             let settings_path = app_dir.join("settings.json");
 
             tauri::async_runtime::block_on(async move {
-                let db = pesa_core::db::Database::new(&db_path)
+                let db = db::Database::new(&db_path)
                     .await
                     .expect("Failed to initialize database");
 
@@ -227,9 +234,7 @@ pub fn run() {
                     eprintln!("Database error: {:?}", err);
                 }
 
-                let settings_manager = pesa_core::settings::SettingsManager::new(settings_path)
-                    .await
-                    .unwrap();
+                let settings_manager = settings::SettingsManager::new(settings_path).await.unwrap();
 
                 let (event_sender, _event_receiver) =
                     broadcast::channel(WEBSOCKET_CHANNEL_CAPACITY);
@@ -238,17 +243,17 @@ pub fn run() {
                     sender: event_sender.clone(),
                 });
 
-                let context = AppContext {
-                    db: db.conn.clone(),
-                    settings: settings_manager,
-                    event_manager: event_manager.clone(),
-                    running: Arc::new(pesa_core::dashmap::DashMap::new()),
-                    app_root: app_dir.clone(),
-                };
+                let pesa_app =
+                    PesaApp::new(db.conn.clone(), settings_manager, event_manager, &app_dir)
+                        .await
+                        .expect("Failed to create PesaApp");
 
-                // Initialize ScriptManager
-                let script_manager = ScriptManager::new(context.clone(), &app_dir)
-                    .expect("Failed to initialize script manager");
+                let context_clone = pesa_app.context.clone();
+                let app_arc = Arc::new(Mutex::new(pesa_app));
+
+                let script_manager =
+                    ScriptManager::new((*app_arc.lock().await.context).clone(), &app_dir)
+                        .expect("Failed to initialize script manager");
 
                 let script_manager_clone = script_manager.clone();
                 let mut script_event_receiver = event_sender.subscribe();
@@ -279,12 +284,36 @@ pub fn run() {
 
                 // Manage the combined state
                 app.manage(TauriAppState {
-                    context,
+                    app: app_arc,
+                    context: context_clone,
                     script_manager,
                 });
             });
 
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() != "main" {
+                    return;
+                }
+                let app_handle = window.app_handle().clone();
+                let state = app_handle.state::<TauriAppState>();
+                let app = state.app.clone();
+
+                // Prevent the window from closing immediately
+                api.prevent_close();
+
+                tauri::async_runtime::spawn(async move {
+                    println!("Shutting down PesaApp...");
+                    let mut app_guard = app.lock().await;
+                    if let Err(e) = app_guard.shutdown().await {
+                        eprintln!("Error during PesaApp shutdown: {:?}", e);
+                    }
+                    println!("PesaApp shutdown complete.");
+                    app_handle.exit(0);
+                });
+            }
         })
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
@@ -292,6 +321,9 @@ pub fn run() {
             get_settings,
             generate_security_credential,
             set_settings,
+            // New Commands
+            reboot,
+            get_transaction_manager_stats,
             // Scripting Commands
             scripts_list,
             scripts_read,

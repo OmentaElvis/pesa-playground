@@ -1,4 +1,4 @@
-use axum::{Json, extract::State, http::HeaderMap};
+use axum::{Extension, Json, extract::State, http::HeaderMap};
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait};
 use serde::{Deserialize, Serialize};
 
@@ -8,6 +8,7 @@ use crate::{
         ApiError, ApiState, MpesaError,
         api::{auth, c2b::ResponseType},
     },
+    utils::identifiers::Identifiers,
 };
 
 /// Request to register validation and confirmation URLs
@@ -37,6 +38,7 @@ pub struct RegisterUrlResponse {
 pub async fn registerurl(
     headers: HeaderMap,
     State(state): State<ApiState>,
+    Extension(ids): Extension<Identifiers>,
     Json(req): Json<RegisterUrlRequest>,
 ) -> Result<Json<RegisterUrlResponse>, ApiError> {
     let urls_already_registered = "URLS_ALREADY_REGISTERED";
@@ -109,7 +111,7 @@ pub async fn registerurl(
         // TODO Generate valid conversation id
         return Ok(Json(RegisterUrlResponse {
             response_code: "0".to_string(),
-            originator_conversation_id: uuid::Uuid::new_v4().to_string(),
+            originator_conversation_id: ids.originator_conversation_id,
             response_description: "Success".to_string(),
         }));
     }

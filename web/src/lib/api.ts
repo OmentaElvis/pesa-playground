@@ -416,6 +416,7 @@ export interface ProjectDetails {
 	callback_url?: string;
 	simulation_mode: SimulationMode;
 	stk_delay: number;
+	txn_delay: number;
 	prefix?: string;
 	created_at: string;
 	consumer_key: string;

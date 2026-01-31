@@ -51,6 +51,7 @@ pub struct CallbackLog {
     pub error: Option<String>,
     pub created_at: DateTimeUtc,
     pub updated_at: Option<DateTimeUtc>,
+    pub request_id: Option<String>,
 }
 
 /// Parameters for creating a new callback log.
@@ -96,6 +97,7 @@ impl From<db::Model> for CallbackLog {
             error: value.error,
             created_at: value.created_at,
             updated_at: value.updated_at,
+            request_id: value.request_id,
         }
     }
 }
@@ -197,6 +199,7 @@ impl From<CallbackLog> for db::ActiveModel {
             error: Set(log.error),
             created_at: Set(log.created_at),
             updated_at: Set(log.updated_at),
+            request_id: Set(None),
         }
     }
 }

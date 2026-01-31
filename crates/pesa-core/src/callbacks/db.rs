@@ -34,21 +34,41 @@ pub struct Model {
     pub error: Option<String>,
     pub created_at: DateTimeUtc,
     pub updated_at: Option<DateTimeUtc>,
+    pub request_id: Option<String>,
 }
 
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+#[derive(Clone, Debug, EnumIter)]
 pub enum Relation {
-    #[sea_orm(
-        belongs_to = "crate::projects::db::Entity",
-        from = "Column::ProjectId",
-        to = "crate::projects::db::Column::Id"
-    )]
     Project,
+    Request,
+}
+
+impl RelationTrait for Relation {
+    fn def(&self) -> RelationDef {
+        match self {
+            Self::Project => Entity::belongs_to(crate::projects::db::Entity)
+                .from(Column::ProjectId)
+                .to(crate::projects::db::Column::Id)
+                .on_delete(sea_query::ForeignKeyAction::Cascade)
+                .into(),
+            Self::Request => Entity::belongs_to(crate::request_lifecycle::db::Entity)
+                .from(Column::RequestId)
+                .to(crate::request_lifecycle::db::Column::Id)
+                .on_delete(sea_query::ForeignKeyAction::SetNull)
+                .into(),
+        }
+    }
 }
 
 impl Related<crate::projects::db::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Project.def()
+    }
+}
+
+impl Related<crate::request_lifecycle::db::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Request.def()
     }
 }
 

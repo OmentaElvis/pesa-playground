@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use anyhow::Context;
 use base64::{Engine, engine::general_purpose};
 use chrono::Local;
@@ -21,12 +23,12 @@ use crate::{
         },
         async_handler::PpgAsyncRequest,
     },
-    transactions::{Ledger, TransactionNote, TransactionType},
+    transactions::{TransactionNote, TransactionType},
+    utils::identifiers::Identifiers,
 };
 
 pub struct B2C {
-    pub conversation_id: String,
-    pub originator_conversation_id: String,
+    pub ids: Identifiers,
     pub result_url: String,
     pub business: Business,
     pub utility_account: UtilityAccount,
@@ -50,7 +52,7 @@ impl PpgAsyncRequest for B2C {
     async fn init(
         state: &crate::server::ApiState,
         req: Self::RequestData,
-        conversation_id: &str,
+        ids: &Identifiers,
         _api_key: crate::api_keys::ApiKey,
     ) -> Result<(Self::SyncResponseData, Self), crate::server::ApiError>
     where
@@ -200,14 +202,13 @@ impl PpgAsyncRequest for B2C {
 
         Ok((
             B2CRequestResponse {
-                conversation_id: conversation_id.to_string(),
+                conversation_id: ids.conversation_id.to_string(),
                 originator_conversation_id: req.originator_conversation_id.clone(),
                 response_code: B2CResultCodes::Success.code().to_string(),
                 response_description: B2CResultCodes::Success.to_string(),
             },
             Self {
-                conversation_id: conversation_id.to_string(),
-                originator_conversation_id: req.originator_conversation_id,
+                ids: ids.clone(),
                 result_url: req.result_url,
                 amount: (amount * 100.0) as i64,
                 business,
@@ -224,7 +225,6 @@ impl PpgAsyncRequest for B2C {
         &mut self,
         state: &crate::server::ApiState,
     ) -> Result<Self::CallbackPayload, Self::Error> {
-        let mut receipt = Ledger::generate_receipt();
         let txn = state
             .context
             .db
@@ -234,23 +234,31 @@ impl PpgAsyncRequest for B2C {
 
         // check if we have enough funds
         if (self.utility_account.balance - self.amount) < 0 {
-            return Ok(self.create_response(B2CResultCodes::InsufficientBalance, &receipt));
+            return Ok(self.create_response(
+                B2CResultCodes::InsufficientBalance,
+                &self.ids.transaction_id,
+            ));
         }
 
-        let (transaction, events) = Ledger::transfer(
-            &txn,
-            Some(self.utility_account.account_id),
-            self.user.account_id,
-            self.amount,
-            &TransactionType::Disbursment,
-            Some(&TransactionNote::Disbursment {
-                kind: self.command_id.clone(),
-            }),
-        )
-        .await
-        .context("Failed to transfer funds")?;
+        let (transaction, events) = state
+            .context
+            .transfer_atomic(
+                &txn,
+                self.ids.clone(),
+                Duration::ZERO,
+                Some(self.utility_account.account_id),
+                self.user.account_id,
+                self.amount,
+                TransactionType::Disbursment,
+                Some(TransactionNote::Disbursment {
+                    kind: self.command_id.clone(),
+                }),
+            )
+            .await
+            .context("Failed to initiate transaction")?
+            .context("Failed to transfer funds")?;
 
-        receipt = transaction.id;
+        assert_eq!(transaction.id, self.ids.transaction_id);
 
         self.business =
             Business::increment_charges_amount(&txn, self.business.id, -transaction.fee)
@@ -272,7 +280,7 @@ impl PpgAsyncRequest for B2C {
             .await
             .context("Failed to commit transaction.")?;
 
-        Ok(self.create_response(B2CResultCodes::Success, &receipt))
+        Ok(self.create_response(B2CResultCodes::Success, &self.ids.transaction_id))
     }
 
     fn get_callback_url(&self) -> Option<&str> {
@@ -280,7 +288,7 @@ impl PpgAsyncRequest for B2C {
     }
 
     fn get_originator_id(&self) -> &str {
-        &self.originator_conversation_id
+        &self.ids.originator_conversation_id
     }
 }
 
@@ -335,8 +343,8 @@ impl B2C {
                 result_type: 0,
                 result_code: code.code().to_string(),
                 result_desc: code.to_string(),
-                originator_conversation_id: self.originator_conversation_id.to_string(),
-                conversation_id: self.conversation_id.to_string(),
+                originator_conversation_id: self.ids.originator_conversation_id.to_string(),
+                conversation_id: self.ids.conversation_id.to_string(),
                 transaction_id: transaction_id.to_string(),
                 result_parameters: params,
                 reference_data: ReferenceData {

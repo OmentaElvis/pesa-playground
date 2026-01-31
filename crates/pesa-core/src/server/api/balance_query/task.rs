@@ -14,10 +14,10 @@ use crate::{
                 BalanceQueryCallbackResponse, BalanceQueryRequest, BalanceQueryRequestResponse,
                 BalanceQueryResultCodes,
             },
-            stkpush::generate_checkout_request_id,
         },
         async_handler::PpgAsyncRequest,
     },
+    utils::identifiers::Identifiers,
 };
 
 pub struct BalanceQuery {
@@ -43,14 +43,12 @@ impl PpgAsyncRequest for BalanceQuery {
     async fn init(
         state: &crate::server::ApiState,
         req: Self::RequestData,
-        conversation_id: &str,
+        ids: &Identifiers,
         _api_key: crate::api_keys::ApiKey,
     ) -> Result<(Self::SyncResponseData, Self), crate::server::ApiError>
     where
         Self: Sized,
     {
-        let originator_conversation_id = generate_checkout_request_id();
-
         let business = Business::get_by_short_code(&state.context.db, &req.party_a)
             .await
             .map_err(|error| {
@@ -166,14 +164,14 @@ impl PpgAsyncRequest for BalanceQuery {
 
         Ok((
             BalanceQueryRequestResponse {
-                conversation_id: conversation_id.to_string(),
-                originator_conversation_id: originator_conversation_id.clone(),
+                conversation_id: ids.conversation_id.clone(),
+                originator_conversation_id: ids.originator_conversation_id.clone(),
                 response_code: result.code().to_string(),
                 response_description: result.to_string(),
             },
             Self {
-                conversation_id: conversation_id.to_string(),
-                originator_conversation_id: originator_conversation_id.clone(),
+                conversation_id: ids.conversation_id.clone(),
+                originator_conversation_id: ids.originator_conversation_id.clone(),
                 result_url: req.result_url,
                 business,
                 utility_account,

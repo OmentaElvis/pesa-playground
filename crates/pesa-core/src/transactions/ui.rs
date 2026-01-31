@@ -35,6 +35,7 @@ use crate::server::api::c2b::ResponseType;
 use crate::server::api::c2b::ValidationRequest;
 use crate::server::api::c2b::ValidationResponse;
 use crate::transaction_costs::get_fee;
+use crate::utils::identifiers::Identifiers;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct TransactionFilter {
@@ -521,7 +522,23 @@ struct ProcessLipaArgs {
 }
 
 async fn process_lipa<C: ConnectionTrait>(conn: C, args: ProcessLipaArgs, ctx: AppContext) {
-    let trasaction_id = Ledger::generate_receipt();
+    let ids = Identifiers::new();
+
+    // Create the request lifecycle entry
+    if let Err(e) = ctx
+        .request_lifecycle_manager
+        .create_system_request(
+            &ids,
+            "c2b_lipa",
+            crate::request_lifecycle::RequestType::C2bLipa,
+            None, // project_id is not directly available here
+            Some(args.business_id),
+            Some(args.user.account_id),
+        )
+        .await
+    {
+        tracing::error!("Failed to create system request for c2b_lipa: {}", e);
+    }
 
     let parts: Vec<&str> = args.user.name.split_whitespace().collect();
     let first_name;
@@ -554,7 +571,7 @@ async fn process_lipa<C: ConnectionTrait>(conn: C, args: ProcessLipaArgs, ctx: A
                     LipaPaymentType::Till => C2bTransactionType::Till,
                 },
                 // TODO confirm that a transaction_id is different for validation and confirmation request.
-                transaction_id: trasaction_id.to_string(),
+                transaction_id: ids.transaction_id.to_string(),
                 transaction_amount: format!("{:.2}", args.amount as f64 / 100.0),
                 first_name: first_name.to_string(),
                 last_name: last_name.to_string(),
@@ -609,7 +626,7 @@ async fn process_lipa<C: ConnectionTrait>(conn: C, args: ProcessLipaArgs, ctx: A
                                             response_text
                                         ))
                                         .duration(0) // We dont have this yet
-                                        .save(&conn)
+                                        .save(&conn, &ids)
                                         .await;
                                 }
 
@@ -630,25 +647,31 @@ async fn process_lipa<C: ConnectionTrait>(conn: C, args: ProcessLipaArgs, ctx: A
         }
     }
 
-    let txn_res = match Ledger::transfer(
-        &conn,
-        Some(args.source.id),
-        args.destination.account_id,
-        args.amount,
-        match args.payment_type {
-            LipaPaymentType::Paybill => &TransactionType::Paybill,
-            LipaPaymentType::Till => &TransactionType::BuyGoods,
-        },
-        Some(&args.notes),
-    )
-    .await
+    let txn_res = match ctx
+        .transfer(
+            ids.clone(),
+            Duration::ZERO,
+            Some(args.source.id),
+            args.destination.account_id,
+            args.amount,
+            match args.payment_type {
+                LipaPaymentType::Paybill => TransactionType::Paybill,
+                LipaPaymentType::Till => TransactionType::BuyGoods,
+            },
+            Some(args.notes),
+        )
+        .await
     {
-        Ok((txn, events)) => {
+        Ok(Ok((txn, events))) => {
             let _ = DomainEventDispatcher::dispatch_events(&ctx, events);
             txn
         }
-        Err(err) => {
+        Ok(Err(err)) => {
             eprintln!("Transaction error: {err}");
+            return;
+        }
+        Err(err) => {
+            eprintln!("Failed to initiate transaction: {err}");
             return;
         }
     };

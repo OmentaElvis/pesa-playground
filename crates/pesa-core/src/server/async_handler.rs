@@ -1,7 +1,7 @@
 //! A generic, type-safe framework for handling asynchronous M-Pesa API requests.
 use std::fmt::Debug;
 
-use axum::{Json, extract::State, http::HeaderMap};
+use axum::{Extension, Json, extract::State, http::HeaderMap};
 use serde::{Serialize, de::DeserializeOwned};
 use tokio::task;
 use tracing;
@@ -10,7 +10,8 @@ use super::{ApiError, ApiState};
 use crate::{
     api_keys::ApiKey,
     callbacks::{CreateCallbackParams, orchestrator::CallbackOrchestrator},
-    server::{api::auth, log::generate_conversation_id},
+    server::api::auth,
+    utils::identifiers::Identifiers,
 };
 
 pub trait IntoCallbackPayload<C, T> {
@@ -32,7 +33,7 @@ pub trait PpgAsyncRequest: Sized + Send + 'static {
     fn init(
         state: &ApiState,
         req: Self::RequestData,
-        conversation_id: &str,
+        identifiers: &Identifiers,
         api_key: ApiKey,
     ) -> impl std::future::Future<Output = Result<(Self::SyncResponseData, Self), ApiError>> + Send
     where
@@ -63,28 +64,31 @@ pub trait PpgAsyncRequest: Sized + Send + 'static {
 }
 
 /// A generic Axum handler that processes any request implementing the `MpesaRequest` trait.
-pub async fn handle_async_request<T: PpgAsyncRequest>(
+pub async fn handle_async_request<T>(
     State(state): State<ApiState>,
     headers: HeaderMap,
+    Extension(ids): Extension<Identifiers>,
     Json(req_data): Json<T::RequestData>,
-) -> Result<Json<T::SyncResponseData>, ApiError> {
+) -> Result<Json<T::SyncResponseData>, ApiError>
+where
+    T: PpgAsyncRequest + Send + Sync + 'static,
+{
     let api_key = auth::validate_bearer_token(&headers, &state).await?;
-    let conversation_id = generate_conversation_id();
 
-    let (sync_response, job) = T::init(&state, req_data, conversation_id.as_str(), api_key).await?;
-    spawn_async_job::<T>(state, conversation_id, job);
+    let (sync_response, job) = T::init(&state, req_data, &ids, api_key).await?;
+    spawn_async_job::<T>(state, ids, job);
 
     Ok(Json(sync_response))
 }
 
 /// Spawns a background Tokio task to run the `execute` step on the job object.
-fn spawn_async_job<T: PpgAsyncRequest>(state: ApiState, conversation_id: String, mut job: T) {
+fn spawn_async_job<T: PpgAsyncRequest>(state: ApiState, identifiers: Identifiers, mut job: T) {
     task::spawn(async move {
         tracing::trace!(
             "Starting async job for {} on project {}. Conversation Id: {}",
             T::api_name(),
             state.project_id,
-            conversation_id
+            identifiers.conversation_id
         );
 
         // Execute the core business logic using the state held by the job object.
@@ -97,7 +101,7 @@ fn spawn_async_job<T: PpgAsyncRequest>(state: ApiState, conversation_id: String,
                 tracing::error!(
                     "Asynchronous execution failed for {} ({}): {:?}",
                     T::api_name(),
-                    conversation_id,
+                    identifiers.conversation_id,
                     e,
                 );
                 e.get_payload(&job)
@@ -109,7 +113,7 @@ fn spawn_async_job<T: PpgAsyncRequest>(state: ApiState, conversation_id: String,
                 project_id: state.project_id,
                 callback_type: T::api_name().parse().unwrap_or_default(),
                 url: url.to_string(),
-                conversation_id,
+                conversation_id: identifiers.conversation_id,
                 originator_id: job.get_originator_id().to_string(),
                 payload: serde_json::to_value(&final_payload).unwrap_or_default(),
                 transaction_id: T::get_transaction_id(&final_payload),

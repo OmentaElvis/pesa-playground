@@ -198,8 +198,8 @@ impl IntoCallbackPayload<B2C, B2CCallbackResponse> for B2CResultCodes {
                 result_type: 0,
                 result_code: code.to_string(),
                 result_desc: message,
-                conversation_id: ctx.conversation_id.to_string(),
-                originator_conversation_id: ctx.originator_conversation_id.to_string(),
+                conversation_id: ctx.ids.conversation_id.to_string(),
+                originator_conversation_id: ctx.ids.originator_conversation_id.to_string(),
                 transaction_id: Ledger::generate_receipt(),
                 result_parameters: None,
                 reference_data: ReferenceData {

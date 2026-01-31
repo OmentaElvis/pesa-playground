@@ -9,7 +9,7 @@ authors = ["omenta"]
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-axum = "0.8.4"
+axum = { version = "0.8.4", features = ["macros", "tracing"] }
 fake = "4.3.0"
 sqlx = { version = "0.8.6", features = ["chrono", "runtime-tokio", "sqlite"] }
 anyhow = "1.0.98"
@@ -34,4 +34,5 @@ dashmap = "6.1.0"
 sea-orm-migration = { version = "1.1.19", default-features = false, features = ["sqlx-sqlite"] }
 tempfile = "3.24.0"
 futures = "0.3.31"
+indoc = "2.0.7"
 

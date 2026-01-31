@@ -1,16 +1,10 @@
-use pesa_core::self_test::context::TestMode;
-use pesa_core::server::api::stkpush::ui::UserResponse;
-use serde::Deserialize;
-use std::path::PathBuf;
-use std::sync::Arc;
-
-use axum::Router;
 use axum::extract::{
     State,
     ws::{Message, WebSocket, WebSocketUpgrade},
 };
 use axum::routing::{get, post};
 use axum::{
+    Router,
     http::Request,
     middleware::{self, Next},
     response::Response,
@@ -18,6 +12,7 @@ use axum::{
 use clap::Parser;
 use futures_util::SinkExt;
 use futures_util::stream::StreamExt;
+use log::{error, info};
 use pesa_core::{
     AppContext, AppEventManager,
     accounts::{
@@ -25,9 +20,12 @@ use pesa_core::{
         till_accounts::{CreateTillAccount, UpdateTillAccount},
     },
     api_logs::{UpdateApiLogRequest, ui::ApiLogFilter},
+    app::PesaApp,
     business::{CreateBusiness, UpdateBusiness},
     business_operators::ui::CreateOperatorPayload,
     projects::{CreateProject, UpdateProject},
+    self_test::context::TestMode,
+    server::api::stkpush::ui::UserResponse,
     settings::models::AppSettings,
     transaction_costs::ui::TransactionCostData,
     transactions::{
@@ -38,14 +36,15 @@ use pesa_core::{
 };
 use pesa_lua::ScriptManager;
 use pesa_macros::generate_axum_rpc_handler;
+use serde::Deserialize;
+use std::net::SocketAddr;
+use std::path::PathBuf;
+use std::sync::Arc;
 use tokio::sync::{Mutex, broadcast};
 use tower_http::cors::CorsLayer;
 use tower_http::services::{ServeDir, ServeFile};
 
-use log::{error, info};
-
 const TAURI_APP_ID: &str = "net.omenta.pesaplayground";
-
 const WEBSOCKET_CHANNEL_CAPACITY: usize = 100;
 
 pub struct AxumEventManager {
@@ -54,7 +53,8 @@ pub struct AxumEventManager {
 
 impl AppEventManager for AxumEventManager {
     fn emit_all(&self, event: &str, payload: serde_json::Value) -> anyhow::Result<()> {
-        let event_payload = serde_json::json!({            "event": event,
+        let event_payload = serde_json::json!({
+            "event": event,
             "payload": payload,
         });
         self.sender.send(event_payload)?;
@@ -65,9 +65,11 @@ impl AppEventManager for AxumEventManager {
 // AxumAppState will hold the core context and the Axum-specific event manager
 #[derive(Clone)]
 pub struct AxumAppState {
-    pub core_context: AppContext,
+    #[allow(dead_code)]
+    app: Arc<tokio::sync::Mutex<PesaApp>>,
+    pub core_context: Arc<AppContext>,
     pub event_manager: Arc<AxumEventManager>,
-    pub script_manager: Arc<Mutex<ScriptManager>>,
+    pub script_manager: Arc<tokio::sync::Mutex<ScriptManager>>,
 }
 
 async fn ws_handler(ws: WebSocketUpgrade, State(state): State<AxumAppState>) -> Response {
@@ -210,6 +212,7 @@ generate_axum_rpc_handler! {
     get_mmf_account_by_business_id(business_id: u32) => pesa_core::accounts::mmf_accounts::ui::get_mmf_account_by_business_id,
     revenue_settlement(business_id: u32) => pesa_core::business::ui::revenue_settlement,
 
+    get_transaction_manager_stats() => pesa_core::system::ui::get_transaction_manager_stats,
     run_self_tests(mode: TestMode) => pesa_core::self_test::ui::run_self_tests
 }
 
@@ -221,6 +224,18 @@ pub async fn rpc_handler(
     let params_val = payload.params.clone().unwrap_or(serde_json::Value::Null);
 
     let response = match payload.method.as_str() {
+        "reboot" => {
+            let app = state.app.clone();
+            tokio::spawn(async move {
+                // We lock and shutdown in a separate task
+                // to allow the RPC response to be sent before the server exits.
+                let mut app_guard = app.lock().await;
+                if let Err(e) = app_guard.shutdown().await {
+                    error!("Error during graceful shutdown via reboot: {:?}", e);
+                }
+            });
+            serde_json::json!({"jsonrpc": "2.0", "result": "reboot initiated", "id": payload.id})
+        }
         "scripts_list" => {
             let call_result: Result<serde_json::Value, anyhow::Error> = async {
                 let manager = state.script_manager.lock().await;
@@ -399,6 +414,33 @@ async fn log_requests(mut req: Request<axum::body::Body>, next: Next) -> Respons
     response
 }
 
+async fn shutdown_signal(app: Arc<Mutex<PesaApp>>) {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+
+    info!("Signal received, starting graceful shutdown");
+    app.lock().await.shutdown().await.unwrap();
+}
+
 #[tokio::main]
 async fn main() {
     unsafe {
@@ -443,15 +485,19 @@ async fn main() {
         .await
         .expect("failed to init settings");
 
-    let core_context = AppContext {
-        db: db.conn.clone(),
-        settings: settings_manager,
-        event_manager: axum_event_manager.clone(),
-        running: Arc::new(pesa_core::dashmap::DashMap::new()),
-        app_root: data_dir.clone(),
-    };
+    let pesa_app = PesaApp::new(
+        db.conn.clone(),
+        settings_manager,
+        axum_event_manager.clone(),
+        &data_dir,
+    )
+    .await
+    .expect("Failed to create PesaApp");
 
-    let script_manager = ScriptManager::new(core_context.clone(), &data_dir)
+    let app_arc = Arc::new(Mutex::new(pesa_app));
+    let context_clone = app_arc.lock().await.context.clone();
+
+    let script_manager = ScriptManager::new((*context_clone).clone(), &data_dir)
         .expect("Failed to initialize script manager");
 
     let script_manager_clone = script_manager.clone();
@@ -479,7 +525,8 @@ async fn main() {
     });
 
     let app_state = AxumAppState {
-        core_context,
+        app: app_arc.clone(),
+        core_context: context_clone,
         event_manager: axum_event_manager,
         script_manager,
     };
@@ -495,8 +542,14 @@ async fn main() {
         .layer(middleware::from_fn(log_requests))
         .layer(CorsLayer::permissive());
 
-    let addr = format!("{}:{}", cli_args.address, cli_args.port);
-    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-    info!("listening on {}", listener.local_addr().unwrap());
-    axum::serve(listener, app).await.unwrap();
+    let addr_str = format!("{}:{}", cli_args.address, cli_args.port);
+    let addr: SocketAddr = addr_str.parse().expect("Invalid address format");
+    info!("listening on {}", addr);
+    axum::serve(
+        tokio::net::TcpListener::bind(addr).await.unwrap(),
+        app.into_make_service(),
+    )
+    .with_graceful_shutdown(shutdown_signal(app_arc))
+    .await
+    .unwrap();
 }

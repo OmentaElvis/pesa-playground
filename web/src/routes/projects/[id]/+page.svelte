@@ -17,7 +17,6 @@
 		Key,
 		Activity,
 		Plus,
-		Settings,
 		CheckCircle,
 		XCircle,
 		AlertCircle,
@@ -29,7 +28,11 @@
 		Phone,
 		CreditCard,
 		ArrowLeftRight,
-		ArrowRight
+		ArrowRight,
+		Landmark,
+		Webhook,
+		UsersRound,
+		Cog
 	} from 'lucide-svelte';
 	import {
 		getProject,
@@ -57,6 +60,7 @@
 	import SandboxToggle from '$lib/components/SandboxToggle.svelte';
 	import DiceBearAvatar from '$lib/components/ui/avatar/DiceBearAvatar.svelte';
 	import { copyToClipboard, debounce, formatAmount, getInitials } from '$lib/utils';
+	import ProjectSettings from '$lib/components/ProjectSettings.svelte';
 
 	let id = $derived(page.params.id);
 	let project: ProjectDetails | null = $state(null);
@@ -204,12 +208,6 @@
 						<span>Shortcode: {business?.short_code}</span>
 					</div>
 				</div>
-				<div class="flex gap-2">
-					<Button href={`/projects/${id}/settings`} variant="outline" class="gap-2">
-						<Settings class="h-4 w-4" />
-						Settings
-					</Button>
-				</div>
 			</div>
 			<SandboxToggle id={Number(id)} bind:port bind:host />
 		</div>
@@ -292,11 +290,12 @@
 
 		<!-- Main Content Tabs -->
 		<Tabs.Root bind:value={currentTab} class="w-full">
-			<Tabs.List class="grid w-full grid-cols-4">
-				<Tabs.Trigger value="transactions">Transactions</Tabs.Trigger>
-				<Tabs.Trigger value="accounts">Business Accounts</Tabs.Trigger>
-				<Tabs.Trigger value="api-logs">API Logs</Tabs.Trigger>
-				<Tabs.Trigger value="users">Test Users</Tabs.Trigger>
+			<Tabs.List class="grid w-full grid-cols-5">
+				<Tabs.Trigger value="transactions"><ArrowLeftRight /> Transactions</Tabs.Trigger>
+				<Tabs.Trigger value="accounts"><Landmark /> Business Accounts</Tabs.Trigger>
+				<Tabs.Trigger value="api-logs"><Webhook /> API Logs</Tabs.Trigger>
+				<Tabs.Trigger value="users"><UsersRound /> Test Users</Tabs.Trigger>
+				<Tabs.Trigger value="settings"><Cog /> Settings</Tabs.Trigger>
 			</Tabs.List>
 
 			<!-- Transactions Tab -->
@@ -568,6 +567,9 @@
 						</div>
 					</CardContent>
 				</Card>
+			</Tabs.Content>
+			<Tabs.Content value="settings" class="space-y-6">
+				<ProjectSettings bind:project={project} />
 			</Tabs.Content>
 		</Tabs.Root>
 	{/if}

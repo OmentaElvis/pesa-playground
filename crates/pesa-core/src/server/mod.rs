@@ -1,7 +1,9 @@
 use crate::{
     AppContext,
     accounts::user_profiles::User,
+    api_keys,
     projects::{self},
+    request_lifecycle::paths,
     server::{
         api::{
             b2c::task::B2C, balance_query::task::BalanceQuery, c2b::register::registerurl,
@@ -9,14 +11,18 @@ use crate::{
         },
         async_handler::handle_async_request,
     },
+    utils::identifiers::Identifiers,
 };
 use api::auth::oauth;
 use axum::{
     Router,
+    body::to_bytes,
     extract::State,
     http::HeaderValue,
+    middleware,
     routing::{get, post},
 };
+use indoc::formatdoc;
 use tokio::{net::TcpListener, sync::oneshot};
 
 pub mod access_token;
@@ -211,10 +217,49 @@ pub fn create_router(context: AppContext, project_id: u32, log: bool) -> Router 
         project_id,
     };
 
-    let mut router = Router::new().route(
-        "/",
-        get(|| async {
-    let banner = r#"    
+    let mut router = Router::new()
+        .route(paths::HOME, get(home))
+        .route(paths::OAUTH, get(oauth))
+        .route(paths::STK_PUSH, post(handle_async_request::<Stkpush>))
+        .route(paths::C2B_REGISTER_URL, post(registerurl))
+        .route(paths::B2C_PAYMENT, post(handle_async_request::<B2C>))
+        .route(
+            paths::BALANCE_QUERY,
+            post(handle_async_request::<BalanceQuery>),
+        )
+        .route(paths::DEBUG_CONFIG, get(get_api_keys))
+        .route(paths::DEBUG_USERS, get(get_users))
+        .with_state(state.clone());
+
+    if log {
+        router = router.layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            log::logging_middleware,
+        ));
+    }
+    router = router.layer(middleware::from_fn(inject_request_ids));
+
+    router
+}
+
+pub async fn home(State(state): State<ApiState>) -> Result<String, ApiError> {
+    let project = projects::ui::get_project(&state.context, state.project_id)
+        .await
+        .map_err(|err| {
+            ApiError::new(
+                MpesaError::InternalError,
+                format!("Failed to get project: {}", err),
+            )
+        })?;
+
+    let settings = state.context.settings.get().await;
+    let (public_key, private_key) = if let Some(keys) = &settings.encryption_keys {
+        (keys.public_key.as_str(), keys.private_key.as_str())
+    } else {
+        ("[NULL]", "[NULL]")
+    };
+
+    let doc = formatdoc! {r#"
 ______              ______ _                                             _ 
 | ___ \             | ___ \ |                                           | |
 | |_/ /__  ___  __ _| |_/ / | __ _ _   _  __ _ _ __ ___  _   _ _ __   __| |
@@ -223,26 +268,103 @@ ______              ______ _                                             _
 \_|  \___||___/\__,_\_|   |_|\__,_|\__, |\__, |_|  \___/ \__,_|_| |_|\__,_|
                                     __/ | __/ |                            
                                    |___/ |___/                             
-    "#;
-    format!("{banner}\n\n🧪 Welcome to Pesa Playground Sandbox.\nTry /mpesa/stkpush/v1/processrequest")
-}))
-    .route("/oauth/v1/generate", get(oauth))
-    .route("/mpesa/stkpush/v1/processrequest", post(handle_async_request::<Stkpush>))
-    .route("/mpesa/c2b/v2/registerurl", post(registerurl))
-    .route("/mpesa/b2c/v3/paymentrequest", post(handle_async_request::<B2C>))
-    .route("/mpesa/accountbalance/v1/query", post(handle_async_request::<BalanceQuery>))
-    .route("/debug/config", get(get_api_keys))
-    .route("/debug/users", get(get_users))
-    .with_state(state.clone());
+                🦎 Welcome to pesa playground sandbox
 
-    if log {
-        router = router.layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            log::logging_middleware,
-        ));
+Try:
+---------------------------------------
+    POST /mpesa/stkpush/v1/processrequest
+    POST /oauth/v1/generate
+    POST /mpesa/c2b/v2/registerurl
+    POST /mpesa/b2c/v3/paymentrequest
+    POST /mpesa/accountbalance/v1/query
+    POST /oauth/v1/generate
+    GET  /debug/config
+    GET  /debug/users
+
+Project {name} ({id}):
+---------------------------------------
+ConsumerKey:    {consumer_key}
+ConsumerSecret: {consumer_secret}
+Passkey:        {passkey} 
+
+Sandbox Public key:
+---------------------------------------
+
+{public_key}
+
+Sandbox Private Key 😎:
+---------------------------------------
+
+{private_key}
+
+*🚨 These are sandbox-generated keys, which are intentionally exposed for debugging
+purposes. However, in production environments, it's essential to treat them with
+the same level of confidentiality as passwords, as they can pose a significant
+security risk if compromised.
+
+"#,
+    name = project.name,
+    id = project.id,
+    consumer_key = project.consumer_key,
+    consumer_secret = project.consumer_secret,
+    passkey = project.passkey,
+    public_key = public_key ,
+    private_key = private_key ,
+    };
+
+    Ok(doc)
+}
+
+pub async fn inject_request_ids(
+    mut req: axum::http::Request<axum::body::Body>,
+    next: axum::middleware::Next,
+) -> Response {
+    let state = req.extensions().get::<ApiState>().cloned();
+    let identifiers = Identifiers::new();
+    let body_bytes = to_bytes(std::mem::take(req.body_mut()), usize::MAX)
+        .await
+        .unwrap_or_default();
+
+    if let Some(state) = state {
+        let path = req.uri().path();
+
+        if let Some(auth_header) = req
+            .headers()
+            .get("authorization")
+            .and_then(|h| h.to_str().ok())
+            .and_then(|h| h.strip_prefix("Bearer "))
+            && let Ok(Some(api_key)) =
+                api_keys::ApiKey::read_by_consumer_key(&state.context.db, auth_header).await
+        {
+            let body_str = String::from_utf8(body_bytes.to_vec()).ok();
+            let request_type = crate::request_lifecycle::RequestType::from_path(path);
+
+            if request_type.is_trackable() {
+                if let Err(e) = state
+                    .context
+                    .request_lifecycle_manager
+                    .create_api_request(&identifiers, api_key.id, request_type, body_str)
+                    .await
+                {
+                    tracing::error!("Failed to create api request lifecycle: {}", e);
+                }
+
+                if let Err(e) = state
+                    .context
+                    .request_lifecycle_manager
+                    .add_external_ids(&identifiers, None)
+                    .await
+                {
+                    tracing::error!("Failed to link external IDs: {}", e);
+                }
+            }
+        }
     }
 
-    router
+    req.extensions_mut().insert(identifiers);
+    *req.body_mut() = axum::body::Body::from(body_bytes);
+
+    next.run(req).await
 }
 
 pub async fn get_api_keys(

@@ -1,6 +1,5 @@
-use crate::{AppContext, db::Database};
+use crate::{AppContext, app::PesaApp, db::Database};
 use anyhow::{Context, anyhow};
-use dashmap::DashMap;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
 use std::{
@@ -34,10 +33,9 @@ pub enum TestMode {
 /// - A temporary, isolated `AppContext` for interacting with the application's core logic.
 /// - A mechanism for logging progress back to the UI.
 /// - A shared key-value store (`state`) for passing data between sequential tests.
-#[derive(Clone)]
 pub struct TestContext {
     /// A temporary application context for this test run.
-    pub app_context: AppContext,
+    pub app_context: Arc<AppContext>,
     /// A key-value store for sharing serializable data between test steps.
     pub state: HashMap<String, Value>,
     /// The name of the test currently being executed.
@@ -50,6 +48,8 @@ pub struct TestContext {
     _tmp_dir: Arc<TempDir>,
     /// API client for making HTTP requests during tests.
     pub api_client: TestApiClient,
+    // The PesaApp instance, which manages background tasks
+    app: Option<PesaApp>,
 }
 
 impl TestContext {
@@ -60,7 +60,6 @@ impl TestContext {
         app_root: PathBuf,
     ) -> anyhow::Result<Self> {
         let temp_dir = tempdir().context("Failed to create temporary directory")?;
-
         let temp_path = temp_dir.path().to_path_buf();
 
         main_ui_emitter.log_runner(&format!(
@@ -83,7 +82,6 @@ impl TestContext {
             ))?;
 
         let app_db = Database::new(&db_path).await?;
-
         main_ui_emitter.log_runner(
             "Initializing test context: Installing database, migrations and default value",
         );
@@ -95,13 +93,16 @@ impl TestContext {
 
         let test_event_manager = Arc::new(TestEventManager::default());
 
-        let app_context = AppContext {
-            db: app_db.conn,
-            settings: settings_manager,
-            event_manager: test_event_manager.clone(), // Use the test manager for the app
-            running: Arc::new(DashMap::new()),
-            app_root: temp_path,
-        };
+        let pesa_app = PesaApp::new(
+            app_db.conn,
+            settings_manager,
+            test_event_manager.clone(),
+            &temp_path,
+        )
+        .await
+        .context("Failed to create PesaApp for test context")?;
+
+        let app_context = pesa_app.context.clone();
 
         Ok(Self {
             app_context,
@@ -112,6 +113,7 @@ impl TestContext {
             current_test: None,
             _tmp_dir: Arc::new(temp_dir),
             api_client: TestApiClient::new(),
+            app: Some(pesa_app),
         })
     }
 
@@ -246,10 +248,19 @@ impl TestContext {
             }
         }
     }
+    pub async fn shutdown(&mut self) -> anyhow::Result<()> {
+        if let Some(mut app) = self.app.take() {
+            app.shutdown()
+                .await
+                .context("Failed to shut down PesaApp in test context")?;
+        }
+        Ok(())
+    }
 }
 
 impl Drop for TestContext {
     fn drop(&mut self) {
+        // Shut down sandboxes
         let keys: Vec<u32> = self
             .app_context
             .running

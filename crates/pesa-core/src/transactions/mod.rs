@@ -1,8 +1,5 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use chrono::{DateTime, Utc};
 use once_cell::sync::Lazy;
-use rand::{Rng, distributions::Alphanumeric};
 use sea_orm::{
     ActiveModelTrait,
     ActiveValue::{Set, Unchanged},
@@ -14,8 +11,11 @@ use strum::{Display, EnumString};
 use thiserror::Error;
 use tokio::sync::Mutex;
 
-use crate::transactions_log::{TransactionLog, db::Direction};
 use crate::{accounts::Account, server::api::b2c};
+use crate::{
+    transactions_log::{TransactionLog, db::Direction},
+    utils::identifiers::Identifiers,
+};
 use serde_json;
 
 pub mod db;
@@ -66,7 +66,7 @@ pub enum TransactionNote {
 
 static GLOBAL_LEDGER_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
-#[derive(Display, EnumString, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Display, EnumString, Debug, PartialEq, Serialize, Deserialize, Clone)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum TransactionType {
@@ -84,7 +84,7 @@ pub enum TransactionType {
     Unknown(String),
 }
 
-#[derive(Display, EnumString, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Display, EnumString, Debug, PartialEq, Serialize, Deserialize, Clone)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum TransactionStatus {
@@ -95,7 +95,7 @@ pub enum TransactionStatus {
     Unknown(String),
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Transaction {
     pub id: String,
     pub from: Option<u32>,
@@ -116,6 +116,31 @@ pub struct Ledger {}
 impl Ledger {
     pub async fn transfer<C>(
         conn: &C,
+        source: Option<u32>,
+        destination: u32,
+        amount: i64,
+        txn_type: &TransactionType,
+        notes: Option<&TransactionNote>,
+    ) -> Result<(Transaction, Vec<crate::events::DomainEvent>), TransactionEngineError>
+    where
+        C: ConnectionTrait,
+    {
+        let transaction_id = Ledger::generate_receipt();
+        Ledger::transfer_with_id(
+            conn,
+            &transaction_id,
+            source,
+            destination,
+            amount,
+            txn_type,
+            notes,
+        )
+        .await
+    }
+
+    pub async fn transfer_with_id<C>(
+        conn: &C,
+        transaction_id: &str,
         source: Option<u32>,
         destination: u32,
         amount: i64,
@@ -190,7 +215,7 @@ impl Ledger {
         let notes_string = notes.map(|n| serde_json::to_string(n).unwrap_or_default());
 
         let txn = db::ActiveModel {
-            id: Set(Ledger::generate_receipt()),
+            id: Set(transaction_id.to_string()),
             to: Set(destination_account.id),
             from: Set(source_account.as_ref().map(|f| f.id)),
             amount: Set(amount),
@@ -327,34 +352,6 @@ impl Ledger {
     }
 
     pub fn generate_receipt() -> String {
-        let now_ms = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("Time went backwards")
-            .as_millis();
-
-        let timestamp_str = Self::to_base36(now_ms as u64);
-
-        let rand_suffix: String = rand::thread_rng()
-            .sample_iter(&Alphanumeric)
-            .map(|c| (c as char).to_ascii_uppercase())
-            .take(10 - timestamp_str.len())
-            .collect();
-        format!("{}{}", timestamp_str, rand_suffix)
-    }
-
-    // Base36 helper
-    fn to_base36(mut num: u64) -> String {
-        let mut chars = Vec::new();
-        let base = 36;
-        while num > 0 {
-            let rem = num % base;
-            chars.push(match rem {
-                0..=9 => (b'0' + rem as u8) as char,
-                _ => (b'A' + (rem as u8 - 10)) as char,
-            });
-            num /= base;
-        }
-        chars.reverse();
-        chars.into_iter().collect()
+        Identifiers::generate_transaction_id()
     }
 }

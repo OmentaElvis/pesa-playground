@@ -1,8 +1,7 @@
-use chrono::Utc;
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ConnectionTrait, prelude::DateTimeUtc};
 use serde::{Deserialize, Serialize};
 
-use crate::server::log::generate_request_id;
+use crate::utils::identifiers::Identifiers;
 
 pub mod db;
 pub mod ui;
@@ -19,6 +18,7 @@ pub struct ApiLog {
     pub created_at: DateTimeUtc,
     pub error_desc: Option<String>,
     pub duration: u32,
+    pub request_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -63,6 +63,7 @@ impl From<db::Model> for ApiLog {
             created_at: value.created_at,
             error_desc: value.error_desc,
             duration: value.duration,
+            request_id: value.request_id,
         }
     }
 }
@@ -136,9 +137,13 @@ impl ApiLogBuilder {
         self
     }
 
-    pub async fn save<C: ConnectionTrait>(self, conn: &C) -> anyhow::Result<ApiLog> {
+    pub async fn save<C: ConnectionTrait>(
+        self,
+        conn: &C,
+        ids: &Identifiers,
+    ) -> anyhow::Result<ApiLog> {
         let api = ApiLog {
-            id: self.id.unwrap_or(generate_request_id()),
+            id: ids.request_id.clone(),
             project_id: self
                 .project_id
                 .ok_or(ApiLogBuilderError::MissingField("project_id"))?,
@@ -149,13 +154,16 @@ impl ApiLogBuilder {
             status_code: self
                 .status_code
                 .ok_or(ApiLogBuilderError::MissingField("status_code"))?,
-            request_body: self.request_body,
+            request_body: self.request_body.clone(),
             response_body: self.response_body,
-            created_at: self.created_at.unwrap_or(Utc::now().to_utc()),
-            error_desc: self.error_desc,
+            created_at: self
+                .created_at
+                .ok_or(ApiLogBuilderError::MissingField("created_at"))?,
+            error_desc: self.error_desc.clone(),
             duration: self
                 .duration
                 .ok_or(ApiLogBuilderError::MissingField("duration"))?,
+            request_id: Some(ids.request_id.clone()),
         };
 
         let create_api = db::ActiveModel {
@@ -169,6 +177,7 @@ impl ApiLogBuilder {
             created_at: Set(api.created_at),
             error_desc: Set(api.error_desc.clone()),
             duration: Set(api.duration),
+            request_id: Set(api.request_id.clone()),
         };
 
         create_api.insert(conn).await?;

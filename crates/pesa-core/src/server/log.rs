@@ -1,65 +1,24 @@
 use axum::{
+    Extension,
     body::Body,
     extract::{MatchedPath, Request, State},
     http::{HeaderMap, StatusCode},
     middleware::Next,
     response::Response,
 };
-use chrono::Utc;
 use http_body_util::BodyExt;
 use serde_json::json;
 use std::collections::HashMap;
 use tokio::time::Instant;
 
-use crate::{api_logs::ApiLog, server::ApiState};
-
-use rand::{Rng, thread_rng as rng};
-
-pub fn generate_request_id() -> String {
-    let mut rng = rng();
-
-    let part1: String = (0..4)
-        .map(|_| rng.gen_range(0..16))
-        .map(|x| format!("{:x}", x))
-        .collect();
-    let part2: String = (0..4)
-        .map(|_| rng.gen_range(0..16))
-        .map(|x| format!("{:x}", x))
-        .collect();
-    let part3: String = (0..4)
-        .map(|_| rng.gen_range(0..16))
-        .map(|x| format!("{:x}", x))
-        .collect();
-    let part4: String = (0..4)
-        .map(|_| rng.gen_range(0..16))
-        .map(|x| format!("{:x}", x))
-        .collect();
-    let part5: String = (0..16)
-        .map(|_| rng.gen_range(0..16))
-        .map(|x| format!("{:x}", x))
-        .collect();
-
-    format!("{}-{}-{}-{}{}", part1, part2, part3, part4, part5)
-}
-
-pub fn generate_conversation_id() -> String {
-    let mut rng = rng();
-
-    let part1: String = "AG".to_string();
-    let part2 = Utc::now().format("%Y%m%d").to_string();
-
-    let part3: String = (0..10)
-        .map(|_| rng.gen_range(0..16))
-        .map(|x| format!("{:x}", x))
-        .collect();
-    format!("{}_{}_{}", part1, part2, part3)
-}
+use crate::{api_logs::ApiLog, server::ApiState, utils::identifiers::Identifiers};
 
 use super::ApiError;
 
 // Middleware function that captures all request/response data
 pub async fn logging_middleware(
     State(state): State<ApiState>,
+    Extension(ids): Extension<Identifiers>,
     matched_path: Option<MatchedPath>,
     request: Request,
     next: Next,
@@ -80,7 +39,7 @@ pub async fn logging_middleware(
     let headers_map = extract_headers(&headers);
     let (request, request_body) = extract_request_body(request).await;
     let response = next.run(request).await;
-    if path == "/" {
+    if !path.starts_with("/mpesa") {
         return Ok(response);
     }
 
@@ -103,6 +62,7 @@ pub async fn logging_middleware(
         .status_code(status_code.as_u16())
         .method(method.as_str())
         .duration(duration.as_millis() as u32)
+        .created_at(chrono::Utc::now())
         .request_body(
             json!({
                 "headers": headers_map,
@@ -121,16 +81,12 @@ pub async fn logging_middleware(
     if let Some(error) = error_desc {
         builder = builder.error_desc(error);
     }
-    builder.save(&state.context.db).await.map_err(|err| {
+
+    builder.save(&state.context.db, &ids).await.map_err(|err| {
         println!("{}", err);
 
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-
-    let _ = state
-        .context
-        .event_manager
-        .emit_all("new-api-log", state.project_id.into());
 
     Ok(response)
 }

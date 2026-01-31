@@ -14,11 +14,13 @@ pub struct Model {
     pub created_at: DateTimeUtc,
     pub error_desc: Option<String>,
     pub duration: u32,
+    pub request_id: Option<String>,
 }
 
 #[derive(Clone, Debug, EnumIter)]
 pub enum Relation {
     Project,
+    Request,
 }
 
 impl RelationTrait for Relation {
@@ -29,6 +31,11 @@ impl RelationTrait for Relation {
                 .to(crate::projects::db::Column::Id)
                 .on_delete(sea_query::ForeignKeyAction::Cascade)
                 .into(),
+            Self::Request => Entity::belongs_to(crate::request_lifecycle::db::Entity)
+                .from(Column::RequestId)
+                .to(crate::request_lifecycle::db::Column::Id)
+                .on_delete(sea_query::ForeignKeyAction::SetNull)
+                .into(),
         }
     }
 }
@@ -36,6 +43,12 @@ impl RelationTrait for Relation {
 impl Related<crate::projects::db::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Project.def()
+    }
+}
+
+impl Related<crate::request_lifecycle::db::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Request.def()
     }
 }
 

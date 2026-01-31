@@ -24,12 +24,13 @@ use crate::server::{
     },
     async_handler::{IntoCallbackPayload, PpgAsyncRequest},
 };
+use crate::utils::identifiers::Identifiers;
 use crate::{
     api_keys::ApiKey,
     business::Business,
     events::DomainEventDispatcher,
     projects::Project,
-    transactions::{Ledger, TransactionEngineError, TransactionNote, TransactionType},
+    transactions::{TransactionEngineError, TransactionNote, TransactionType},
 };
 
 pub struct Stkpush {
@@ -43,6 +44,7 @@ pub struct Stkpush {
     pub merchant_id: String,
     pub checkout_id: String,
     pub transaction_type: TransactionType,
+    pub identifiers: Identifiers,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -86,7 +88,7 @@ impl PpgAsyncRequest for Stkpush {
     async fn init(
         state: &ApiState,
         req: Self::RequestData,
-        _conversation_id: &str,
+        ids: &Identifiers,
         api_key: ApiKey,
     ) -> Result<(Self::SyncResponseData, Self), ApiError> {
         let passkey = api_key.passkey;
@@ -256,6 +258,7 @@ impl PpgAsyncRequest for Stkpush {
                 merchant_id,
                 checkout_id,
                 project,
+                identifiers: ids.clone(),
                 transaction_type: match req.transaction_type {
                     StkTransactionType::CustomerPayBillOnline => TransactionType::Paybill,
                     StkTransactionType::CustomerBuyGoodsOnline => TransactionType::BuyGoods,
@@ -269,11 +272,12 @@ impl PpgAsyncRequest for Stkpush {
         let user = &self.user;
         let project = &self.project;
 
-        let mut receipt = Ledger::generate_receipt();
-
         match project.simulation_mode {
             crate::projects::SimulationMode::AlwaysSuccess => {
-                return Ok(self.create_body(StkPushResultCode::Success, Some(receipt)));
+                return Ok(self.create_body(
+                    StkPushResultCode::Success,
+                    Some(&self.identifiers.transaction_id),
+                ));
             }
             crate::projects::SimulationMode::AlwaysFail => {
                 let status = StkPushResultCode::random_failure();
@@ -281,7 +285,7 @@ impl PpgAsyncRequest for Stkpush {
             }
             crate::projects::SimulationMode::Random => {
                 let status = StkPushResultCode::random();
-                return Ok(self.create_body(status, Some(receipt)));
+                return Ok(self.create_body(status, Some(&self.identifiers.transaction_id)));
             }
             // next section is realistic
             crate::projects::SimulationMode::Realistic => {}
@@ -323,23 +327,30 @@ impl PpgAsyncRequest for Stkpush {
             Ok(Ok(value)) => match value {
                 UserResponse::Accepted { pin } => {
                     if pin.eq(&user.pin) {
-                        match Ledger::transfer(
-                            &state.context.db,
-                            Some(user.account_id),
-                            self.utility_account.account_id,
-                            self.amount,
-                            &self.transaction_type,
-                            Some(&self.notes),
-                        )
-                        .await
+                        match state
+                            .context
+                            .transfer(
+                                self.identifiers.clone(),
+                                Duration::ZERO,
+                                Some(user.account_id),
+                                self.utility_account.account_id,
+                                self.amount,
+                                self.transaction_type.clone(),
+                                Some(self.notes.clone()),
+                            )
+                            .await
+                            .context("Failed to schedule transaction")?
                         {
                             Ok((transaction, events)) => {
                                 DomainEventDispatcher::dispatch_events(&state.context, events)?;
-                                receipt = transaction.id;
 
-                                return Ok(
-                                    self.create_body(StkPushResultCode::Success, Some(receipt))
-                                );
+                                // should be the same id
+                                assert_eq!(transaction.id, self.identifiers.transaction_id);
+
+                                return Ok(self.create_body(
+                                    StkPushResultCode::Success,
+                                    Some(&self.identifiers.transaction_id),
+                                ));
                             }
                             Err(err) => match err {
                                 TransactionEngineError::InsufficientFunds => {
@@ -384,7 +395,7 @@ impl Stkpush {
     pub fn create_body(
         &self,
         result_code: StkPushResultCode,
-        receipt: Option<String>,
+        receipt: Option<&str>,
     ) -> StkCallbackBodyWrapper {
         let metadata = receipt.map(|receipt| super::CallbackMetadata {
             item: vec![

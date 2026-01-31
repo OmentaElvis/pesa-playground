@@ -166,138 +166,148 @@ impl TestRunner {
         )
         .await?;
 
-        emitter.log_runner("Initializing test callback manager");
+        // This block ensures that context.shutdown() is always called
+        let suite_result = async {
+            emitter.log_runner("Initializing test callback manager");
 
-        let mut callback_manager = CallbackManager::new(self.callback_timeout).await?;
+            let mut callback_manager = CallbackManager::new(self.callback_timeout).await?;
 
-        emitter.emit_start(&TestStartPayload {
-            mode,
-            working_dir: context.app_context.app_root.to_string_lossy().to_string(),
-        })?;
-
-        let panic_report_mx = Arc::new(Mutex::new(None));
-
-        for (index, step) in tests.iter().enumerate() {
-            let step_name = step.name();
-            emitter.log_runner(&format!("Running step: {}", step_name));
-            context.current_test = Some((step_name.to_string(), index));
-
-            emitter.emit_step_update(&TestStepUpdatePayload {
-                index,
-                name: step_name,
-                status: TestStatus::Running,
-                message: "".to_string(),
+            emitter.emit_start(&TestStartPayload {
+                mode,
+                working_dir: context.app_context.app_root.to_string_lossy().to_string(),
             })?;
 
-            // Set a temporary panic hook just for this step
-            let previous_hook = std::panic::take_hook();
-            let report_for_hook = panic_report_mx.clone();
-            std::panic::set_hook(Box::new(move |panic_info: &PanicHookInfo| {
-                let message = if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
-                    s.to_string()
-                } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
-                    s.clone()
-                } else {
-                    "Panic occurred with an unknown payload type.".to_string()
-                };
-                let location = panic_info.location().map(|loc| loc.to_string());
-                *report_for_hook.lock().unwrap() = Some(PanicReport { message, location });
-            }));
+            let panic_report_mx = Arc::new(Mutex::new(None));
 
-            // Clear any previous panic report
-            *panic_report_mx.lock().unwrap() = None;
+            for (index, step) in tests.iter().enumerate() {
+                let step_name = step.name();
+                emitter.log_runner(&format!("Running step: {}", step_name));
+                context.current_test = Some((step_name.to_string(), index));
 
-            // Catch panics from the test step so they can be reported gracefully.
-            let future =
-                AssertUnwindSafe(step.run(&mut context, &mut callback_manager)).catch_unwind();
-            let result = timeout(self.test_timeout, future).await;
-
-            // Restore the original panic hook
-            std::panic::set_hook(previous_hook);
-
-            let (status, message) = match result {
-                // Task timed out
-                Err(_) => {
-                    let msg = format!(
-                        "Step '{}' timed out after {:?}.",
-                        step_name, self.test_timeout
-                    );
-                    emitter.log_runner(&msg);
-                    (TestStatus::TimedOut, msg)
-                }
-                // Task finished (or panicked)
-                Ok(step_result) => match step_result {
-                    // Task panicked
-                    Err(panic_payload) => {
-                        let panic_report = panic_report_mx.lock().unwrap().take();
-
-                        let error_detail = if let Some(report) = panic_report {
-                            // We have a detailed report from the hook
-                            format!(
-                                "{}\nLocation: {}",
-                                report.message,
-                                report.location.unwrap_or_else(|| "Unknown".to_string())
-                            )
-                        } else {
-                            // Fallback to just the payload if the hook failed for some reason
-                            if let Some(s) = panic_payload.downcast_ref::<&str>() {
-                                s.to_string()
-                            } else if let Some(s) = panic_payload.downcast_ref::<String>() {
-                                s.clone()
-                            } else {
-                                "Panic occurred with an unknown payload type.".to_string()
-                            }
-                        };
-
-                        let log_msg = format!("Step '{}' panicked: {}", step_name, error_detail);
-                        context.log(&log_msg).await;
-                        error!("{}", log_msg);
-
-                        (TestStatus::Panicked, error_detail)
-                    }
-                    // Task returned a Result
-                    Ok(run_result) => match run_result {
-                        // Test was successful
-                        Ok(_) => {
-                            context
-                                .log(&format!("Step '{}' completed successfully.", step_name))
-                                .await;
-                            (TestStatus::Passed, "".to_string())
-                        }
-                        // Test returned an error
-                        Err(e) => (TestStatus::Failed, format!("{:?}", e)),
-                    },
-                },
-            };
-
-            emitter.emit_step_update(&TestStepUpdatePayload {
-                index,
-                name: step_name,
-                status: status.clone(),
-                message,
-            })?;
-
-            // Check if the callback server has panicked
-            callback_manager.check_server_panic().await?;
-
-            // If a step fails or times out, we might want to stop the whole suite
-            if !matches!(status, TestStatus::Passed) {
-                emitter.emit_finish(&TestFinishPayload {
-                    status: TestStatus::Failed,
+                emitter.emit_step_update(&TestStepUpdatePayload {
+                    index,
+                    name: step_name,
+                    status: TestStatus::Running,
+                    message: "".to_string(),
                 })?;
 
-                return Err(anyhow!(
-                    "Self-test suite stopped due to failure in step '{}'",
-                    step_name
-                ));
+                // Set a temporary panic hook just for this step
+                let previous_hook = std::panic::take_hook();
+                let report_for_hook = panic_report_mx.clone();
+                std::panic::set_hook(Box::new(move |panic_info: &PanicHookInfo| {
+                    let message = if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
+                        s.to_string()
+                    } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
+                        s.clone()
+                    } else {
+                        "Panic occurred with an unknown payload type.".to_string()
+                    };
+                    let location = panic_info.location().map(|loc| loc.to_string());
+                    *report_for_hook.lock().unwrap() = Some(PanicReport { message, location });
+                }));
+
+                // Clear any previous panic report
+                *panic_report_mx.lock().unwrap() = None;
+
+                // Catch panics from the test step so they can be reported gracefully.
+                let future =
+                    AssertUnwindSafe(step.run(&mut context, &mut callback_manager)).catch_unwind();
+                let result = timeout(self.test_timeout, future).await;
+
+                // Restore the original panic hook
+                std::panic::set_hook(previous_hook);
+
+                let (status, message) = match result {
+                    // Task timed out
+                    Err(_) => {
+                        let msg = format!(
+                            "Step '{}' timed out after {:?}.",
+                            step_name, self.test_timeout
+                        );
+                        emitter.log_runner(&msg);
+                        (TestStatus::TimedOut, msg)
+                    }
+                    // Task finished (or panicked)
+                    Ok(step_result) => match step_result {
+                        // Task panicked
+                        Err(panic_payload) => {
+                            let panic_report = panic_report_mx.lock().unwrap().take();
+
+                            let error_detail = if let Some(report) = panic_report {
+                                // We have a detailed report from the hook
+                                format!(
+                                    "{}\nLocation: {}",
+                                    report.message,
+                                    report.location.unwrap_or_else(|| "Unknown".to_string())
+                                )
+                            } else {
+                                // Fallback to just the payload if the hook failed for some reason
+                                if let Some(s) = panic_payload.downcast_ref::<&str>() {
+                                    s.to_string()
+                                } else if let Some(s) = panic_payload.downcast_ref::<String>() {
+                                    s.clone()
+                                } else {
+                                    "Panic occurred with an unknown payload type.".to_string()
+                                }
+                            };
+
+                            let log_msg =
+                                format!("Step '{}' panicked: {}", step_name, error_detail);
+                            context.log(&log_msg).await;
+                            error!("{}", log_msg);
+
+                            (TestStatus::Panicked, error_detail)
+                        }
+                        // Task returned a Result
+                        Ok(run_result) => match run_result {
+                            // Test was successful
+                            Ok(_) => {
+                                context
+                                    .log(&format!("Step '{}' completed successfully.", step_name))
+                                    .await;
+                                (TestStatus::Passed, "".to_string())
+                            }
+                            // Test returned an error
+                            Err(e) => (TestStatus::Failed, format!("{:?}", e)),
+                        },
+                    },
+                };
+
+                emitter.emit_step_update(&TestStepUpdatePayload {
+                    index,
+                    name: step_name,
+                    status: status.clone(),
+                    message,
+                })?;
+
+                // Check if the callback server has panicked
+                callback_manager.check_server_panic().await?;
+
+                // If a step fails or times out, we might want to stop the whole suite
+                if !matches!(status, TestStatus::Passed) {
+                    emitter.emit_finish(&TestFinishPayload {
+                        status: TestStatus::Failed,
+                    })?;
+
+                    return Err(anyhow!(
+                        "Self-test suite stopped due to failure in step '{}'",
+                        step_name
+                    ));
+                }
+                context.current_test = None;
             }
             context.current_test = None;
+            context.log("Self-test suite completed successfully.").await;
+            emitter.emit_finish(&TestFinishPayload {
+                status: TestStatus::Passed,
+            })?;
+            Ok(())
         }
-        context.current_test = None;
-        context.log("Self-test suite completed successfully.").await;
-        emitter.emit_finish(&TestFinishPayload {
-            status: TestStatus::Passed,
-        })?;
-        Ok(())
+        .await;
+
+        // Ensure context and its background tasks are shut down gracefully
+        context.shutdown().await?;
+
+        suite_result
     }
 }

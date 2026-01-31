@@ -1,7 +1,9 @@
 use anyhow::Context;
 use sea_orm_migration::MigratorTrait;
 
-use crate::{AppContext, migrations::Migrator, sandboxes, transaction_costs};
+use crate::{
+    AppContext, app::TransactionManagerStats, migrations::Migrator, sandboxes, transaction_costs,
+};
 
 pub async fn clear_all_data(context: &AppContext) -> anyhow::Result<()> {
     // 1. Stop all running sandboxes to release any file locks or running processes
@@ -22,4 +24,15 @@ pub async fn clear_all_data(context: &AppContext) -> anyhow::Result<()> {
         .context("Failed to re-seed default data after clearing")?;
 
     Ok(())
+}
+
+pub async fn get_transaction_manager_stats(
+    context: &AppContext,
+) -> anyhow::Result<TransactionManagerStats> {
+    match context.stats.read() {
+        Ok(stats) => Ok(stats.clone()),
+        Err(err) => Err(anyhow::anyhow!(
+            "Failed to acquire read lock on TransactionManagerStats: {err}"
+        )),
+    }
 }

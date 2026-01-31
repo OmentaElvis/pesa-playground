@@ -19,10 +19,31 @@ pub struct Model {
     pub reversal_of: Option<String>,
     pub created_at: DateTimeUtc,
     pub updated_at: Option<DateTimeUtc>,
+    pub request_id: Option<String>,
 }
 
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+#[derive(Clone, Debug, EnumIter)]
+pub enum Relation {
+    Request,
+}
+
+impl RelationTrait for Relation {
+    fn def(&self) -> RelationDef {
+        match self {
+            Self::Request => Entity::belongs_to(crate::request_lifecycle::db::Entity)
+                .from(Column::RequestId)
+                .to(crate::request_lifecycle::db::Column::Id)
+                .on_delete(sea_query::ForeignKeyAction::SetNull)
+                .into(),
+        }
+    }
+}
+
+impl Related<crate::request_lifecycle::db::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Request.def()
+    }
+}
 
 impl ActiveModelBehavior for ActiveModel {}
 

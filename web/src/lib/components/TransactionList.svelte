@@ -306,7 +306,7 @@
 						<TableCell>
 							<Badge variant="outline">
 								{#if log.status == TransactionStatus.Completed}
-									<CheckCircle class="text-green-500" />
+									<CheckCircle class="text-green-900 fill-green-500" />
 								{:else if log.status == TransactionStatus.Failed}
 									<CircleX class="text-red-500" />
 								{:else if log.status == TransactionStatus.Pending}
