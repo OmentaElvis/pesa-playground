@@ -171,6 +171,7 @@ impl MigrationTrait for Migration {
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        // === Revert changes to user_profiles table ===
         manager
             .alter_table(
                 Table::alter()
@@ -196,71 +197,13 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // Revert callback_logs changes
+        // === Revert callback_logs changes by recreating the original table ===
         manager
-            .alter_table(
-                Table::alter()
-                    .table(CallbackLogs::Table)
-                    .drop_foreign_key("FK_CallbackLogs_ProjectId")
-                    .to_owned(),
-            )
-            .await?;
-        manager
-            .alter_table(
-                Table::alter()
-                    .table(CallbackLogs::Table)
-                    .drop_column(CallbackLogs::ProjectId)
-                    .to_owned(),
-            )
-            .await?;
-        manager
-            .alter_table(
-                Table::alter()
-                    .table(CallbackLogs::Table)
-                    .drop_column(CallbackLogs::ConversationId)
-                    .to_owned(),
-            )
-            .await?;
-        manager
-            .alter_table(
-                Table::alter()
-                    .table(CallbackLogs::Table)
-                    .drop_column(CallbackLogs::OriginatorId)
-                    .to_owned(),
-            )
-            .await?;
-        manager
-            .alter_table(
-                Table::alter()
-                    .table(CallbackLogs::Table)
-                    .drop_column(CallbackLogs::ResponseHeaders)
-                    .to_owned(),
-            )
+            .drop_table(Table::drop().table(CallbackLogs::Table).to_owned())
             .await?;
 
         manager
-            .alter_table(
-                Table::alter()
-                    .table(CallbackLogs::Table)
-                    .add_column(
-                        ColumnDef::new(CallbackLogs::CheckoutRequestId)
-                            .string()
-                            .null(),
-                    )
-                    .to_owned(),
-            )
-            .await?;
-        manager
-            .alter_table(
-                Table::alter()
-                    .table(CallbackLogs::Table)
-                    .add_column(
-                        ColumnDef::new(CallbackLogs::MerchantRequestId)
-                            .string()
-                            .null(),
-                    )
-                    .to_owned(),
-            )
+            .create_table(MigrationV1::callback_logs_table())
             .await?;
 
         Ok(())

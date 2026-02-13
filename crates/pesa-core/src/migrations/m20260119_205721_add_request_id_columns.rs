@@ -1,4 +1,5 @@
 use sea_orm_migration::prelude::*;
+use crate::migrations::sqlite_helpers::{AddForeignKeyBuilder, DropForeignKeyBuilder};
 
 // Define the necessary table and column enums for this migration
 #[derive(Iden)]
@@ -69,55 +70,43 @@ impl MigrationTrait for Migration {
             .await?;
 
         // Create foreign key constraint for api_logs.request_id
-        manager
-            .create_foreign_key(
-                ForeignKey::create()
-                    .name("fk-api-logs-request-id")
-                    .from(ApiLogs::Table, ApiLogs::RequestId)
-                    .to(Requests::Table, Requests::Id)
-                    .on_delete(ForeignKeyAction::SetNull)
-                    .on_update(ForeignKeyAction::NoAction)
-                    .to_owned(),
-            )
+        AddForeignKeyBuilder::create()
+            .from(ApiLogs::Table)
+            .to(Requests::Table)
+            .with_column(ApiLogs::RequestId, Requests::Id)
+            .on_delete(ForeignKeyAction::SetNull)
+            .on_update(ForeignKeyAction::NoAction)
+            .execute(manager, ApiLogs::Table)
             .await?;
 
         // Create foreign key constraint for transactions.request_id
-        manager
-            .create_foreign_key(
-                ForeignKey::create()
-                    .name("fk-transactions-request-id")
-                    .from(Transactions::Table, Transactions::RequestId)
-                    .to(Requests::Table, Requests::Id)
-                    .on_delete(ForeignKeyAction::SetNull)
-                    .on_update(ForeignKeyAction::NoAction)
-                    .to_owned(),
-            )
+        AddForeignKeyBuilder::create()
+            .from(Transactions::Table)
+            .to(Requests::Table)
+            .with_column(Transactions::RequestId, Requests::Id)
+            .on_delete(ForeignKeyAction::SetNull)
+            .on_update(ForeignKeyAction::NoAction)
+            .execute(manager, Transactions::Table)
             .await?;
 
         // Create foreign key constraint for callback_logs.request_id
-        manager
-            .create_foreign_key(
-                ForeignKey::create()
-                    .name("fk-callback-logs-request-id")
-                    .from(CallbackLogs::Table, CallbackLogs::RequestId)
-                    .to(Requests::Table, Requests::Id)
-                    .on_delete(ForeignKeyAction::SetNull)
-                    .on_update(ForeignKeyAction::NoAction)
-                    .to_owned(),
-            )
+        AddForeignKeyBuilder::create()
+            .from(CallbackLogs::Table)
+            .to(Requests::Table)
+            .with_column(CallbackLogs::RequestId, Requests::Id)
+            .on_delete(ForeignKeyAction::SetNull)
+            .on_update(ForeignKeyAction::NoAction)
+            .execute(manager, CallbackLogs::Table)
             .await?;
 
         // Create foreign key constraint for transaction_jobs.request_id
-        manager
-            .create_foreign_key(
-                ForeignKey::create()
-                    .name("fk-transaction-jobs-request-id")
-                    .from(TransactionJobs::Table, TransactionJobs::RequestId)
-                    .to(Requests::Table, Requests::Id)
-                    .on_delete(ForeignKeyAction::SetNull)
-                    .on_update(ForeignKeyAction::NoAction)
-                    .to_owned(),
-            )
+        AddForeignKeyBuilder::create()
+            .from(TransactionJobs::Table)
+            .to(Requests::Table)
+            .with_column(TransactionJobs::RequestId, Requests::Id)
+            .on_delete(ForeignKeyAction::SetNull)
+            .on_update(ForeignKeyAction::NoAction)
+            .execute(manager, TransactionJobs::Table)
             .await?;
 
         // Create indexes for better query performance
@@ -151,15 +140,7 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        manager
-            .create_index(
-                Index::create()
-                    .name("idx-transaction-jobs-request-id")
-                    .table(TransactionJobs::Table)
-                    .col(TransactionJobs::RequestId)
-                    .to_owned(),
-            )
-            .await?;
+        // Index for transaction_jobs.request_id already exists in m20260114_154216_transaction_jobs
 
         Ok(())
     }
@@ -182,41 +163,35 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        manager
-            .drop_index(
-                Index::drop()
-                    .name("idx-transaction-jobs-request-id")
-                    .to_owned(),
-            )
-            .await?;
+        // Index for transaction_jobs.request-id is dropped in m20260114_154216_transaction_jobs
 
         // Drop foreign keys
-        manager
-            .drop_foreign_key(ForeignKey::drop().name("fk-api-logs-request-id").to_owned())
+        DropForeignKeyBuilder::create()
+            .from_table(ApiLogs::Table)
+            .to(Requests::Table)
+            .with_column(ApiLogs::RequestId, Requests::Id)
+            .execute(manager, ApiLogs::Table)
             .await?;
 
-        manager
-            .drop_foreign_key(
-                ForeignKey::drop()
-                    .name("fk-transactions-request-id")
-                    .to_owned(),
-            )
+        DropForeignKeyBuilder::create()
+            .from_table(Transactions::Table)
+            .to(Requests::Table)
+            .with_column(Transactions::RequestId, Requests::Id)
+            .execute(manager, Transactions::Table)
             .await?;
 
-        manager
-            .drop_foreign_key(
-                ForeignKey::drop()
-                    .name("fk-callback-logs-request-id")
-                    .to_owned(),
-            )
+        DropForeignKeyBuilder::create()
+            .from_table(CallbackLogs::Table)
+            .to(Requests::Table)
+            .with_column(CallbackLogs::RequestId, Requests::Id)
+            .execute(manager, CallbackLogs::Table)
             .await?;
 
-        manager
-            .drop_foreign_key(
-                ForeignKey::drop()
-                    .name("fk-transaction-jobs-request-id")
-                    .to_owned(),
-            )
+        DropForeignKeyBuilder::create()
+            .from_table(TransactionJobs::Table)
+            .to(Requests::Table)
+            .with_column(TransactionJobs::RequestId, Requests::Id)
+            .execute(manager, TransactionJobs::Table)
             .await?;
 
         // Drop columns
