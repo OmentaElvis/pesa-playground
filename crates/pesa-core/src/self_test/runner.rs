@@ -44,7 +44,7 @@ pub const SELF_TEST_FINISH: &str = "self_test_finish";
 /// use std::time::Duration;
 /// use anyhow::{Context, bail};
 /// use serde::{Serialize, Deserialize};
-/// use crate::self_test::{
+/// use pesa_core::self_test::{
 ///     callback::CallbackManager,
 ///     context::TestContext,
 ///     runner::TestStep,
@@ -100,13 +100,13 @@ pub const SELF_TEST_FINISH: &str = "self_test_finish";
 ///             bail!("User status was not 'confirmed', got: {}", call.body.status);
 ///         }
 ///
-///         // 5. Optionally, send a response back to the application.
-///         call.respond(axum::http::StatusCode::OK, &serde_json::json!({"status": "ok"}), None).await?;
-///         context.log("Sent response back to the application.").await;
-///
-///         // 6. Store data in the shared context for a subsequent test to use.
+///         // 5. Store data in the shared context for a subsequent test to use.
 ///         context.set("new_user_id", &call.body.user_id)?;
 ///         context.log(&format!("Stored new user ID: {}", call.body.user_id)).await;
+///
+///         // 6. Optionally, send a response back to the application.
+///         call.respond(axum::http::StatusCode::OK, &serde_json::json!({"status": "ok"}), None).await?;
+///         context.log("Sent response back to the application.").await;
 ///
 ///         Ok(())
 ///     }

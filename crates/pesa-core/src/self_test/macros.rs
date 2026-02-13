@@ -12,6 +12,7 @@
 /// of a struct that implements the `TestStep` trait.
 ///
 /// ```rust,ignore
+/// use pesa_core::define_tests;
 /// define_tests!(
 ///     // The enum variant for this test
 ///     TestVariantName {
@@ -28,19 +29,21 @@
 ///
 /// # Example
 ///
-/// ```rust
+/// ```ignore
 /// // in `my_test.rs`
 /// // pub struct MyTestStep;
 /// // impl TestStep for MyTestStep { ... }
 ///
 /// // in `mod.rs`
 /// mod my_test;
+/// use pesa_core::define_tests;
+/// use crate::pesa_core::self_test::runner::TestStep;
 ///
 /// define_tests!(
 ///     CreateProject {
 ///         name: "create_project",
 ///         description: "Tests project creation",
-///         ctor: crate::self_test::tests::create_project::CreateProjectTest
+///         ctor: pesa_core::self_test::tests::create_project::InitProjectTest
 ///     },
 ///     MyTest {
 ///         name: "my_test",
