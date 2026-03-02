@@ -467,12 +467,18 @@ async fn main() {
 
     let db_path = data_dir.join("database.sqlite");
 
-    let db = pesa_core::db::Database::new(&db_path)
+    let mut db = pesa_core::db::Database::new(&db_path)
         .await
         .expect("Failed to initialize database");
 
-    if let Err(err) = db.init().await {
-        error!("Database error: {:?}", err);
+    match db.init().await {
+        Ok(Some(backup_path)) => {
+            info!("Database was incompatible and has been reset. Old data backed up to: {:?}", backup_path);
+        }
+        Ok(None) => {}
+        Err(err) => {
+            error!("Database error: {:?}", err);
+        }
     }
 
     let (event_sender, _event_receiver) = broadcast::channel(WEBSOCKET_CHANNEL_CAPACITY);

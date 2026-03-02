@@ -81,7 +81,7 @@ impl TestContext {
                 mode
             ))?;
 
-        let app_db = Database::new(&db_path).await?;
+        let mut app_db = Database::new(&db_path).await?;
         main_ui_emitter.log_runner(
             "Initializing test context: Installing database, migrations and default value",
         );

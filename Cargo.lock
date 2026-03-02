@@ -3673,6 +3673,7 @@ dependencies = [
  "sea-orm",
  "sea-orm-migration",
  "sea-query",
+ "semver",
  "serde",
  "serde_json",
  "sqlx",

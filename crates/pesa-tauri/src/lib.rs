@@ -226,12 +226,18 @@ pub fn run() {
             let settings_path = app_dir.join("settings.json");
 
             tauri::async_runtime::block_on(async move {
-                let db = db::Database::new(&db_path)
+                let mut db = db::Database::new(&db_path)
                     .await
                     .expect("Failed to initialize database");
 
-                if let Err(err) = db.init().await {
-                    eprintln!("Database error: {:?}", err);
+                match db.init().await {
+                    Ok(Some(backup_path)) => {
+                        eprintln!("WARNING: Database was incompatible and has been reset. Old data backed up to: {:?}", backup_path);
+                    }
+                    Ok(None) => {}
+                    Err(err) => {
+                        eprintln!("Database error: {:?}", err);
+                    }
                 }
 
                 let settings_manager = settings::SettingsManager::new(settings_path).await.unwrap();

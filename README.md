@@ -38,6 +38,9 @@ It’s a lightweight desktop tauri app with a simple API layer for automation an
 The goal is to make development around M-Pesa integrations straightforward and predictable.
 You run the app, point your backend to the local endpoints, and test complete payment flows end-to-end.
 
+> **Note:** This project is currently in active development. As we implement the remaining Daraja APIs, the database schema may change between major versions.
+> When this happens, your existing data will be backed up automatically and the app database will be reset.
+> We do not guarantee backwards compatibility with previous versions during this phase of the project.
 
 ## ✨ Features
 - **FOSS (Free and Open-Source Software)**
