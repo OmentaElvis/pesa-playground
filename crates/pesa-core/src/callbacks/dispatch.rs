@@ -125,3 +125,106 @@ pub fn headers_to_json_value(headers: &HeaderMap) -> Value {
     }
     Value::Object(map)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    #[test]
+    fn test_dispatch_config_defaults() {
+        let config = DispatchConfig {
+            timeout: Duration::from_secs(30),
+            max_retries: 3,
+        };
+
+        assert_eq!(config.timeout, Duration::from_secs(30));
+        assert_eq!(config.max_retries, 3);
+    }
+
+    #[tokio::test]
+    async fn test_dispatch_successful_response() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/callback"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("OK"))
+            .mount(&mock_server)
+            .await;
+
+        let config = DispatchConfig {
+            timeout: Duration::from_secs(5),
+            max_retries: 3,
+        };
+        let service = CallbackDispatchService::new(config);
+
+        let payload = json!({"test": "data"});
+        let url = format!("{}/callback", mock_server.uri().trim_end_matches('/'));
+        let result = service.dispatch(&url, &payload).await;
+
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        assert_eq!(response.final_status_code, 200);
+        assert_eq!(response.final_body, "OK");
+        assert_eq!(response.attempts_made, 1);
+    }
+
+    #[tokio::test]
+    async fn test_dispatch_retry_on_failure() {
+        let mock_server = MockServer::start().await;
+
+        // First two attempts fail with 500, third succeeds
+        Mock::given(method("POST"))
+            .and(path("/callback"))
+            .respond_with(ResponseTemplate::new(500))
+            .mount(&mock_server)
+            .await;
+
+        let config = DispatchConfig {
+            timeout: Duration::from_secs(5),
+            max_retries: 3,
+        };
+        let service = CallbackDispatchService::new(config);
+
+        let payload = json!({"test": "data"});
+        let url = format!("{}/callback", mock_server.uri().trim_end_matches('/'));
+        let result = service.dispatch(&url, &payload).await;
+
+        // Should fail after max_retries
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_dispatch_network_error() {
+        let mock_server = MockServer::start().await;
+
+        // No mock mounted - will cause connection error
+        let config = DispatchConfig {
+            timeout: Duration::from_millis(100),
+            max_retries: 1,
+        };
+        let service = CallbackDispatchService::new(config);
+
+        let payload = json!({"test": "data"});
+        let url = format!("{}/callback", mock_server.uri().trim_end_matches('/'));
+        let result = service.dispatch(&url, &payload).await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_headers_to_json_value() {
+        let mut headers = HeaderMap::new();
+        headers.insert("content-type", "application/json".parse().unwrap());
+        headers.insert("x-custom", "value123".parse().unwrap());
+
+        let result = headers_to_json_value(&headers);
+
+        assert!(result.is_object());
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj.get("content-type").unwrap(), "application/json");
+        assert_eq!(obj.get("x-custom").unwrap(), "value123");
+    }
+}

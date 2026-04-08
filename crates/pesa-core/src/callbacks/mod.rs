@@ -203,3 +203,206 @@ impl From<CallbackLog> for db::ActiveModel {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::business::Business;
+    use crate::business::CreateBusiness;
+    use crate::projects::{CreateProject, Project};
+    use crate::tests::TestDb;
+    use serde_json::json;
+
+    async fn create_test_project(db: &sea_orm::DatabaseConnection) -> u32 {
+        let business_input = CreateBusiness {
+            name: "Test Business".to_string(),
+            short_code: "123456".to_string(),
+            initial_working_balance: 10000.0,
+            initial_utility_balance: 5000.0,
+        };
+        let business = Business::create(db, business_input).await.unwrap();
+
+        let project_input = CreateProject {
+            business_id: business.id,
+            name: "Test Project".to_string(),
+            callback_url: Some("https://example.com/callback".to_string()),
+            simulation_mode: crate::projects::SimulationMode::Realistic,
+            stk_delay: 1000,
+            prefix: Some("TEST".to_string()),
+        };
+        let project = Project::create(db, project_input).await.unwrap();
+        project.id
+    }
+
+    fn create_test_callback_params(project_id: u32) -> CreateCallbackParams {
+        CreateCallbackParams {
+            project_id,
+            callback_type: CallbackType::StkPush,
+            url: "https://example.com/callback".to_string(),
+            conversation_id: "test_conversation_123".to_string(),
+            originator_id: "originator_456".to_string(),
+            payload: json!({"test": "data"}),
+            transaction_id: Some("txn_789".to_string()),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_create_callback_success() {
+        let db = TestDb::in_memory().await.unwrap();
+        let project_id = create_test_project(&db.conn).await;
+
+        let params = create_test_callback_params(project_id);
+        let result = CallbackLog::create(&db.conn, params).await;
+
+        assert!(result.is_ok());
+        let callback = result.unwrap();
+        assert_eq!(callback.project_id, project_id);
+        assert_eq!(callback.callback_type, CallbackType::StkPush);
+        assert_eq!(callback.conversation_id, "test_conversation_123");
+        assert_eq!(callback.originator_id, "originator_456");
+        assert_eq!(callback.transaction_id, Some("txn_789".to_string()));
+        assert_eq!(callback.status, CallbackStatus::Pending);
+        assert!(callback.id > 0);
+    }
+
+    #[tokio::test]
+    async fn test_find_callback_by_id() {
+        let db = TestDb::in_memory().await.unwrap();
+        let project_id = create_test_project(&db.conn).await;
+
+        let created = CallbackLog::create(&db.conn, create_test_callback_params(project_id))
+            .await
+            .unwrap();
+
+        let found = CallbackLog::find_by_id(&db.conn, created.id).await.unwrap();
+
+        assert!(found.is_some());
+        let callback = found.unwrap();
+        assert_eq!(callback.id, created.id);
+        assert_eq!(callback.conversation_id, created.conversation_id);
+    }
+
+    #[tokio::test]
+    async fn test_find_callback_by_id_not_found() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let found = CallbackLog::find_by_id(&db.conn, 9999).await.unwrap();
+
+        assert!(found.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_find_callbacks_by_project() {
+        let db = TestDb::in_memory().await.unwrap();
+        let project_id = create_test_project(&db.conn).await;
+
+        CallbackLog::create(&db.conn, create_test_callback_params(project_id))
+            .await
+            .unwrap();
+        CallbackLog::create(&db.conn, create_test_callback_params(project_id))
+            .await
+            .unwrap();
+
+        let callbacks = CallbackLog::find_by_project(&db.conn, project_id)
+            .await
+            .unwrap();
+
+        assert_eq!(callbacks.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_find_callbacks_by_project_empty() {
+        let db = TestDb::in_memory().await.unwrap();
+        let project_id = create_test_project(&db.conn).await;
+
+        let callbacks = CallbackLog::find_by_project(&db.conn, project_id)
+            .await
+            .unwrap();
+
+        assert!(callbacks.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_update_dispatch_status_delivered() {
+        let db = TestDb::in_memory().await.unwrap();
+        let project_id = create_test_project(&db.conn).await;
+
+        let created = CallbackLog::create(&db.conn, create_test_callback_params(project_id))
+            .await
+            .unwrap();
+
+        let outcome = DispatchOutcome::Delivered {
+            status_code: 200,
+            headers: json!({"content-type": "application/json"}),
+            body: "success".to_string(),
+        };
+
+        let updated = created
+            .update_dispatch_status(&db.conn, outcome)
+            .await
+            .unwrap();
+
+        assert_eq!(updated.status, CallbackStatus::Delivered);
+        assert_eq!(updated.response_status, Some(200));
+        assert_eq!(updated.response_body, Some("success".to_string()));
+        assert!(updated.response_headers.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_update_dispatch_status_failed() {
+        let db = TestDb::in_memory().await.unwrap();
+        let project_id = create_test_project(&db.conn).await;
+
+        let created = CallbackLog::create(&db.conn, create_test_callback_params(project_id))
+            .await
+            .unwrap();
+
+        let outcome = DispatchOutcome::Failed {
+            error_message: "Connection timeout".to_string(),
+        };
+
+        let updated = created
+            .update_dispatch_status(&db.conn, outcome)
+            .await
+            .unwrap();
+
+        assert_eq!(updated.status, CallbackStatus::Failed);
+        assert_eq!(updated.error, Some("Connection timeout".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_callback_type_parse() {
+        assert_eq!(
+            "stk_push".parse::<CallbackType>(),
+            Ok(CallbackType::StkPush)
+        );
+        assert_eq!(
+            "b2c_result".parse::<CallbackType>(),
+            Ok(CallbackType::B2cResult)
+        );
+        assert_eq!(
+            "c2b_validation".parse::<CallbackType>(),
+            Ok(CallbackType::C2bValidation)
+        );
+        assert_eq!(
+            "c2b_confirmation".parse::<CallbackType>(),
+            Ok(CallbackType::C2bConfirmation)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_callback_status_parse() {
+        assert_eq!(
+            "pending".parse::<CallbackStatus>(),
+            Ok(CallbackStatus::Pending)
+        );
+        assert_eq!(
+            "delivered".parse::<CallbackStatus>(),
+            Ok(CallbackStatus::Delivered)
+        );
+        assert_eq!(
+            "failed".parse::<CallbackStatus>(),
+            Ok(CallbackStatus::Failed)
+        );
+    }
+}

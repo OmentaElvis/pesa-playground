@@ -24,6 +24,7 @@ use crate::server::{
     },
     async_handler::{IntoCallbackPayload, PpgAsyncRequest},
 };
+use crate::transaction_jobs::task::TransferConfig;
 use crate::utils::identifiers::Identifiers;
 use crate::{
     api_keys::ApiKey,
@@ -329,15 +330,15 @@ impl PpgAsyncRequest for Stkpush {
                     if pin.eq(&user.pin) {
                         match state
                             .context
-                            .transfer(
-                                self.identifiers.clone(),
-                                Duration::ZERO,
-                                Some(user.account_id),
-                                self.utility_account.account_id,
-                                self.amount,
-                                self.transaction_type.clone(),
-                                Some(self.notes.clone()),
-                            )
+                            .transfer(TransferConfig {
+                                identifiers: self.identifiers.clone(),
+                                delay: Duration::ZERO,
+                                source: Some(user.account_id),
+                                destination: self.utility_account.account_id,
+                                amount: self.amount,
+                                txn_type: self.transaction_type.clone(),
+                                notes: Some(self.notes.clone()),
+                            })
                             .await
                             .context("Failed to schedule transaction")?
                         {

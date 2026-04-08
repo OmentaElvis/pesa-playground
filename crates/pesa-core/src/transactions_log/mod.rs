@@ -1,7 +1,13 @@
 pub mod db;
+pub mod history;
 pub mod ui;
 
-use crate::transactions::TransactionNote;
+pub use history::{
+    HistoryFilter, HistoryScope, HistoryScopeType, Pagination, SortDirection, Sorting,
+    TransactionHistoryEntry,
+};
+
+use crate::transactions::{TransactionNote, TransactionStatus, TransactionType};
 use serde_json;
 
 use sea_orm::prelude::DateTimeUtc;
@@ -12,7 +18,7 @@ use sea_orm::{PaginatorTrait, QuerySelect};
 use serde::{Deserialize, Serialize};
 
 use self::db::{ActiveModel, Direction};
-use crate::accounts::{self, Account};
+use crate::accounts::Account;
 use crate::transactions;
 
 #[derive(Serialize)]
@@ -29,13 +35,13 @@ pub struct FullTransactionLog {
     pub transaction_id: String,
     pub transaction_date: DateTimeUtc,
     pub transaction_amount: i64,
-    pub transaction_type: String,
+    pub transaction_type: TransactionType,
     pub from_name: String,
     pub to_name: String,
     pub from_id: Option<u32>,
     pub to_id: u32,
     pub new_balance: i64,
-    pub status: String,
+    pub status: TransactionStatus,
     pub fee: i64,
     pub direction: Direction,
     pub notes: Option<TransactionNote>,
@@ -54,6 +60,14 @@ impl From<db::Model> for TransactionLog {
 }
 
 impl TransactionLog {
+    pub async fn get<C>(conn: &C, id: u32) -> Result<Option<TransactionLog>, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        let model = db::Entity::find_by_id(id).one(conn).await?;
+        Ok(model.map(|m| m.into()))
+    }
+
     pub async fn create<C>(
         conn: &C,
         transaction_id: String,
@@ -196,47 +210,211 @@ pub async fn get_account_name<C>(db: &C, account_id: u32) -> Result<String, DbEr
 where
     C: ConnectionTrait,
 {
-    if account_id == 0 {
-        return Ok("System".to_string());
+    Account::get_display_name(db, account_id).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::accounts::{Account, AccountType};
+    use crate::tests::TestDb;
+    use crate::transactions::{Ledger, TransactionType};
+
+    async fn setup_test_data(db: &TestDb) -> (Account, Account) {
+        let acc1 = Account::create_account(&db.conn, AccountType::User, 1000)
+            .await
+            .unwrap();
+        let acc2 = Account::create_account(&db.conn, AccountType::User, 500)
+            .await
+            .unwrap();
+        (acc1, acc2)
     }
 
-    if let Some(account) = accounts::db::Entity::find_by_id(account_id).one(db).await? {
-        let account: Account = account.into();
-        match account.account_type {
-            accounts::AccountType::User => {
-                if let Some(user) = accounts::user_profiles::db::Entity::find_by_id(account_id)
-                    .one(db)
-                    .await?
-                {
-                    return Ok(user.name);
-                }
-            }
-            accounts::AccountType::Utility => {
-                if let Some(utility) =
-                    accounts::utility_accounts::db::Entity::find_by_id(account_id)
-                        .one(db)
-                        .await?
-                    && let Some(business) =
-                        crate::business::db::Entity::find_by_id(utility.business_id)
-                            .one(db)
-                            .await?
-                {
-                    return Ok(business.name);
-                }
-            }
-            accounts::AccountType::Mmf => {
-                if let Some(mmf) = accounts::mmf_accounts::db::Entity::find_by_id(account_id)
-                    .one(db)
-                    .await?
-                    && let Some(business) = crate::business::db::Entity::find_by_id(mmf.business_id)
-                        .one(db)
-                        .await?
-                {
-                    return Ok(business.name);
-                }
-            }
-            _ => {}
-        }
+    #[tokio::test]
+    async fn test_transaction_log_get() {
+        let db = TestDb::in_memory().await.unwrap();
+        let (acc1, acc2) = setup_test_data(&db).await;
+
+        let (_, _) = Ledger::transfer(
+            &db.conn,
+            Some(acc1.id),
+            acc2.id,
+            200,
+            &TransactionType::SendMoney,
+            None,
+        )
+        .await
+        .unwrap();
+
+        let logs = db::Entity::find()
+            .filter(db::Column::AccountId.eq(acc2.id))
+            .all(&db.conn)
+            .await
+            .unwrap();
+
+        assert!(!logs.is_empty());
+        let log_id = logs[0].id;
+
+        let result = TransactionLog::get(&db.conn, log_id).await;
+        assert!(result.is_ok());
+        let found = result.unwrap();
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().account_id, acc2.id);
     }
-    Ok("Unknown".to_string())
+
+    #[tokio::test]
+    async fn test_transaction_log_get_not_found() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let result = TransactionLog::get(&db.conn, 99999).await;
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_full_log() {
+        let db = TestDb::in_memory().await.unwrap();
+        let (acc1, acc2) = setup_test_data(&db).await;
+
+        let (txn, _) = Ledger::transfer(
+            &db.conn,
+            Some(acc1.id),
+            acc2.id,
+            200,
+            &TransactionType::SendMoney,
+            None,
+        )
+        .await
+        .unwrap();
+
+        let logs = db::Entity::find()
+            .filter(db::Column::TransactionId.eq(txn.id.clone()))
+            .all(&db.conn)
+            .await
+            .unwrap();
+
+        let log_id = logs[0].id;
+
+        let result = TransactionLog::get_full_log(&db.conn, log_id).await;
+        assert!(result.is_ok());
+        let found = result.unwrap();
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().transaction_id, txn.id);
+    }
+
+    #[tokio::test]
+    async fn test_list_full_logs() {
+        let db = TestDb::in_memory().await.unwrap();
+        let (acc1, acc2) = setup_test_data(&db).await;
+
+        Ledger::transfer(
+            &db.conn,
+            Some(acc1.id),
+            acc2.id,
+            100,
+            &TransactionType::SendMoney,
+            None,
+        )
+        .await
+        .unwrap();
+
+        let result = TransactionLog::list_full_logs(&db.conn, acc2.id as i32, 10, 0).await;
+        assert!(result.is_ok());
+        let logs = result.unwrap();
+        assert!(!logs.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_list_full_logs_with_pagination() {
+        let db = TestDb::in_memory().await.unwrap();
+        let acc1 = Account::create_account(&db.conn, AccountType::User, 10000)
+            .await
+            .unwrap();
+        let acc2 = Account::create_account(&db.conn, AccountType::User, 500)
+            .await
+            .unwrap();
+
+        for i in 1..=5 {
+            Ledger::transfer(
+                &db.conn,
+                Some(acc1.id),
+                acc2.id,
+                100 * i,
+                &TransactionType::SendMoney,
+                None,
+            )
+            .await
+            .unwrap();
+        }
+
+        let result = TransactionLog::list_full_logs(&db.conn, acc2.id as i32, 2, 2).await;
+        assert!(result.is_ok());
+        let logs = result.unwrap();
+        assert_eq!(logs.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_list_account_logs() {
+        let db = TestDb::in_memory().await.unwrap();
+        let (acc1, acc2) = setup_test_data(&db).await;
+
+        Ledger::transfer(
+            &db.conn,
+            Some(acc1.id),
+            acc2.id,
+            100,
+            &TransactionType::SendMoney,
+            None,
+        )
+        .await
+        .unwrap();
+
+        let result =
+            TransactionLog::list_account_logs(&db.conn, vec![acc1.id, acc2.id], 10, 0).await;
+        assert!(result.is_ok());
+        let logs = result.unwrap();
+        assert!(!logs.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_count_transaction_logs() {
+        let db = TestDb::in_memory().await.unwrap();
+        let (acc1, acc2) = setup_test_data(&db).await;
+
+        Ledger::transfer(
+            &db.conn,
+            Some(acc1.id),
+            acc2.id,
+            100,
+            &TransactionType::SendMoney,
+            None,
+        )
+        .await
+        .unwrap();
+
+        let result = TransactionLog::count_transaction_logs(&db.conn, vec![acc1.id, acc2.id]).await;
+        assert!(result.is_ok());
+        assert!(result.unwrap() > 0);
+    }
+
+    #[tokio::test]
+    async fn test_get_account_name_system() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let result = get_account_name(&db.conn, 0).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "System");
+    }
+
+    #[tokio::test]
+    async fn test_get_account_name_user() {
+        let db = TestDb::in_memory().await.unwrap();
+        let acc = Account::create_account(&db.conn, AccountType::User, 100)
+            .await
+            .unwrap();
+
+        let result = get_account_name(&db.conn, acc.id).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "Unknown");
+    }
 }

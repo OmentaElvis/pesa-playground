@@ -2,6 +2,7 @@ use serde_json::json;
 
 use crate::{AppContext, transactions_log::FullTransactionLog};
 
+#[derive(Debug)]
 pub enum DomainEvent {
     TransactionCreated(FullTransactionLog),
 }

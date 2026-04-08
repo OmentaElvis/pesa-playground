@@ -1,5 +1,5 @@
 use crate::{
-    AppContext, AppEventManager, settings::SettingsManager,
+    AppContext, AppEventManager, TransactionChannel, settings::SettingsManager,
     transaction_jobs::task::TransactionManager,
 };
 use anyhow::Context;
@@ -64,7 +64,7 @@ impl PesaApp {
             running: Arc::new(crate::dashmap::DashMap::new()),
             app_root: app_root.to_path_buf(),
             stats: Arc::clone(&stats),
-            transaction_tx,
+            txn_manager: TransactionChannel { transaction_tx },
             request_lifecycle_manager,
         });
 

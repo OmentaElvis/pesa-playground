@@ -1,16 +1,17 @@
 use sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "requests")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: String,
-    pub source_type: String,
+    pub source_type: SourceType,
     pub source_api_key_id: Option<u32>,
     pub source_operator_id: Option<u32>,
     pub source_component: Option<String>,
-    pub request_type: String,
-    pub request_status: String,
+    pub request_type: RequestType,
+    pub request_status: RequestStatus,
     pub created_at: DateTimeUtc,
     pub started_at: Option<DateTimeUtc>,
     pub completed_at: Option<DateTimeUtc>,
@@ -110,3 +111,44 @@ impl Related<super::request_ids::db::Entity> for Entity {
 }
 
 impl ActiveModelBehavior for ActiveModel {}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, DeriveActiveEnum, EnumIter)]
+#[sea_orm(
+    rs_type = "String",
+    db_type = "String(StringLen::None)",
+    rename_all = "snake_case"
+)]
+pub enum RequestStatus {
+    Completed,
+    Failed,
+    Pending,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, DeriveActiveEnum, EnumIter)]
+#[sea_orm(
+    rs_type = "String",
+    db_type = "String(StringLen::None)",
+    rename_all = "snake_case"
+)]
+pub enum RequestType {
+    StkPush,
+    C2bRegisterUrl,
+    B2cPayment,
+    BalanceQuery,
+    C2bLipa,
+    Oauth,
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, DeriveActiveEnum, EnumIter)]
+#[sea_orm(
+    rs_type = "String",
+    db_type = "String(StringLen::None)",
+    rename_all = "snake_case"
+)]
+pub enum SourceType {
+    Api,
+    System,
+    Ui,
+}

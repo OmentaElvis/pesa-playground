@@ -1,6 +1,6 @@
 pub mod db;
 
-use sea_orm::{entity::prelude::*, IntoActiveModel};
+use sea_orm::{IntoActiveModel, entity::prelude::*};
 
 pub async fn get_metadata<C>(conn: &C, key: &str) -> Result<Option<String>, DbErr>
 where
@@ -43,36 +43,47 @@ where
 
 #[cfg(test)]
 mod tests {
-    use sea_orm::Database;
-    use sea_orm::ConnectOptions;
+    use super::*;
+    use crate::tests::TestDb;
 
-    async fn test_db() -> sea_orm::DatabaseConnection {
-        let mut opts = ConnectOptions::from("sqlite::memory:");
-        opts.max_connections(1).connect_timeout(std::time::Duration::from_secs(30));
-        Database::connect(opts).await.unwrap()
+    #[tokio::test]
+    async fn test_table_exists() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let exists = table_exists(&db.conn).await;
+        assert!(exists);
     }
 
     #[tokio::test]
-    async fn test_table_does_not_exist() {
-        let conn = test_db().await;
-        
-        let exists = super::table_exists(&conn).await;
-        assert!(!exists);
+    async fn test_set_and_get_metadata() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let key = "version";
+        let value = "1.0.0";
+
+        set_metadata(&db.conn, key, value).await.unwrap();
+
+        let retrieved = get_metadata(&db.conn, key).await.unwrap();
+        assert_eq!(retrieved, Some(value.to_string()));
     }
 
     #[tokio::test]
-    async fn test_get_metadata_when_table_does_not_exist() {
-        let conn = test_db().await;
-        
-        let result = super::get_metadata(&conn, "nonexistent").await;
-        assert!(result.is_err());
+    async fn test_update_metadata() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let key = "theme";
+        set_metadata(&db.conn, key, "light").await.unwrap();
+        set_metadata(&db.conn, key, "dark").await.unwrap();
+
+        let retrieved = get_metadata(&db.conn, key).await.unwrap();
+        assert_eq!(retrieved, Some("dark".to_string()));
     }
 
     #[tokio::test]
-    async fn test_set_metadata_when_table_does_not_exist() {
-        let conn = test_db().await;
-        
-        let result = super::set_metadata(&conn, "test_key", "test_value").await;
-        assert!(result.is_ok());
+    async fn test_get_nonexistent_metadata() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let retrieved = get_metadata(&db.conn, "nonexistent").await.unwrap();
+        assert!(retrieved.is_none());
     }
 }

@@ -28,11 +28,8 @@ use pesa_core::{
     server::api::stkpush::ui::UserResponse,
     settings::models::AppSettings,
     transaction_costs::ui::TransactionCostData,
-    transactions::{
-        TransactionNote, TransactionType,
-        ui::{LipaArgs, TransactionFilter},
-    },
-    transactions_log::ui::HistoryFilter,
+    transactions::{TransactionFilter, TransactionNote, TransactionType, ui::LipaArgs},
+    transactions_log::history::HistoryFilter,
 };
 use pesa_lua::ScriptManager;
 use pesa_macros::generate_axum_rpc_handler;
@@ -165,8 +162,8 @@ generate_axum_rpc_handler! {
     list_system_transactions(limit: Option<u32>, offset: Option<u32>) => pesa_core::transactions::ui::list_system_transactions,
     count_transactions(filter: TransactionFilter) => pesa_core::transactions::ui::count_transactions,
     get_transaction_by_checkout_request(checkout_request_id: String) => pesa_core::transactions::ui::get_transaction_by_checkout_request,
-    get_user_transactions(user_id: u32, limit: Option<u32>, offset: Option<u32>) => pesa_core::transactions::ui::get_user_transactions,
-    get_recent_transactions(limit: Option<u32>) => pesa_core::transactions::ui::get_recent_transactions,
+    get_user_transactions(user_id: u32, limit: Option<u64>, offset: Option<u64>) => pesa_core::transactions::ui::get_user_transactions,
+    get_recent_transactions(limit: Option<u64>) => pesa_core::transactions::ui::get_recent_transactions,
     get_transaction_stats() => pesa_core::transactions::ui::get_transaction_stats,
     get_transaction_history(filter: HistoryFilter) => pesa_core::transactions_log::ui::get_transaction_history,
     transfer(source: Option<u32>, destination: u32, amount: i64, txn_type: TransactionType, notes: Option<TransactionNote>) => pesa_core::transactions::ui::transfer,
@@ -473,7 +470,10 @@ async fn main() {
 
     match db.init().await {
         Ok(Some(backup_path)) => {
-            info!("Database was incompatible and has been reset. Old data backed up to: {:?}", backup_path);
+            info!(
+                "Database was incompatible and has been reset. Old data backed up to: {:?}",
+                backup_path
+            );
         }
         Ok(None) => {}
         Err(err) => {

@@ -120,7 +120,7 @@ fn spawn_async_job<T: PpgAsyncRequest>(state: ApiState, identifiers: Identifiers
             };
 
             // Delegate the entire callback lifecycle to the orchestrator.
-            CallbackOrchestrator::handle_callback(&state.context, params, final_payload).await;
+            CallbackOrchestrator::handle_callback(&state.context.db, params, final_payload).await;
         }
 
         tracing::trace!(

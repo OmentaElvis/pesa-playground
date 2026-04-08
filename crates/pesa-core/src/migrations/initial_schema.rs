@@ -479,6 +479,16 @@ impl Migration {
             .to_owned()
     }
 
+    pub fn operators_username_business_unique_index() -> IndexCreateStatement {
+        Index::create()
+            .unique()
+            .name("idx-operators-username-business")
+            .table(BusinessOperators::Table)
+            .col(BusinessOperators::BusinessId)
+            .col(BusinessOperators::Username)
+            .to_owned()
+    }
+
     pub fn user_profiles_table() -> TableCreateStatement {
         Table::create()
             .table(UserProfiles::Table)
@@ -508,8 +518,17 @@ impl Migration {
                     .from(UserProfiles::Table, UserProfiles::AccountId)
                     .to(Accounts::Table, Accounts::Id)
                     .on_update(ForeignKeyAction::NoAction)
-                    .on_delete(ForeignKeyAction::NoAction),
+                    .on_delete(ForeignKeyAction::Cascade),
             )
+            .to_owned()
+    }
+
+    pub fn user_profiles_phone_unique_index() -> IndexCreateStatement {
+        Index::create()
+            .unique()
+            .name("idx-user-profiles-phone")
+            .table(UserProfiles::Table)
+            .col(UserProfiles::Phone)
             .to_owned()
     }
 
@@ -529,7 +548,7 @@ impl Migration {
                     .from(MmfAccounts::Table, MmfAccounts::AccountId)
                     .to(Accounts::Table, Accounts::Id)
                     .on_update(ForeignKeyAction::NoAction)
-                    .on_delete(ForeignKeyAction::NoAction),
+                    .on_delete(ForeignKeyAction::Cascade),
             )
             .foreign_key(
                 ForeignKey::create()
@@ -660,7 +679,7 @@ impl Migration {
                     .from(UtilityAccounts::Table, UtilityAccounts::AccountId)
                     .to(Accounts::Table, Accounts::Id)
                     .on_update(ForeignKeyAction::NoAction)
-                    .on_delete(ForeignKeyAction::NoAction),
+                    .on_delete(ForeignKeyAction::Cascade),
             )
             .foreign_key(
                 ForeignKey::create()
@@ -683,7 +702,7 @@ impl Migration {
                     .primary_key(),
             )
             .col(ColumnDef::new(Transactions::From).integer().null())
-            .col(ColumnDef::new(Transactions::To).integer().not_null())
+            .col(ColumnDef::new(Transactions::To).integer().null())
             .col(
                 ColumnDef::new(Transactions::Amount)
                     .big_integer()
@@ -710,6 +729,20 @@ impl Migration {
                     .null(),
             )
             .col(ColumnDef::new(Transactions::RequestId).string().null())
+            .foreign_key(
+                ForeignKey::create()
+                    .from(Transactions::Table, Transactions::From)
+                    .to(Accounts::Table, Accounts::Id)
+                    .on_update(ForeignKeyAction::NoAction)
+                    .on_delete(ForeignKeyAction::SetNull),
+            )
+            .foreign_key(
+                ForeignKey::create()
+                    .from(Transactions::Table, Transactions::To)
+                    .to(Accounts::Table, Accounts::Id)
+                    .on_update(ForeignKeyAction::NoAction)
+                    .on_delete(ForeignKeyAction::SetNull),
+            )
             .foreign_key(
                 ForeignKey::create()
                     .from(Transactions::Table, Transactions::RequestId)
@@ -795,12 +828,28 @@ impl Migration {
                     .not_null(),
             )
             .col(ColumnDef::new(CallbackLogs::TransactionId).string().null())
-            .col(ColumnDef::new(CallbackLogs::CallbackUrl).string().not_null())
-            .col(ColumnDef::new(CallbackLogs::CallbackType).string().not_null())
+            .col(
+                ColumnDef::new(CallbackLogs::CallbackUrl)
+                    .string()
+                    .not_null(),
+            )
+            .col(
+                ColumnDef::new(CallbackLogs::CallbackType)
+                    .string()
+                    .not_null(),
+            )
             .col(ColumnDef::new(CallbackLogs::Payload).string().not_null())
-            .col(ColumnDef::new(CallbackLogs::ResponseStatus).integer().null())
+            .col(
+                ColumnDef::new(CallbackLogs::ResponseStatus)
+                    .integer()
+                    .null(),
+            )
             .col(ColumnDef::new(CallbackLogs::ResponseBody).string().null())
-            .col(ColumnDef::new(CallbackLogs::ResponseHeaders).string().null())
+            .col(
+                ColumnDef::new(CallbackLogs::ResponseHeaders)
+                    .string()
+                    .null(),
+            )
             .col(ColumnDef::new(CallbackLogs::Status).string().not_null())
             .col(ColumnDef::new(CallbackLogs::Error).string().null())
             .col(
@@ -876,14 +925,14 @@ impl Migration {
                     .from(TransactionsLog::Table, TransactionsLog::AccountId)
                     .to(Accounts::Table, Accounts::Id)
                     .on_update(ForeignKeyAction::NoAction)
-                    .on_delete(ForeignKeyAction::NoAction),
+                    .on_delete(ForeignKeyAction::Cascade),
             )
             .foreign_key(
                 ForeignKey::create()
                     .from(TransactionsLog::Table, TransactionsLog::TransactionId)
                     .to(Transactions::Table, Transactions::Id)
                     .on_update(ForeignKeyAction::NoAction)
-                    .on_delete(ForeignKeyAction::NoAction),
+                    .on_delete(ForeignKeyAction::Cascade),
             )
             .to_owned()
     }
@@ -1113,7 +1162,12 @@ impl Migration {
         Table::create()
             .table(AppMetadata::Table)
             .if_not_exists()
-            .col(ColumnDef::new(AppMetadata::Key).string().not_null().primary_key())
+            .col(
+                ColumnDef::new(AppMetadata::Key)
+                    .string()
+                    .not_null()
+                    .primary_key(),
+            )
             .col(ColumnDef::new(AppMetadata::Value).string().not_null())
             .to_owned()
     }
@@ -1124,71 +1178,181 @@ impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager.create_table(Self::accounts_table()).await?;
         manager.create_table(Self::businesses_table()).await?;
-        manager.create_index(Self::businesses_short_code_unique_index()).await?;
+        manager
+            .create_index(Self::businesses_short_code_unique_index())
+            .await?;
         manager.create_table(Self::projects_table()).await?;
         manager.create_table(Self::api_keys_table()).await?;
         manager.create_table(Self::requests_table()).await?;
-        manager.create_index(Self::requests_project_id_index()).await?;
-        manager.create_index(Self::requests_business_id_index()).await?;
-        manager.create_index(Self::requests_source_type_index()).await?;
-        manager.create_index(Self::requests_created_at_index()).await?;
+        manager
+            .create_index(Self::requests_project_id_index())
+            .await?;
+        manager
+            .create_index(Self::requests_business_id_index())
+            .await?;
+        manager
+            .create_index(Self::requests_source_type_index())
+            .await?;
+        manager
+            .create_index(Self::requests_created_at_index())
+            .await?;
         manager.create_table(Self::api_logs_table()).await?;
-        manager.create_index(Self::api_logs_request_id_index()).await?;
+        manager
+            .create_index(Self::api_logs_request_id_index())
+            .await?;
         manager.create_table(Self::access_tokens_table()).await?;
         manager.create_table(Self::operators_table()).await?;
+        manager
+            .create_index(Self::operators_username_business_unique_index())
+            .await?;
         manager.create_table(Self::user_profiles_table()).await?;
+        manager
+            .create_index(Self::user_profiles_phone_unique_index())
+            .await?;
         manager.create_table(Self::mmf_account_table()).await?;
         manager.create_table(Self::paybill_table()).await?;
         manager.create_table(Self::till_account_table()).await?;
         manager.create_table(Self::utility_account_table()).await?;
         manager.create_table(Self::transactions_table()).await?;
-        manager.create_index(Self::transactions_request_id_index()).await?;
-        manager.create_table(Self::transaction_costs_table()).await?;
+        manager
+            .create_index(Self::transactions_request_id_index())
+            .await?;
+        manager
+            .create_table(Self::transaction_costs_table())
+            .await?;
         manager.create_table(Self::callback_logs_table()).await?;
-        manager.create_index(Self::callback_logs_request_id_index()).await?;
+        manager
+            .create_index(Self::callback_logs_request_id_index())
+            .await?;
         manager.create_table(Self::transactions_log_table()).await?;
         manager.create_table(Self::transaction_jobs_table()).await?;
-        manager.create_index(Self::transaction_jobs_request_id_index()).await?;
+        manager
+            .create_index(Self::transaction_jobs_request_id_index())
+            .await?;
         manager.create_table(Self::request_ids_table()).await?;
-        manager.create_index(Self::request_ids_lookup_index()).await?;
-        manager.create_index(Self::request_ids_unique_constraint()).await?;
+        manager
+            .create_index(Self::request_ids_lookup_index())
+            .await?;
+        manager
+            .create_index(Self::request_ids_unique_constraint())
+            .await?;
         manager.create_table(Self::app_metadata_table()).await?;
 
         Ok(())
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager.drop_table(Table::drop().table(AppMetadata::Table).to_owned()).await?;
-        manager.drop_index(Index::drop().name("unique-request-id-type").to_owned()).await?;
-        manager.drop_index(Index::drop().name("idx-request-ids-lookup").to_owned()).await?;
-        manager.drop_table(Table::drop().table(RequestIds::Table).to_owned()).await?;
-        manager.drop_index(Index::drop().name("idx-transaction-jobs-request-id").to_owned()).await?;
-        manager.drop_table(Table::drop().table(TransactionJobs::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(TransactionsLog::Table).to_owned()).await?;
-        manager.drop_index(Index::drop().name("idx-callback-logs-request-id").to_owned()).await?;
-        manager.drop_table(Table::drop().table(CallbackLogs::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(TransactionCosts::Table).to_owned()).await?;
-        manager.drop_index(Index::drop().name("idx-transactions-request-id").to_owned()).await?;
-        manager.drop_table(Table::drop().table(Transactions::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(UtilityAccounts::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(TillAccounts::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(PaybillAccounts::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(MmfAccounts::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(UserProfiles::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(BusinessOperators::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(AccessTokens::Table).to_owned()).await?;
-        manager.drop_index(Index::drop().name("idx-api-logs-request-id").to_owned()).await?;
-        manager.drop_table(Table::drop().table(ApiLogs::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(ApiKeys::Table).to_owned()).await?;
-        manager.drop_index(Index::drop().name("idx-requests-created-at").to_owned()).await?;
-        manager.drop_index(Index::drop().name("idx-requests-source-type").to_owned()).await?;
-        manager.drop_index(Index::drop().name("idx-requests-business-id").to_owned()).await?;
-        manager.drop_index(Index::drop().name("idx-requests-project-id").to_owned()).await?;
-        manager.drop_table(Table::drop().table(Requests::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(Projects::Table).to_owned()).await?;
-        manager.drop_index(Index::drop().name("idx-businesses-short_code").to_owned()).await?;
-        manager.drop_table(Table::drop().table(Businesses::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(Accounts::Table).to_owned()).await?;
+        manager
+            .drop_table(Table::drop().table(AppMetadata::Table).to_owned())
+            .await?;
+        manager
+            .drop_index(Index::drop().name("unique-request-id-type").to_owned())
+            .await?;
+        manager
+            .drop_index(Index::drop().name("idx-request-ids-lookup").to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(RequestIds::Table).to_owned())
+            .await?;
+        manager
+            .drop_index(
+                Index::drop()
+                    .name("idx-transaction-jobs-request-id")
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .drop_table(Table::drop().table(TransactionJobs::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(TransactionsLog::Table).to_owned())
+            .await?;
+        manager
+            .drop_index(
+                Index::drop()
+                    .name("idx-callback-logs-request-id")
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .drop_table(Table::drop().table(CallbackLogs::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(TransactionCosts::Table).to_owned())
+            .await?;
+        manager
+            .drop_index(Index::drop().name("idx-transactions-request-id").to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(Transactions::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(UtilityAccounts::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(TillAccounts::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(PaybillAccounts::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(MmfAccounts::Table).to_owned())
+            .await?;
+        manager
+            .drop_index(Index::drop().name("idx-user-profiles-phone").to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(UserProfiles::Table).to_owned())
+            .await?;
+        manager
+            .drop_index(
+                Index::drop()
+                    .name("idx-operators-username-business")
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .drop_table(Table::drop().table(BusinessOperators::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(AccessTokens::Table).to_owned())
+            .await?;
+        manager
+            .drop_index(Index::drop().name("idx-api-logs-request-id").to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(ApiLogs::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(ApiKeys::Table).to_owned())
+            .await?;
+        manager
+            .drop_index(Index::drop().name("idx-requests-created-at").to_owned())
+            .await?;
+        manager
+            .drop_index(Index::drop().name("idx-requests-source-type").to_owned())
+            .await?;
+        manager
+            .drop_index(Index::drop().name("idx-requests-business-id").to_owned())
+            .await?;
+        manager
+            .drop_index(Index::drop().name("idx-requests-project-id").to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(Requests::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(Projects::Table).to_owned())
+            .await?;
+        manager
+            .drop_index(Index::drop().name("idx-businesses-short_code").to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(Businesses::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(Accounts::Table).to_owned())
+            .await?;
 
         Ok(())
     }

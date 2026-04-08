@@ -1,12 +1,14 @@
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::transactions::TransactionType;
+
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "transaction_costs")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
-    pub transaction_type: String,
+    pub transaction_type: TransactionType,
     pub min_amount: i64,
     pub max_amount: i64,
     pub fee_fixed: Option<i64>,

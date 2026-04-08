@@ -1,22 +1,12 @@
 use std::time::Duration;
 
-use super::Ledger;
-use super::Transaction;
-use super::TransactionEngineError;
-use super::TransactionNote;
-use super::TransactionType;
-use super::db;
+use super::{Ledger, Transaction, TransactionEngineError, TransactionNote, TransactionType};
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use sea_orm::ColumnTrait;
-use sea_orm::Condition;
-use sea_orm::ConnectionTrait;
 use sea_orm::EntityTrait;
-use sea_orm::PaginatorTrait;
 use sea_orm::QueryFilter;
-use sea_orm::QuerySelect;
-use sea_query::ExprTrait;
 use serde::{Deserialize, Serialize};
 
 use crate::AppContext;
@@ -35,42 +25,17 @@ use crate::server::api::c2b::ResponseType;
 use crate::server::api::c2b::ValidationRequest;
 use crate::server::api::c2b::ValidationResponse;
 use crate::transaction_costs::get_fee;
+use crate::transaction_jobs::task::TransferConfig;
+use crate::transactions::TransactionFilter;
 use crate::utils::identifiers::Identifiers;
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct TransactionFilter {
-    pub from: Option<u32>,
-    pub to: Option<u32>,
-    pub transaction_type: Option<String>,
-    pub status: Option<String>,
-    pub limit: Option<u32>,
-    pub offset: Option<u32>,
-}
-
-impl Default for TransactionFilter {
-    fn default() -> Self {
-        Self {
-            from: None,
-            to: None,
-            transaction_type: None,
-            status: None,
-            limit: Some(50),
-            offset: Some(0),
-        }
-    }
-}
 
 pub async fn get_transaction(
     ctx: &AppContext,
     transaction_id: String,
 ) -> Result<Option<Transaction>> {
-    let db = &ctx.db;
-    let transaction = db::Entity::find_by_id(transaction_id)
-        .one(db)
+    Transaction::get(&ctx.db, &transaction_id)
         .await
-        .context("Failed to get transaction")?;
-
-    Ok(transaction.map(|t| t.into()))
+        .context("Failed to get transaction")
 }
 
 pub async fn list_system_transactions(
@@ -78,140 +43,52 @@ pub async fn list_system_transactions(
     limit: Option<u32>,
     offset: Option<u32>,
 ) -> Result<Vec<Transaction>> {
-    let db = &ctx.db;
-    let mut query = crate::transactions::db::Entity::find();
-
-    if let Some(limit) = limit {
-        query = query.limit(limit as u64);
-    }
-
-    if let Some(offset) = offset {
-        query = query.offset(offset as u64);
-    }
-
-    query = query.filter(Condition::any().and(crate::transactions::db::Column::From.is_null()));
-
-    let transactions = query.all(db).await.context("Failed to list transactions")?;
-
-    Ok(transactions.into_iter().map(|t| t.into()).collect())
+    Transaction::list_system(&ctx.db, limit.map(|l| l as u64), offset.map(|o| o as u64))
+        .await
+        .context("Failed to list system transactions")
 }
 
 pub async fn list_transactions(
     ctx: &AppContext,
     filter: TransactionFilter,
 ) -> Result<Vec<Transaction>> {
-    let db = &ctx.db;
-    let mut query = crate::transactions::db::Entity::find();
-
-    match (filter.from, filter.to) {
-        (Some(from), Some(to)) => {
-            query = query.filter(
-                Condition::any()
-                    .add(crate::transactions::db::Column::From.eq(from))
-                    .add(crate::transactions::db::Column::To.eq(to)),
-            )
-        }
-        (Some(from), None) => {
-            query = query.filter(crate::transactions::db::Column::From.eq(from));
-        }
-        (None, Some(to)) => {
-            query = query.filter(crate::transactions::db::Column::To.eq(to));
-        }
-        (None, None) => {}
-    }
-
-    if let Some(transaction_type) = filter.transaction_type {
-        query = query.filter(crate::transactions::db::Column::TransactionType.eq(transaction_type));
-    }
-    if let Some(status) = filter.status {
-        query = query.filter(crate::transactions::db::Column::Status.eq(status));
-    }
-
-    if let Some(limit) = filter.limit {
-        query = query.limit(limit as u64);
-    }
-
-    if let Some(offset) = filter.offset {
-        query = query.offset(offset as u64);
-    }
-
-    let transactions = query.all(db).await.context("Failed to list transactions")?;
-
-    Ok(transactions.into_iter().map(|t| t.into()).collect())
+    Transaction::list(&ctx.db, filter)
+        .await
+        .context("Failed to list transactions")
 }
 
 pub async fn count_transactions(ctx: &AppContext, filter: TransactionFilter) -> Result<u64> {
-    let db = &ctx.db;
-    let mut query = crate::transactions::db::Entity::find();
-
-    if let Some(from) = filter.from {
-        query = query.filter(crate::transactions::db::Column::From.eq(from));
-    }
-    if let Some(to) = filter.to {
-        query = query.filter(crate::transactions::db::Column::To.eq(to));
-    }
-    if let Some(transaction_type) = filter.transaction_type {
-        query = query.filter(crate::transactions::db::Column::TransactionType.eq(transaction_type));
-    }
-    if let Some(status) = filter.status {
-        query = query.filter(crate::transactions::db::Column::Status.eq(status));
-    }
-
-    query
-        .count(db)
+    Transaction::count(&ctx.db, filter)
         .await
         .context("Failed to count transactions")
 }
 
 async fn total_transaction_volume(ctx: &AppContext) -> Result<i64> {
-    let db = &ctx.db;
-    let res: i64 = crate::transactions::db::Entity::find()
-        .select_only()
-        .column_as(crate::transactions::db::Column::Amount.sum(), "sum")
-        .into_tuple()
-        .one(db)
-        .await?
-        .map(|val: (Option<i64>,)| val.0)
-        .unwrap_or_default()
-        .unwrap_or_default();
-
-    Ok(res)
+    Transaction::total_volume(&ctx.db)
+        .await
+        .context("Failed to get total transaction volume")
 }
 
 async fn total_transaction_fees(ctx: &AppContext) -> Result<i64> {
-    let db = &ctx.db;
-    let res: i64 = crate::transactions::db::Entity::find()
-        .select_only()
-        .column_as(crate::transactions::db::Column::Fee.sum(), "sum")
-        .into_tuple()
-        .one(db)
-        .await?
-        .map(|val: (Option<i64>,)| val.0)
-        .unwrap_or_default()
-        .unwrap_or_default();
-
-    Ok(res)
+    Transaction::total_fees(&ctx.db)
+        .await
+        .context("Failed to get total transaction fees")
 }
 
 pub async fn get_transaction_by_checkout_request(
     ctx: &AppContext,
     checkout_request_id: String,
 ) -> Result<Option<Transaction>> {
-    let db = &ctx.db;
-    let transaction = crate::transactions::db::Entity::find()
-        .filter(crate::transactions::db::Column::Id.eq(checkout_request_id))
-        .one(db)
+    Transaction::get_by_checkout_request_id(&ctx.db, &checkout_request_id)
         .await
-        .context("Failed to get transaction by checkout request ID")?;
-
-    Ok(transaction.map(|t| t.into()))
+        .context("Failed to get transaction by checkout request ID")
 }
 
 pub async fn get_user_transactions(
     ctx: &AppContext,
     user_id: u32,
-    limit: Option<u32>,
-    offset: Option<u32>,
+    limit: Option<u64>,
+    offset: Option<u64>,
 ) -> Result<Vec<Transaction>> {
     let filter = TransactionFilter {
         from: Some(user_id),
@@ -227,7 +104,7 @@ pub async fn get_user_transactions(
 
 pub async fn get_recent_transactions(
     ctx: &AppContext,
-    limit: Option<u32>,
+    limit: Option<u64>,
 ) -> Result<Vec<Transaction>> {
     let filter = TransactionFilter {
         from: None,
@@ -256,7 +133,7 @@ pub async fn get_transaction_stats(ctx: &AppContext) -> Result<TransactionStats>
         .context("Failed to get total count")?;
 
     let successful_filter = TransactionFilter {
-        status: Some("SUCCESS".to_string()),
+        status: Some(super::TransactionStatus::Completed),
         ..filter.clone()
     };
 
@@ -265,7 +142,7 @@ pub async fn get_transaction_stats(ctx: &AppContext) -> Result<TransactionStats>
         .context("Failed to get successful count")?;
 
     let pending_filter = TransactionFilter {
-        status: Some("PENDING".to_string()),
+        status: Some(super::TransactionStatus::Pending),
         ..filter.clone()
     };
 
@@ -274,7 +151,7 @@ pub async fn get_transaction_stats(ctx: &AppContext) -> Result<TransactionStats>
         .context("Failed to get pending count")?;
 
     let failed_filter = TransactionFilter {
-        status: Some("FAILED".to_string()),
+        status: Some(super::TransactionStatus::Failed),
         ..filter
     };
 
@@ -356,17 +233,14 @@ pub struct LipaArgs {
 
 pub async fn c2b_lipa_logic(ctx: &AppContext, args: LipaArgs) -> Result<()> {
     let conn = &ctx.db;
-    // validate the different paths of payment.
     match args.payment_type {
         LipaPaymentType::Paybill => {
-            // must have business and account number
             if args.account_number.is_none() {
                 bail!("Account number is required for paybill payments.");
             }
         }
         LipaPaymentType::Till => {}
     }
-    // get user
     let user = User::get_user_by_phone(conn, &args.user_phone)
         .await
         .context(format!(
@@ -462,7 +336,6 @@ pub async fn c2b_lipa_logic(ctx: &AppContext, args: LipaArgs) -> Result<()> {
 
     let source = user_account.unwrap();
 
-    // pre calculate amount and balance
     let fee = get_fee(
         conn,
         match args.payment_type {
@@ -479,7 +352,6 @@ pub async fn c2b_lipa_logic(ctx: &AppContext, args: LipaArgs) -> Result<()> {
         bail!(TransactionEngineError::InsufficientFunds);
     }
 
-    // from here we can handle the payment from a background thread.
     tokio::spawn(process_lipa(
         conn.clone(),
         ProcessLipaArgs {
@@ -521,17 +393,20 @@ struct ProcessLipaArgs {
     business: Business,
 }
 
-async fn process_lipa<C: ConnectionTrait>(conn: C, args: ProcessLipaArgs, ctx: AppContext) {
+async fn process_lipa<C: sea_orm::ConnectionTrait>(
+    conn: C,
+    args: ProcessLipaArgs,
+    ctx: AppContext,
+) {
     let ids = Identifiers::new();
 
-    // Create the request lifecycle entry
     if let Err(e) = ctx
         .request_lifecycle_manager
         .create_system_request(
             &ids,
             "c2b_lipa",
             crate::request_lifecycle::RequestType::C2bLipa,
-            None, // project_id is not directly available here
+            None,
             Some(args.business_id),
             Some(args.user.account_id),
         )
@@ -561,16 +436,13 @@ async fn process_lipa<C: ConnectionTrait>(conn: C, args: ProcessLipaArgs, ctx: A
     let validation_url = args.validation_url.filter(|url| !url.is_empty());
 
     if let Some(validation_url) = validation_url {
-        // send the validation request
         let req: reqwest::RequestBuilder = reqwest::Client::new()
             .post(validation_url.to_string())
             .json(&ValidationRequest {
-                // TODO confirm that the actual mpesa prod environment sends an empty transaction type
                 transaction_type: match args.payment_type {
                     LipaPaymentType::Paybill => C2bTransactionType::PayBill,
                     LipaPaymentType::Till => C2bTransactionType::Till,
                 },
-                // TODO confirm that a transaction_id is different for validation and confirmation request.
                 transaction_id: ids.transaction_id.to_string(),
                 transaction_amount: format!("{:.2}", args.amount as f64 / 100.0),
                 first_name: first_name.to_string(),
@@ -581,85 +453,74 @@ async fn process_lipa<C: ConnectionTrait>(conn: C, args: ProcessLipaArgs, ctx: A
                 business_shortcode: args.business.short_code.clone(),
                 bill_ref_number: args.bill_ref_number.clone().unwrap_or_default(),
                 invoice_number: String::new(),
-                // TODO org balance does not seem to be in validation request in sandbox, but we will send it anyway
                 org_account_balance: format!("{:.2}", args.destination.balance as f64 / 100.0),
                 msisdn: msisdn.to_string(),
             });
 
-        // do the validation timeout of 8 seconds
         let res = tokio::time::timeout(Duration::from_secs(8), req.send()).await;
 
         match res {
             Err(_) => {
-                // The request timed out.
-                // do the default request
                 if let Some(ResponseType::Cancelled) = args.response_type {
                     return;
                 }
             }
-            Ok(res) => {
-                // Response from the external server
-                match res {
-                    Ok(res) => {
-                        let response_text = res.text().await.unwrap_or_default();
-                        match serde_json::from_str::<ValidationResponse>(&response_text) {
-                            Ok(response) => {
-                                third_party_transaction_id =
-                                    response.third_party_trans_id.unwrap_or_default();
-                            }
-                            Err(err) => {
-                                // TODO: Find a better method to show errors like this to the ui directly.
-                                if let Some(project) = projects::db::Entity::find()
-                                    .filter(projects::db::Column::BusinessId.eq(args.business_id))
-                                    .one(&conn)
-                                    .await
-                                    .unwrap_or_default()
-                                {
-                                    let _ = ApiLog::builder()
-                                        .project_id(project.id)
-                                        .method("POST".to_string())
-                                        .path(validation_url.clone())
-                                        .status_code(422)
-                                        .error_desc(format!(
-                                            "Failed to deserialize validation response: {}. Body: {}",
-                                            err,
-                                            response_text
-                                        ))
-                                        .duration(0) // We dont have this yet
-                                        .save(&conn, &ids)
-                                        .await;
-                                }
-
-                                // Cancel the transaction
-                                return;
-                            }
+            Ok(res) => match res {
+                Ok(res) => {
+                    let response_text = res.text().await.unwrap_or_default();
+                    match serde_json::from_str::<ValidationResponse>(&response_text) {
+                        Ok(response) => {
+                            third_party_transaction_id =
+                                response.third_party_trans_id.unwrap_or_default();
                         }
-                    }
-                    Err(err) => {
-                        eprintln!("Error validation URL ({}): {}", validation_url, err);
-                        // treat as the timeout error
-                        if let Some(ResponseType::Cancelled) = args.response_type {
+                        Err(err) => {
+                            if let Some(project) = projects::db::Entity::find()
+                                .filter(projects::db::Column::BusinessId.eq(args.business_id))
+                                .one(&conn)
+                                .await
+                                .unwrap_or_default()
+                            {
+                                let _ = ApiLog::builder()
+                                    .project_id(project.id)
+                                    .method("POST".to_string())
+                                    .path(validation_url.clone())
+                                    .status_code(422)
+                                    .error_desc(format!(
+                                        "Failed to deserialize validation response: {}. Body: {}",
+                                        err, response_text
+                                    ))
+                                    .duration(0)
+                                    .save(&conn, &ids)
+                                    .await;
+                            }
+
                             return;
                         }
                     }
                 }
-            }
+                Err(err) => {
+                    eprintln!("Error validation URL ({}): {}", validation_url, err);
+                    if let Some(ResponseType::Cancelled) = args.response_type {
+                        return;
+                    }
+                }
+            },
         }
     }
 
     let txn_res = match ctx
-        .transfer(
-            ids.clone(),
-            Duration::ZERO,
-            Some(args.source.id),
-            args.destination.account_id,
-            args.amount,
-            match args.payment_type {
+        .transfer(TransferConfig {
+            identifiers: ids.clone(),
+            delay: Duration::ZERO,
+            source: Some(args.source.id),
+            destination: args.destination.account_id,
+            amount: args.amount,
+            txn_type: match args.payment_type {
                 LipaPaymentType::Paybill => TransactionType::Paybill,
                 LipaPaymentType::Till => TransactionType::BuyGoods,
             },
-            Some(args.notes),
-        )
+            notes: Some(args.notes),
+        })
         .await
     {
         Ok(Ok((txn, events))) => {
@@ -677,7 +538,6 @@ async fn process_lipa<C: ConnectionTrait>(conn: C, args: ProcessLipaArgs, ctx: A
     };
     let confirmation_url = args.confirmation_url.filter(|url| !url.is_empty());
 
-    // send the confirmation request.
     if let Some(confirmation_url) = &confirmation_url {
         let destination = Account::get_account(&conn, args.destination.account_id)
             .await
@@ -708,12 +568,9 @@ async fn process_lipa<C: ConnectionTrait>(conn: C, args: ProcessLipaArgs, ctx: A
             });
 
         let _ = tokio::time::timeout(Duration::from_secs(8), req.send()).await;
-        // we will just stop here since the confirmation response doesnt matter at this point
     }
 }
 
-/// Mask the middle of a string (e.g., phone/MSISDN), keeping a prefix and suffix visible.
-/// If the string is too short to have a middle section, it’s returned unchanged.
 pub fn mask_middle(s: &str, keep_prefix: usize, keep_suffix: usize, mask_char: char) -> String {
     let len = s.chars().count();
     if len <= keep_prefix + keep_suffix {

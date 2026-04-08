@@ -1,4 +1,5 @@
 use sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use super::Transaction;
 
@@ -13,8 +14,8 @@ pub struct Model {
     pub amount: i64,
     pub fee: i64,
     pub currency: String,
-    pub transaction_type: String,
-    pub status: String,
+    pub transaction_type: TransactionType,
+    pub status: TransactionStatus,
     pub notes: Option<String>,
     pub reversal_of: Option<String>,
     pub created_at: DateTimeUtc,
@@ -62,18 +63,47 @@ impl From<Model> for Transaction {
             amount: value.amount,
             fee: value.fee,
             currency: value.currency,
-            status: value
-                .status
-                .parse()
-                .unwrap_or(super::TransactionStatus::Unknown(value.status.to_string())),
+            status: value.status,
             reversal_of: value.reversal_of,
-            transaction_type: value
-                .transaction_type
-                .parse()
-                .unwrap_or(super::TransactionType::Unknown(value.status.to_string())),
+            transaction_type: value.transaction_type,
             created_at: value.created_at,
             updated_at: value.updated_at,
             notes,
         }
     }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone, DeriveActiveEnum, EnumIter)]
+#[serde(rename_all = "snake_case")]
+#[sea_orm(
+    rs_type = "String",
+    db_type = "String(StringLen::None)",
+    rename_all = "snake_case"
+)]
+pub enum TransactionType {
+    Paybill,
+    BuyGoods,
+    SendMoney,
+    Airtime,
+    Reversal,
+    Withdraw,
+    Deposit,
+    ChargeSettlement,
+    RevenueSweep,
+    TopupUtility,
+    Disbursment,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone, DeriveActiveEnum, EnumIter)]
+#[serde(rename_all = "snake_case")]
+#[sea_orm(
+    rs_type = "String",
+    db_type = "String(StringLen::None)",
+    rename_all = "snake_case"
+)]
+pub enum TransactionStatus {
+    Pending,
+    Failed,
+    Completed,
+    Reversed,
 }

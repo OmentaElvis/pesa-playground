@@ -1,13 +1,14 @@
 use crate::{
     AppContext,
     accounts::user_profiles::User,
-    api_keys,
+    api_keys::ApiKey,
     projects::{self},
     request_lifecycle::paths,
     server::{
+        access_token::AccessToken,
         api::{
-            b2c::task::B2C, balance_query::task::BalanceQuery, c2b::register::registerurl,
-            stkpush::task::Stkpush,
+            auth::INVALID_ACCESS_TOKEN, b2c::task::B2C, balance_query::task::BalanceQuery,
+            c2b::register::registerurl, stkpush::task::Stkpush,
         },
         async_handler::handle_async_request,
     },
@@ -237,7 +238,10 @@ pub fn create_router(context: AppContext, project_id: u32, log: bool) -> Router 
             log::logging_middleware,
         ));
     }
-    router = router.layer(middleware::from_fn(inject_request_ids));
+    router = router.layer(middleware::from_fn_with_state(
+        state.clone(),
+        inject_request_ids,
+    ));
 
     router
 }
@@ -316,47 +320,58 @@ security risk if compromised.
 }
 
 pub async fn inject_request_ids(
+    State(state): State<ApiState>,
     mut req: axum::http::Request<axum::body::Body>,
     next: axum::middleware::Next,
 ) -> Response {
-    let state = req.extensions().get::<ApiState>().cloned();
     let identifiers = Identifiers::new();
     let body_bytes = to_bytes(std::mem::take(req.body_mut()), usize::MAX)
         .await
         .unwrap_or_default();
 
-    if let Some(state) = state {
-        let path = req.uri().path();
+    let path = req.uri().path();
 
-        if let Some(auth_header) = req
-            .headers()
-            .get("authorization")
-            .and_then(|h| h.to_str().ok())
-            .and_then(|h| h.strip_prefix("Bearer "))
-            && let Ok(Some(api_key)) =
-                api_keys::ApiKey::read_by_consumer_key(&state.context.db, auth_header).await
-        {
-            let body_str = String::from_utf8(body_bytes.to_vec()).ok();
-            let request_type = crate::request_lifecycle::RequestType::from_path(path);
+    if let Some(auth_header) = req
+        .headers()
+        .get("authorization")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|h| h.strip_prefix("Bearer "))
+        && let Ok(Some(access_token)) =
+            AccessToken::read_by_token(&state.context.db, auth_header).await
+    {
+        let project_id = access_token.project_id;
+        let Ok(Some(api_key)) = ApiKey::read_by_project_id(&state.context.db, project_id).await
+        else {
+            return ApiError::new(MpesaError::InvalidAccessToken, INVALID_ACCESS_TOKEN)
+                .into_response();
+        };
 
-            if request_type.is_trackable() {
-                if let Err(e) = state
-                    .context
-                    .request_lifecycle_manager
-                    .create_api_request(&identifiers, api_key.id, request_type, body_str)
-                    .await
-                {
-                    tracing::error!("Failed to create api request lifecycle: {}", e);
-                }
+        let body_str = String::from_utf8(body_bytes.to_vec()).ok();
+        let request_type = crate::request_lifecycle::RequestType::from_path(path);
 
-                if let Err(e) = state
-                    .context
-                    .request_lifecycle_manager
-                    .add_external_ids(&identifiers, None)
-                    .await
-                {
-                    tracing::error!("Failed to link external IDs: {}", e);
-                }
+        if request_type.is_trackable() {
+            if let Err(e) = state
+                .context
+                .request_lifecycle_manager
+                .create_api_request(
+                    &identifiers,
+                    api_key.id,
+                    Some(access_token.project_id),
+                    request_type,
+                    body_str,
+                )
+                .await
+            {
+                tracing::error!("Failed to create api request lifecycle: {}", e);
+            }
+
+            if let Err(e) = state
+                .context
+                .request_lifecycle_manager
+                .add_external_ids(&identifiers, None)
+                .await
+            {
+                tracing::error!("Failed to link external IDs: {}", e);
             }
         }
     }

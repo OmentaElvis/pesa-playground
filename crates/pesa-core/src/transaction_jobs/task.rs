@@ -1,6 +1,6 @@
 use super::{JobResultPayload, TransactionJob as TransactionJobModel};
 use crate::{
-    AppContext,
+    AppContext, TransactionChannel,
     app::TransactionManagerStats,
     events::DomainEvent,
     transaction_jobs::JobPayload,
@@ -19,7 +19,10 @@ use std::{
     sync::{Arc, RwLock},
     time::Duration,
 };
-use tokio::sync::{mpsc, oneshot};
+use tokio::{
+    sync::{mpsc, oneshot},
+    time::Instant,
+};
 use uuid::Uuid;
 
 // In-memory job struct for the min-heap
@@ -27,7 +30,7 @@ pub struct ScheduledTransactionTask {
     /// The delay at which the transaction is to be processed.
     /// Useful for simulating slow transaction speed.
     /// If set to 0, then the request will be processed immediately instead of scheduling
-    pub process_after: std::time::Instant,
+    pub process_after: Instant,
     pub job_id: Uuid,
     pub identifiers: Identifiers,
     /// The source wallet/account
@@ -151,7 +154,7 @@ impl<C: ConnectionTrait> TransactionManager<C> {
         loop {
             // Process any jobs that are currently due
             while let Some(Reverse(job)) = self.pending_jobs.peek() {
-                if job.process_after <= std::time::Instant::now() {
+                if job.process_after <= Instant::now() {
                     let Reverse(job) = self.pending_jobs.pop().unwrap(); // Pop it from the heap
                     process_single_transaction_job(&self.conn, job).await;
 
@@ -166,9 +169,7 @@ impl<C: ConnectionTrait> TransactionManager<C> {
 
             // Determine when the next job is due or if we should wait for a new job
             let sleep_duration = if let Some(Reverse(next_job)) = self.pending_jobs.peek() {
-                next_job
-                    .process_after
-                    .duration_since(std::time::Instant::now())
+                next_job.process_after.duration_since(Instant::now())
             } else {
                 // sleep for some time: 5 minutes
                 Duration::from_secs(5 * 60)
@@ -211,73 +212,65 @@ impl<C: ConnectionTrait> TransactionManager<C> {
     }
 }
 
-impl AppContext {
-    /// Submits a new transaction job for scheduled processing
-    pub async fn transfer(
-        &self,
-        identifiers: Identifiers,
-        delay: Duration,
-        source: Option<u32>,
-        destination: u32,
-        amount: i64,
-        txn_type: TransactionType,
-        notes: Option<TransactionNote>,
-    ) -> Result<Result<(Transaction, Vec<DomainEvent>), TransactionEngineError>> {
-        self.transfer_atomic(
-            &self.db,
-            identifiers,
-            delay,
-            source,
-            destination,
-            amount,
-            txn_type,
-            notes,
-        )
-        .await
-    }
+pub struct TransferConfig {
+    pub identifiers: Identifiers,
+    pub delay: Duration,
+    pub source: Option<u32>,
+    pub destination: u32,
+    pub amount: i64,
+    pub txn_type: TransactionType,
+    pub notes: Option<TransactionNote>,
+}
 
-    /// Atomic version of transfer that is supposed to be passed a db transaction instead of bare connection
-    pub async fn transfer_atomic<C: ConnectionTrait>(
+impl Default for TransferConfig {
+    fn default() -> Self {
+        Self {
+            identifiers: Identifiers::new(),
+            delay: Duration::from_secs(0),
+            source: None,
+            destination: 0,
+            amount: 0,
+            txn_type: TransactionType::Deposit,
+            notes: None,
+        }
+    }
+}
+
+impl TransactionChannel {
+    pub async fn transfer<C: ConnectionTrait>(
         &self,
         conn: &C,
-        identifiers: Identifiers,
-        delay: Duration,
-        source: Option<u32>,
-        destination: u32,
-        amount: i64,
-        txn_type: TransactionType,
-        notes: Option<TransactionNote>,
+        config: TransferConfig,
     ) -> Result<Result<(Transaction, Vec<DomainEvent>), TransactionEngineError>> {
-        let process_after_utc = Utc::now() + chrono::Duration::from_std(delay).unwrap();
+        let process_after_utc = Utc::now() + chrono::Duration::from_std(config.delay).unwrap();
 
         let payload = JobPayload {
-            source,
-            destination,
-            amount,
-            txn_type: txn_type.clone(),
-            notes: notes.clone(),
+            source: config.source,
+            destination: config.destination,
+            amount: config.amount,
+            txn_type: config.txn_type.clone(),
+            notes: config.notes.clone(),
         };
 
         let db_job: TransactionJobModel =
-            TransactionJobModel::create(conn, &identifiers, process_after_utc, payload)
+            TransactionJobModel::create(conn, &config.identifiers, process_after_utc, payload)
                 .await
-                .context("Failed to create initial transaction job DB record")?
-                .try_into()?;
+                .context("Failed to create initial transaction job DB record")?;
 
         // Create the oneshot channel for the reply
         let (reply_sender, reply_receiver) = oneshot::channel();
 
         // Create the in-memory job to send to the manager
         let job = ScheduledTransactionTask {
-            process_after: std::time::Instant::now() + delay,
+            process_after: Instant::now() + config.delay,
             job_id: db_job.id,
-            identifiers,
-            source,
-            destination,
-            amount,
-            txn_type,
-            notes,
-            delay,
+            identifiers: config.identifiers,
+            source: config.source,
+            destination: config.destination,
+            amount: config.amount,
+            txn_type: config.txn_type,
+            notes: config.notes,
+            delay: config.delay,
             reply_sender,
         };
 
@@ -291,5 +284,25 @@ impl AppContext {
         reply_receiver
             .await
             .context("Transaction manager dropped the reply channel.")
+    }
+}
+
+impl AppContext {
+    /// Submits a new transaction job for scheduled processing
+    pub async fn transfer(
+        &self,
+        config: TransferConfig,
+    ) -> Result<Result<(Transaction, Vec<DomainEvent>), TransactionEngineError>> {
+        let res = self.transfer_atomic(&self.db, config).await?;
+        Ok(res)
+    }
+
+    /// Atomic version of transfer that is supposed to be passed a db transaction instead of bare connection
+    pub async fn transfer_atomic<C: ConnectionTrait>(
+        &self,
+        conn: &C,
+        config: TransferConfig,
+    ) -> Result<Result<(Transaction, Vec<DomainEvent>), TransactionEngineError>> {
+        self.txn_manager.transfer(conn, config).await
     }
 }

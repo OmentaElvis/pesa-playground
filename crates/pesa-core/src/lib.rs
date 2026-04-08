@@ -25,6 +25,7 @@ pub mod self_test;
 pub mod server;
 pub mod settings;
 pub mod system;
+pub mod tests;
 pub mod transaction_costs;
 pub mod transaction_jobs;
 pub mod transactions;
@@ -38,6 +39,11 @@ pub trait AppEventManager {
 }
 
 #[derive(Clone)]
+pub struct TransactionChannel {
+    pub transaction_tx: tokio::sync::mpsc::Sender<transaction_jobs::task::ScheduledTransactionTask>,
+}
+
+#[derive(Clone)]
 pub struct AppContext {
     pub db: DatabaseConnection,
     pub settings: settings::SettingsManager,
@@ -45,6 +51,6 @@ pub struct AppContext {
     pub running: Arc<DashMap<u32, RunningSandbox>>,
     pub app_root: PathBuf,
     pub stats: Arc<RwLock<TransactionManagerStats>>,
-    pub transaction_tx: tokio::sync::mpsc::Sender<transaction_jobs::task::ScheduledTransactionTask>,
+    pub txn_manager: TransactionChannel,
     pub request_lifecycle_manager: Arc<request_lifecycle::RequestLifecycleManager>,
 }

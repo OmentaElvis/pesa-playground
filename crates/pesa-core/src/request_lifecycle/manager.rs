@@ -1,10 +1,9 @@
-use anyhow::Result;
-use chrono::Utc;
+use anyhow::{Context, Result};
 use sea_orm::{prelude::*, *};
 use sea_query::Expr;
 
-use super::db::*;
 use super::request_ids::db as request_ids_db;
+use super::{CreateRequest, Request, RequestFilter};
 use crate::utils::identifiers::Identifiers;
 
 #[derive(Debug, Clone)]
@@ -26,21 +25,20 @@ impl RequestLifecycleManager {
         &self,
         identifiers: &Identifiers,
         api_key_id: u32,
+        project_id: Option<u32>,
         request_type: super::RequestType,
         request_body: Option<String>,
-    ) -> Result<()> {
-        self.create_request(
-            identifiers,
-            RequestSource::Api { api_key_id },
+    ) -> Result<Request> {
+        let create = CreateRequest::new_api(
+            identifiers.request_id.clone(),
+            api_key_id,
+            project_id,
             request_type,
-            None,
-            None,
-            None,
             request_body,
-            None,
-            None,
-        )
-        .await
+        );
+        Request::create(&self.db, create)
+            .await
+            .context("Failed to create API request")
     }
 
     pub async fn create_system_request(
@@ -51,75 +49,24 @@ impl RequestLifecycleManager {
         project_id: Option<u32>,
         business_id: Option<u32>,
         user_id: Option<u32>,
-    ) -> Result<()> {
-        self.create_request(
-            identifiers,
-            RequestSource::System {
-                component: component.to_string(),
-            },
+    ) -> Result<Request> {
+        let create = CreateRequest::new_system(
+            identifiers.request_id.clone(),
+            component.to_string(),
             request_type,
             project_id,
             business_id,
             user_id,
-            None,
-            None,
-            None,
-        )
-        .await
-    }
-
-    async fn create_request(
-        &self,
-        identifiers: &Identifiers,
-        source: RequestSource,
-        request_type: super::RequestType,
-        project_id: Option<u32>,
-        business_id: Option<u32>,
-        user_id: Option<u32>,
-        request_body: Option<String>,
-        response_body: Option<String>,
-        error_message: Option<String>,
-    ) -> Result<()> {
-        let now = Utc::now();
-
-        let (source_type, source_api_key_id, source_component) = match source {
-            RequestSource::Api { api_key_id } => ("api".to_string(), Some(api_key_id), None),
-            RequestSource::System { component } => ("system".to_string(), None, Some(component)),
-        };
-
-        let active_model = ActiveModel {
-            id: Set(identifiers.request_id.clone()),
-            source_type: Set(source_type),
-            source_api_key_id: Set(source_api_key_id),
-            source_operator_id: Set(None),
-            source_component: Set(source_component),
-            request_type: Set(request_type.to_string()),
-            request_status: Set("pending".to_string()),
-            created_at: Set(now),
-            started_at: Set(None),
-            completed_at: Set(None),
-            project_id: Set(project_id),
-            business_id: Set(business_id),
-            user_id: Set(user_id),
-            request_body: Set(request_body),
-            response_body: Set(response_body),
-            error_message: Set(error_message),
-        };
-
-        let _result = Entity::insert(active_model).exec(&self.db).await?;
-
-        Ok(())
+        );
+        Request::create(&self.db, create)
+            .await
+            .context("Failed to create system request")
     }
 
     pub async fn start_request(&self, request_id: &str) -> Result<()> {
-        let now = Utc::now();
-
-        Entity::update_many()
-            .filter(Column::Id.eq(request_id))
-            .col_expr(Column::StartedAt, Expr::value(now))
-            .exec(&self.db)
-            .await?;
-
+        Request::start(&self.db, request_id)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
         Ok(())
     }
 
@@ -128,34 +75,10 @@ impl RequestLifecycleManager {
         request_id: &str,
         response_body: Option<String>,
         error_message: Option<String>,
-    ) -> Result<()> {
-        let now = Utc::now();
-        let status = if error_message.is_some() {
-            "failed"
-        } else {
-            "completed"
-        };
-
-        let mut active_model = Entity::find_by_id(request_id)
-            .one(&self.db)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("Request not found: {}", request_id))?
-            .into_active_model();
-
-        active_model.request_status = Set(status.to_string());
-        active_model.completed_at = Set(Some(now));
-
-        if let Some(body) = response_body {
-            active_model.response_body = Set(Some(body));
-        }
-
-        if let Some(error) = error_message {
-            active_model.error_message = Set(Some(error));
-        }
-
-        let _result = active_model.update(&self.db).await?;
-
-        Ok(())
+    ) -> Result<Request> {
+        Request::complete(&self.db, request_id, response_body, error_message)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))
     }
 
     pub async fn link_api_log(&self, request_id: &str, api_log_id: &str) -> Result<()> {
@@ -252,108 +175,54 @@ impl RequestLifecycleManager {
         Ok(())
     }
 
-    pub async fn get_request(&self, request_id: &str) -> Result<Option<Model>> {
-        let request = Entity::find_by_id(request_id).one(&self.db).await?;
-
-        Ok(request)
+    pub async fn get_request(&self, request_id: &str) -> Result<Option<Request>> {
+        Request::get_request(&self.db, request_id)
+            .await
+            .context(format!("Failed to get request: {}", request_id))
     }
 
     pub async fn find_by_external_id(
         &self,
         id_type: &str,
         external_id: &str,
-    ) -> Result<Option<Model>> {
-        let request = Entity::find()
-            .join(JoinType::InnerJoin, Relation::RequestIds.def())
-            .filter(request_ids_db::Column::IdType.eq(id_type))
-            .filter(request_ids_db::Column::ExternalId.eq(external_id))
-            .one(&self.db)
-            .await?;
-
-        Ok(request)
+    ) -> Result<Option<Request>> {
+        Request::find_by_external_id(&self.db, id_type, external_id)
+            .await
+            .context(format!(
+                "Failed to get request by external id: {} ({})",
+                external_id, id_type
+            ))
     }
 
     pub async fn get_project_requests(
         &self,
         project_id: u32,
-        filter: crate::request_lifecycle::RequestFilter,
-    ) -> Result<Vec<Model>> {
-        let mut query = Entity::find()
-            .filter(Column::ProjectId.eq(project_id))
-            .order_by_desc(Column::CreatedAt);
-
-        // Apply filters
-        if let Some(request_type) = filter.request_type {
-            query = query.filter(Column::RequestType.eq(request_type));
-        }
-
-        if let Some(status) = filter.status {
-            query = query.filter(Column::RequestStatus.eq(status));
-        }
-
-        if let Some(source_type) = filter.source_type {
-            query = query.filter(Column::SourceType.eq(source_type));
-        }
-
-        if let Some(date_from) = filter.date_from {
-            query = query.filter(Column::CreatedAt.gte(date_from));
-        }
-
-        if let Some(date_to) = filter.date_to {
-            query = query.filter(Column::CreatedAt.lte(date_to));
-        }
-
-        if let Some(limit) = filter.limit {
-            query = query.limit(Some(limit));
-        }
-
-        if let Some(offset) = filter.offset {
-            query = query.offset(Some(offset));
-        }
-
-        let requests = query.all(&self.db).await?;
-        Ok(requests)
+        filter: RequestFilter,
+    ) -> Result<Vec<Request>> {
+        Request::get_project_requests(&self.db, project_id, filter)
+            .await
+            .context("Failed to get project requests")
     }
 
     pub async fn get_business_requests(
         &self,
         business_id: u32,
-        filter: crate::request_lifecycle::RequestFilter,
-    ) -> Result<Vec<Model>> {
-        let mut query = Entity::find()
-            .filter(Column::BusinessId.eq(business_id))
-            .order_by_desc(Column::CreatedAt);
+        filter: RequestFilter,
+    ) -> Result<Vec<Request>> {
+        Request::get_business_requests(&self.db, business_id, filter)
+            .await
+            .context("Failed to get business requests")
+    }
 
-        // Apply filters
-        if let Some(request_type) = filter.request_type {
-            query = query.filter(Column::RequestType.eq(request_type));
-        }
+    pub async fn list_requests(&self, filter: RequestFilter) -> Result<Vec<Request>> {
+        Request::list_requests(&self.db, filter)
+            .await
+            .context("Failed to list requests")
+    }
 
-        if let Some(status) = filter.status {
-            query = query.filter(Column::RequestStatus.eq(status));
-        }
-
-        if let Some(source_type) = filter.source_type {
-            query = query.filter(Column::SourceType.eq(source_type));
-        }
-
-        if let Some(date_from) = filter.date_from {
-            query = query.filter(Column::CreatedAt.gte(date_from));
-        }
-
-        if let Some(date_to) = filter.date_to {
-            query = query.filter(Column::CreatedAt.lte(date_to));
-        }
-
-        if let Some(limit) = filter.limit {
-            query = query.limit(Some(limit));
-        }
-
-        if let Some(offset) = filter.offset {
-            query = query.offset(Some(offset));
-        }
-
-        let requests = query.all(&self.db).await?;
-        Ok(requests)
+    pub async fn count_requests(&self, filter: RequestFilter) -> Result<u64> {
+        Request::count_requests(&self.db, filter)
+            .await
+            .context("Failed to count requests")
     }
 }

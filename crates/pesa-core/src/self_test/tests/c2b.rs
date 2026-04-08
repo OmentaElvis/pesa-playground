@@ -609,13 +609,13 @@ async fn happy_path_paybill_payment(
                 transaction_id: "".to_string(),        // Placeholder
                 transaction_date: Utc::now().to_utc(), // Placeholder
                 transaction_amount: request_amount,
-                transaction_type: crate::transactions::TransactionType::Paybill.to_string(),
+                transaction_type: crate::transactions::TransactionType::Paybill,
                 from_name: user.name.clone(),
                 to_name: business.name.clone(),
                 from_id: Some(user.account_id),
                 to_id: business.utility_account.account_id,
                 new_balance: expected_user_balance_after,
-                status: TransactionStatus::Completed.to_string(),
+                status: TransactionStatus::Completed,
                 fee,
                 direction: crate::transactions_log::db::Direction::Outflow,
                 notes: Some(crate::transactions::TransactionNote::PaybillPayment {
@@ -732,13 +732,13 @@ async fn happy_path_till_payment(
                 transaction_id: "".to_string(),        // Placeholder
                 transaction_date: Utc::now().to_utc(), // Placeholder
                 transaction_amount: request_amount,
-                transaction_type: crate::transactions::TransactionType::BuyGoods.to_string(),
+                transaction_type: crate::transactions::TransactionType::BuyGoods,
                 from_name: user.name.clone(),
                 to_name: business.name.clone(),
                 from_id: Some(user.account_id),
                 to_id: business.utility_account.account_id,
                 new_balance: expected_user_balance_after,
-                status: TransactionStatus::Completed.to_string(),
+                status: TransactionStatus::Completed,
                 fee,
                 direction: crate::transactions_log::db::Direction::Outflow,
                 notes: Some(crate::transactions::TransactionNote::TillPayment {
@@ -1041,13 +1041,13 @@ async fn validation_url_reject_test(
                 transaction_id: "".to_string(),        // Placeholder
                 transaction_date: Utc::now().to_utc(), // Placeholder
                 transaction_amount: request_amount,
-                transaction_type: crate::transactions::TransactionType::Paybill.to_string(),
+                transaction_type: crate::transactions::TransactionType::Paybill,
                 from_name: user.name.clone(),
                 to_name: business.name.clone(),
                 from_id: Some(user.account_id),
                 to_id: business.utility_account.account_id,
                 new_balance: expected_user_balance_after, // Balance should be unchanged
-                status: TransactionStatus::Failed.to_string(),
+                status: TransactionStatus::Failed,
                 fee,
                 direction: crate::transactions_log::db::Direction::Outflow,
                 notes: Some(crate::transactions::TransactionNote::PaybillPayment {

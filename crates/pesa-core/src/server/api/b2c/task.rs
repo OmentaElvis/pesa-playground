@@ -4,7 +4,6 @@ use anyhow::Context;
 use base64::{Engine, engine::general_purpose};
 use chrono::Local;
 use rsa::{Pkcs1v15Encrypt, RsaPrivateKey, pkcs8::DecodePrivateKey};
-use sea_orm::TransactionTrait;
 
 use crate::{
     accounts::{mmf_accounts::MmfAccount, user_profiles::User, utility_accounts::UtilityAccount},
@@ -23,6 +22,7 @@ use crate::{
         },
         async_handler::PpgAsyncRequest,
     },
+    transaction_jobs::task::TransferConfig,
     transactions::{TransactionNote, TransactionType},
     utils::identifiers::Identifiers,
 };
@@ -225,13 +225,7 @@ impl PpgAsyncRequest for B2C {
         &mut self,
         state: &crate::server::ApiState,
     ) -> Result<Self::CallbackPayload, Self::Error> {
-        let txn = state
-            .context
-            .db
-            .begin()
-            .await
-            .context("Failed to start transaction")?;
-
+        let db = &state.context.db;
         // check if we have enough funds
         if (self.utility_account.balance - self.amount) < 0 {
             return Ok(self.create_response(
@@ -242,31 +236,29 @@ impl PpgAsyncRequest for B2C {
 
         let (transaction, events) = state
             .context
-            .transfer_atomic(
-                &txn,
-                self.ids.clone(),
-                Duration::ZERO,
-                Some(self.utility_account.account_id),
-                self.user.account_id,
-                self.amount,
-                TransactionType::Disbursment,
-                Some(TransactionNote::Disbursment {
+            .transfer(TransferConfig {
+                identifiers: self.ids.clone(),
+                delay: Duration::ZERO,
+                source: Some(self.utility_account.account_id),
+                destination: self.user.account_id,
+                amount: self.amount,
+                txn_type: TransactionType::Disbursment,
+                notes: Some(TransactionNote::Disbursment {
                     kind: self.command_id.clone(),
                 }),
-            )
+            })
             .await
             .context("Failed to initiate transaction")?
             .context("Failed to transfer funds")?;
 
         assert_eq!(transaction.id, self.ids.transaction_id);
 
-        self.business =
-            Business::increment_charges_amount(&txn, self.business.id, -transaction.fee)
-                .await
-                .context("Failed to increment business charges")?;
+        self.business = Business::increment_charges_amount(db, self.business.id, -transaction.fee)
+            .await
+            .context("Failed to increment business charges")?;
 
         if let Some(utility_account) =
-            UtilityAccount::find_by_id(&txn, self.utility_account.account_id)
+            UtilityAccount::find_by_id(db, self.utility_account.account_id)
                 .await
                 .context("Failed to fetch business utility account")?
         {
@@ -275,10 +267,6 @@ impl PpgAsyncRequest for B2C {
 
         DomainEventDispatcher::dispatch_events(&state.context, events)
             .context("Failed to emit events ")?;
-
-        txn.commit()
-            .await
-            .context("Failed to commit transaction.")?;
 
         Ok(self.create_response(B2CResultCodes::Success, &self.ids.transaction_id))
     }

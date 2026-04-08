@@ -274,3 +274,186 @@ impl User {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::accounts::Account;
+    use crate::tests::TestDb;
+
+    fn create_test_user_input() -> User {
+        let mut user = User::generate();
+        user.phone = "254712345678".to_string();
+        user.name = "Test User".to_string();
+        user.balance = 5000;
+        user
+    }
+
+    #[tokio::test]
+    async fn test_create_user_success() {
+        let db = TestDb::in_memory().await.unwrap();
+        let input = create_test_user_input();
+
+        let result = input.clone().create(&db.conn).await;
+
+        assert!(result.is_ok());
+        let user = result.unwrap();
+        assert_eq!(user.name, "Test User");
+        assert_eq!(user.phone, "254712345678");
+        assert_eq!(user.balance, 5000);
+        assert!(user.account_id > 0);
+
+        // Verify side effect: Base account created with correct balance
+        let account = Account::get_account(&db.conn, user.account_id)
+            .await
+            .unwrap();
+        assert!(account.is_some());
+        assert_eq!(account.unwrap().balance, 5000);
+    }
+
+    #[tokio::test]
+    async fn test_get_user_by_phone() {
+        let db = TestDb::in_memory().await.unwrap();
+        let input = create_test_user_input();
+        input.create(&db.conn).await.unwrap();
+
+        let result = User::get_user_by_phone(&db.conn, "254712345678")
+            .await
+            .unwrap();
+
+        assert!(result.is_some());
+        let user = result.unwrap();
+        assert_eq!(user.name, "Test User");
+    }
+
+    #[tokio::test]
+    async fn test_update_user_profile() {
+        let db = TestDb::in_memory().await.unwrap();
+        let created = create_test_user_input().create(&db.conn).await.unwrap();
+
+        User::update_by_id(
+            &db.conn,
+            created.account_id,
+            Some("Updated Name".to_string()),
+            Some("9999".to_string()),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let updated = User::find_by_id(&db.conn, created.account_id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(updated.name, "Updated Name");
+        assert_eq!(updated.pin, "9999");
+    }
+
+    #[tokio::test]
+    async fn test_disable_user() {
+        let db = TestDb::in_memory().await.unwrap();
+        let created = create_test_user_input().create(&db.conn).await.unwrap();
+
+        User::disable_user(&db.conn, created.account_id)
+            .await
+            .unwrap();
+
+        let updated = User::find_by_id(&db.conn, created.account_id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(updated.disabled);
+    }
+
+    #[tokio::test]
+    async fn test_delete_user() {
+        let db = TestDb::in_memory().await.unwrap();
+        let created = create_test_user_input().create(&db.conn).await.unwrap();
+
+        User::delete_user(&db.conn, created.account_id)
+            .await
+            .unwrap();
+
+        let result = User::find_by_id(&db.conn, created.account_id)
+            .await
+            .unwrap();
+        assert!(result.is_none());
+
+        // Verify base account is also deleted
+        let account = Account::get_account(&db.conn, created.account_id)
+            .await
+            .unwrap();
+        assert!(account.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_all_users() {
+        let db = TestDb::in_memory().await.unwrap();
+        User::create_from(
+            &db.conn,
+            "254711111111".to_string(),
+            "User 1".to_string(),
+            "1111".to_string(),
+            100,
+        )
+        .await
+        .unwrap();
+        User::create_from(
+            &db.conn,
+            "254722222222".to_string(),
+            "User 2".to_string(),
+            "2222".to_string(),
+            200,
+        )
+        .await
+        .unwrap();
+
+        let users = User::get_users(&db.conn).await.unwrap();
+        assert_eq!(users.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_user_phone_collision() {
+        let db = TestDb::in_memory().await.unwrap();
+        let phone = "254700000000".to_string();
+
+        User::create_from(
+            &db.conn,
+            phone.clone(),
+            "User 1".to_string(),
+            "1111".to_string(),
+            100,
+        )
+        .await
+        .unwrap();
+
+        // This should fail
+        let result = User::create_from(
+            &db.conn,
+            phone,
+            "User 2".to_string(),
+            "2222".to_string(),
+            200,
+        )
+        .await;
+        assert!(result.is_err(), "Should not allow duplicate phone numbers");
+    }
+
+    #[tokio::test]
+    async fn test_update_nonexistent_user() {
+        let db = TestDb::in_memory().await.unwrap();
+        let result =
+            User::update_by_id(&db.conn, 999, Some("New Name".to_string()), None, None).await;
+        assert!(
+            result.is_ok(),
+            "Update on non-existent user should be no-op and return Ok"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_disable_nonexistent_user_fails() {
+        let db = TestDb::in_memory().await.unwrap();
+        let result = User::disable_user(&db.conn, 999).await;
+        assert!(result.is_err(), "Disabling non-existent user should fail");
+    }
+}

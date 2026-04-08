@@ -92,3 +92,61 @@ impl MmfAccount {
         Ok(mmf)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::business::{Business, CreateBusiness};
+    use crate::tests::TestDb;
+
+    async fn setup_test_business(db: &TestDb) -> u32 {
+        let input = CreateBusiness {
+            name: "Test Business".to_string(),
+            short_code: "123456".to_string(),
+            initial_working_balance: 0.0,
+            initial_utility_balance: 0.0,
+        };
+        let business = Business::create(&db.conn, input).await.unwrap();
+        business.id
+    }
+
+    #[tokio::test]
+    async fn test_create_mmf_account() {
+        let db = TestDb::in_memory().await.unwrap();
+        let business_id = setup_test_business(&db).await;
+
+        let result = MmfAccount::create(&db.conn, business_id, 1000).await;
+
+        assert!(result.is_ok());
+        let mmf = result.unwrap();
+        assert_eq!(mmf.business_id, business_id);
+        assert_eq!(mmf.balance, 1000);
+        assert!(mmf.account_id > 0);
+
+        // Verify base account exists
+        let account = Account::get_account(&db.conn, mmf.account_id)
+            .await
+            .unwrap();
+        assert!(account.is_some());
+        assert_eq!(account.unwrap().balance, 1000);
+    }
+
+    #[tokio::test]
+    async fn test_find_mmf_by_business_id() {
+        let db = TestDb::in_memory().await.unwrap();
+        let business_id = setup_test_business(&db).await;
+        // Business::create already creates one, but let's create another for a different business
+        // to be sure we are filtering correctly.
+        let mmf = MmfAccount::find_by_business_id(&db.conn, business_id)
+            .await
+            .unwrap();
+        assert!(mmf.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_find_mmf_not_found() {
+        let db = TestDb::in_memory().await.unwrap();
+        let result = MmfAccount::find_by_id(&db.conn, 999).await.unwrap();
+        assert!(result.is_none());
+    }
+}

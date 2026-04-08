@@ -203,3 +203,147 @@ pub struct UpdateTillAccount {
     pub validation_url: Option<String>,
     pub confirmation_url: Option<String>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::business::{Business, CreateBusiness};
+    use crate::tests::TestDb;
+
+    async fn setup_test_business(db: &TestDb) -> u32 {
+        let input = CreateBusiness {
+            name: "Test Business".to_string(),
+            short_code: "123456".to_string(),
+            initial_working_balance: 0.0,
+            initial_utility_balance: 0.0,
+        };
+        let business = Business::create(&db.conn, input).await.unwrap();
+        business.id
+    }
+
+    #[tokio::test]
+    async fn test_create_till_success() {
+        let db = TestDb::in_memory().await.unwrap();
+        let business_id = setup_test_business(&db).await;
+
+        let input = CreateTillAccount {
+            business_id,
+            till_number: 123456,
+            response_type: Some(ResponseType::Completed),
+            validation_url: Some("http://example.com/val".to_string()),
+            confirmation_url: Some("http://example.com/conf".to_string()),
+            location_description: Some("Test Location".to_string()),
+        };
+
+        let result = TillAccount::create(&db.conn, input).await;
+
+        assert!(result.is_ok());
+        let till = result.unwrap();
+        assert_eq!(till.till_number, 123456);
+        assert_eq!(till.business_id, business_id);
+    }
+
+    #[tokio::test]
+    async fn test_get_till_by_id() {
+        let db = TestDb::in_memory().await.unwrap();
+        let business_id = setup_test_business(&db).await;
+        let created = TillAccount::create(
+            &db.conn,
+            CreateTillAccount {
+                business_id,
+                till_number: 111222,
+                response_type: None,
+                validation_url: None,
+                confirmation_url: None,
+                location_description: None,
+            },
+        )
+        .await
+        .unwrap();
+
+        let result = TillAccount::get_by_id(&db.conn, created.id).await.unwrap();
+        assert_eq!(result.till_number, 111222);
+    }
+
+    #[tokio::test]
+    async fn test_update_till() {
+        let db = TestDb::in_memory().await.unwrap();
+        let business_id = setup_test_business(&db).await;
+        let created = TillAccount::create(
+            &db.conn,
+            CreateTillAccount {
+                business_id,
+                till_number: 111222,
+                response_type: None,
+                validation_url: None,
+                confirmation_url: None,
+                location_description: None,
+            },
+        )
+        .await
+        .unwrap();
+
+        let update = UpdateTillAccount {
+            till_number: Some(333444),
+            location_description: Some("New Location".to_string()),
+            ..Default::default()
+        };
+
+        let result = TillAccount::update(&db.conn, created.id, update)
+            .await
+            .unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().till_number, 333444);
+    }
+
+    #[tokio::test]
+    async fn test_delete_till() {
+        let db = TestDb::in_memory().await.unwrap();
+        let business_id = setup_test_business(&db).await;
+        let created = TillAccount::create(
+            &db.conn,
+            CreateTillAccount {
+                business_id,
+                till_number: 111222,
+                response_type: None,
+                validation_url: None,
+                confirmation_url: None,
+                location_description: None,
+            },
+        )
+        .await
+        .unwrap();
+
+        let result = TillAccount::delete(&db.conn, created.id).await.unwrap();
+        assert!(result);
+
+        let verify = TillAccount::get_by_till_number(&db.conn, 111222)
+            .await
+            .unwrap();
+        assert!(verify.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_by_business_id() {
+        let db = TestDb::in_memory().await.unwrap();
+        let business_id = setup_test_business(&db).await;
+        TillAccount::create(
+            &db.conn,
+            CreateTillAccount {
+                business_id,
+                till_number: 1,
+                response_type: None,
+                validation_url: None,
+                confirmation_url: None,
+                location_description: None,
+            },
+        )
+        .await
+        .unwrap();
+
+        let results = TillAccount::get_by_business_id(&db.conn, business_id)
+            .await
+            .unwrap();
+        assert_eq!(results.len(), 1);
+    }
+}

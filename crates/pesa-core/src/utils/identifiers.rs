@@ -16,14 +16,20 @@ pub struct Identifiers {
     pub request_id: String,
 }
 
-impl Identifiers {
-    pub fn new() -> Self {
+impl Default for Identifiers {
+    fn default() -> Self {
         Self {
             request_id: Self::generate_request_id(),
             transaction_id: Self::generate_transaction_id(),
             conversation_id: Self::generate_conversation_id(),
             originator_conversation_id: Self::generate_originator_conversation_id(),
         }
+    }
+}
+
+impl Identifiers {
+    pub fn new() -> Self {
+        Self::default()
     }
     pub fn generate_originator_conversation_id() -> String {
         let mut rng = rand::thread_rng();

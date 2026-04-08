@@ -1,5 +1,7 @@
 use sea_orm::entity::prelude::*;
 
+use crate::transactions::TransactionStatus;
+
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
 #[sea_orm(table_name = "transaction_jobs")]
 pub struct Model {
@@ -13,7 +15,7 @@ pub struct Model {
     pub conversation_id: String,
     #[sea_orm(indexed)]
     pub transaction_id: String,
-    pub status: String,
+    pub status: TransactionStatus,
     pub process_after: DateTimeUtc,
     pub payload: Json,
     pub result_payload: Option<Json>,

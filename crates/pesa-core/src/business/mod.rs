@@ -329,3 +329,327 @@ pub struct BusinessSummary {
     pub utility_account: UtilityAccount,
     pub charges_amount: i64,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::TestDb;
+
+    fn create_test_business_input() -> CreateBusiness {
+        CreateBusiness {
+            name: "Test Business".to_string(),
+            short_code: "123456".to_string(),
+            initial_working_balance: 10000.0,
+            initial_utility_balance: 5000.0,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_create_business_success() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let input = create_test_business_input();
+        let result = Business::create(&db.conn, input).await;
+
+        assert!(result.is_ok());
+        let business = result.unwrap();
+        assert_eq!(business.name, "Test Business");
+        assert_eq!(business.short_code, "123456");
+        assert_eq!(business.charges_amount, 0);
+        assert!(business.id > 0);
+
+        // Verify side effects were persisted
+        let mmf =
+            crate::accounts::mmf_accounts::MmfAccount::find_by_business_id(&db.conn, business.id)
+                .await
+                .unwrap();
+        assert!(mmf.is_some(), "MMF account should be created");
+
+        let utility = crate::accounts::utility_accounts::UtilityAccount::find_by_business_id(
+            &db.conn,
+            business.id,
+        )
+        .await
+        .unwrap();
+        assert!(utility.is_some(), "Utility account should be created");
+
+        let paybill = crate::accounts::paybill_accounts::PaybillAccount::get_by_business_id(
+            &db.conn,
+            business.id,
+        )
+        .await
+        .unwrap();
+        assert!(!paybill.is_empty(), "Paybill account should be created");
+
+        let operator = crate::business_operators::BusinessOperator::find_by_business(
+            &db.conn,
+            "admin".to_string(),
+            business.id,
+        )
+        .await
+        .unwrap();
+        assert!(operator.is_some(), "Business operator should be created");
+        assert_eq!(operator.unwrap().username, "admin");
+    }
+
+    #[tokio::test]
+    async fn test_create_business_duplicate_shortcode_fails() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let input = create_test_business_input();
+        Business::create(&db.conn, input.clone()).await.unwrap();
+
+        let result = Business::create(&db.conn, input).await;
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("already used"));
+    }
+
+    #[tokio::test]
+    async fn test_get_all_businesses() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        Business::create(&db.conn, create_test_business_input())
+            .await
+            .unwrap();
+
+        let result = Business::get_all(&db.conn).await;
+
+        assert!(result.is_ok());
+        let businesses = result.unwrap();
+        assert_eq!(businesses.len(), 1);
+        assert_eq!(businesses[0].name, "Test Business");
+    }
+
+    #[tokio::test]
+    async fn test_get_business_by_id() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let created = Business::create(&db.conn, create_test_business_input())
+            .await
+            .unwrap();
+
+        let result = Business::get_by_id(&db.conn, created.id).await;
+
+        assert!(result.is_ok());
+        let business = result.unwrap();
+        assert!(business.is_some());
+        assert_eq!(business.unwrap().name, "Test Business");
+    }
+
+    #[tokio::test]
+    async fn test_get_business_by_id_not_found() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let result = Business::get_by_id(&db.conn, 9999).await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_business_by_short_code() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        Business::create(&db.conn, create_test_business_input())
+            .await
+            .unwrap();
+
+        let result = Business::get_by_short_code(&db.conn, "123456").await;
+
+        assert!(result.is_ok());
+        let business = result.unwrap();
+        assert!(business.is_some());
+        assert_eq!(business.unwrap().name, "Test Business");
+    }
+
+    #[tokio::test]
+    async fn test_get_business_by_short_code_not_found() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let result = Business::get_by_short_code(&db.conn, "999999").await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_update_business_name() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let created = Business::create(&db.conn, create_test_business_input())
+            .await
+            .unwrap();
+
+        let update_input = UpdateBusiness {
+            name: Some("Updated Business".to_string()),
+            short_code: None,
+        };
+
+        let result = Business::update(&db.conn, created.id, update_input).await;
+
+        assert!(result.is_ok());
+        let updated = result.unwrap();
+        assert!(updated.is_some());
+        assert_eq!(updated.unwrap().name, "Updated Business");
+    }
+
+    #[tokio::test]
+    async fn test_update_business_short_code() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let created = Business::create(&db.conn, create_test_business_input())
+            .await
+            .unwrap();
+
+        let update_input = UpdateBusiness {
+            name: None,
+            short_code: Some("654321".to_string()),
+        };
+
+        let result = Business::update(&db.conn, created.id, update_input).await;
+
+        assert!(result.is_ok());
+        let updated = result.unwrap();
+        assert!(updated.is_some());
+        assert_eq!(updated.unwrap().short_code, "654321");
+    }
+
+    #[tokio::test]
+    async fn test_update_business_not_found() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let update_input = UpdateBusiness {
+            name: Some("Test".to_string()),
+            short_code: None,
+        };
+
+        let result = Business::update(&db.conn, 9999, update_input).await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_business() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let created = Business::create(&db.conn, create_test_business_input())
+            .await
+            .unwrap();
+
+        let result = Business::delete(&db.conn, created.id).await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+
+        // Verify it's deleted
+        let verify = Business::get_by_id(&db.conn, created.id).await.unwrap();
+        assert!(verify.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_delete_business_not_found() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let result = Business::delete(&db.conn, 9999).await;
+
+        assert!(result.is_ok());
+        assert!(!result.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_get_business_summary() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let created = Business::create(&db.conn, create_test_business_input())
+            .await
+            .unwrap();
+
+        let result = Business::get_summary(&db.conn, created.id).await;
+
+        assert!(result.is_ok());
+        let summary = result.unwrap();
+        assert_eq!(summary.name, "Test Business");
+        assert_eq!(summary.charges_amount, 0);
+        assert!(summary.mmf_account.account_id > 0);
+        assert!(summary.utility_account.account_id > 0);
+    }
+
+    #[tokio::test]
+    async fn test_get_business_summary_not_found() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let result = Business::get_summary(&db.conn, 9999).await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_increment_charges_amount() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let created = Business::create(&db.conn, create_test_business_input())
+            .await
+            .unwrap();
+
+        let result = Business::increment_charges_amount(&db.conn, created.id, 500).await;
+
+        assert!(result.is_ok());
+        let updated = result.unwrap();
+        assert_eq!(updated.charges_amount, 500);
+    }
+
+    #[tokio::test]
+    async fn test_increment_charges_amount_multiple_times() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let created = Business::create(&db.conn, create_test_business_input())
+            .await
+            .unwrap();
+
+        Business::increment_charges_amount(&db.conn, created.id, 100)
+            .await
+            .unwrap();
+        Business::increment_charges_amount(&db.conn, created.id, 200)
+            .await
+            .unwrap();
+        Business::increment_charges_amount(&db.conn, created.id, 300)
+            .await
+            .unwrap();
+
+        let result = Business::get_by_id(&db.conn, created.id).await.unwrap();
+        assert_eq!(result.unwrap().charges_amount, 600);
+    }
+
+    #[tokio::test]
+    async fn test_increment_charges_amount_not_found() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let result = Business::increment_charges_amount(&db.conn, 9999, 100).await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_create_business_with_zero_balances() {
+        let db = TestDb::in_memory().await.unwrap();
+
+        let input = CreateBusiness {
+            name: "Zero Balance Business".to_string(),
+            short_code: "000000".to_string(),
+            initial_working_balance: 0.0,
+            initial_utility_balance: 0.0,
+        };
+
+        let result = Business::create(&db.conn, input).await;
+
+        assert!(result.is_ok());
+
+        let summary = Business::get_summary(&db.conn, result.unwrap().id)
+            .await
+            .unwrap();
+        assert_eq!(summary.mmf_account.balance, 0);
+        assert_eq!(summary.utility_account.balance, 0);
+    }
+}

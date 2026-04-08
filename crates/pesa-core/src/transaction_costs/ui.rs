@@ -10,7 +10,7 @@ use crate::{AppContext, transactions::TransactionType};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TransactionCostData {
-    pub transaction_type: String,
+    pub transaction_type: TransactionType,
     pub min_amount: i64,
     pub max_amount: i64,
     pub fee_fixed: Option<i64>,

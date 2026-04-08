@@ -214,3 +214,157 @@ pub struct UpdatePaybillAccount {
     pub confirmation_url: Option<String>,
     pub response_type: Option<ResponseType>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::business::{Business, CreateBusiness};
+    use crate::tests::TestDb;
+
+    async fn setup_test_business(db: &TestDb) -> u32 {
+        let input = CreateBusiness {
+            name: "Test Business".to_string(),
+            short_code: "123456".to_string(),
+            initial_working_balance: 0.0,
+            initial_utility_balance: 0.0,
+        };
+        let business = Business::create(&db.conn, input).await.unwrap();
+        business.id
+    }
+
+    #[tokio::test]
+    async fn test_create_paybill_success() {
+        let db = TestDb::in_memory().await.unwrap();
+        let business_id = setup_test_business(&db).await;
+
+        let input = CreatePaybillAccount {
+            business_id,
+            paybill_number: 123456,
+            response_type: Some(ResponseType::Completed),
+            validation_url: Some("http://example.com/val".to_string()),
+            confirmation_url: Some("http://example.com/conf".to_string()),
+        };
+
+        let result = PaybillAccount::create(&db.conn, input).await;
+
+        assert!(result.is_ok());
+        let paybill = result.unwrap();
+        assert_eq!(paybill.paybill_number, 123456);
+        assert_eq!(paybill.business_id, business_id);
+    }
+
+    #[tokio::test]
+    async fn test_get_paybill_by_id() {
+        let db = TestDb::in_memory().await.unwrap();
+        let business_id = setup_test_business(&db).await;
+        let created = PaybillAccount::create(
+            &db.conn,
+            CreatePaybillAccount {
+                business_id,
+                paybill_number: 111222,
+                response_type: None,
+                validation_url: None,
+                confirmation_url: None,
+            },
+        )
+        .await
+        .unwrap();
+
+        let result = PaybillAccount::get_by_id(&db.conn, created.id)
+            .await
+            .unwrap();
+        assert_eq!(result.paybill_number, 111222);
+    }
+
+    #[tokio::test]
+    async fn test_update_paybill() {
+        let db = TestDb::in_memory().await.unwrap();
+        let business_id = setup_test_business(&db).await;
+        let created = PaybillAccount::create(
+            &db.conn,
+            CreatePaybillAccount {
+                business_id,
+                paybill_number: 111222,
+                response_type: None,
+                validation_url: None,
+                confirmation_url: None,
+            },
+        )
+        .await
+        .unwrap();
+
+        let update = UpdatePaybillAccount {
+            paybill_number: Some(333444),
+            response_type: Some(ResponseType::Cancelled),
+            ..Default::default()
+        };
+
+        let result = PaybillAccount::update(&db.conn, created.id, update)
+            .await
+            .unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().paybill_number, 333444);
+    }
+
+    #[tokio::test]
+    async fn test_delete_paybill() {
+        let db = TestDb::in_memory().await.unwrap();
+        let business_id = setup_test_business(&db).await;
+        let created = PaybillAccount::create(
+            &db.conn,
+            CreatePaybillAccount {
+                business_id,
+                paybill_number: 111222,
+                response_type: None,
+                validation_url: None,
+                confirmation_url: None,
+            },
+        )
+        .await
+        .unwrap();
+
+        let result = PaybillAccount::delete(&db.conn, created.id).await.unwrap();
+        assert!(result);
+
+        let verify = PaybillAccount::get_by_paybill_number(&db.conn, 111222)
+            .await
+            .unwrap();
+        assert!(verify.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_by_business_id() {
+        let db = TestDb::in_memory().await.unwrap();
+        let business_id = setup_test_business(&db).await;
+        PaybillAccount::create(
+            &db.conn,
+            CreatePaybillAccount {
+                business_id,
+                paybill_number: 1,
+                response_type: None,
+                validation_url: None,
+                confirmation_url: None,
+            },
+        )
+        .await
+        .unwrap();
+        PaybillAccount::create(
+            &db.conn,
+            CreatePaybillAccount {
+                business_id,
+                paybill_number: 2,
+                response_type: None,
+                validation_url: None,
+                confirmation_url: None,
+            },
+        )
+        .await
+        .unwrap();
+
+        let results = PaybillAccount::get_by_business_id(&db.conn, business_id)
+            .await
+            .unwrap();
+        // Business::create creates 1 default paybill + 2 manual ones = 3
+        assert_eq!(results.len(), 3);
+    }
+}
