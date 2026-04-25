@@ -252,6 +252,12 @@ impl TransactionChannel {
             notes: config.notes.clone(),
         };
 
+        if !config.identifiers.is_tracked {
+            return Ok(Err(TransactionEngineError::IdentifiersError(
+                config.identifiers.request_id,
+            )));
+        }
+
         let db_job: TransactionJobModel =
             TransactionJobModel::create(conn, &config.identifiers, process_after_utc, payload)
                 .await

@@ -48,7 +48,8 @@
 			simulationMode: SimulationMode.Realistic,
 			initialWorkingBalance: 10000,
 			initialUtilityBalance: 500,
-			stkDelay: 0
+			stkDelay: 0,
+			txnDelay: 0
 		},
 		onSubmit: handleSubmit
 	});
@@ -86,7 +87,8 @@
 				name: values.projectName,
 				business_id: businessId,
 				simulation_mode: values.simulationMode,
-				stk_delay: Number(values.stkDelay) || 0
+				stk_delay: Number(values.stkDelay) || 0,
+				txn_delay: Number(values.txnDelay) || 0
 			});
 
 			toast.success('Project created successfully!');

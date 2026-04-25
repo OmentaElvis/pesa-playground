@@ -15,6 +15,7 @@
 	let callbackUrl = $state('http://localhost:5001/callback');
 	let simulationMode: SimulationMode = $state(SimulationMode.Realistic);
 	let stkDelay = $state(3);
+	let txnDelay = $state(0);
 	let customPrefix = $state('test_');
 	let creating = $state(false);
 	let businessId = $derived(page.params.business);
@@ -27,6 +28,7 @@
 				name: projectName,
 				simulation_mode: simulationMode,
 				stk_delay: stkDelay,
+				txn_delay: txnDelay,
 				prefix: customPrefix,
 				business_id: Number(businessId)
 			});
@@ -123,6 +125,23 @@
 						<span>30s</span>
 					</div>
 					<p class="text-xs text-muted-foreground">Simulate real-world STK push response time</p>
+				</div>
+
+				<!-- Transaction Delay -->
+				<div class="space-y-4">
+					<Label class="flex items-center gap-1 text-sm font-medium">
+						<Timer class="h-4 w-4" />
+						Transaction Delay
+					</Label>
+					<div class="px-2">
+						<Slider type="single" bind:value={txnDelay} max={30} min={0} step={1} class="w-full" />
+					</div>
+					<div class="flex justify-between text-xs text-muted-foreground">
+						<span>0s</span>
+						<span class="font-medium">{txnDelay}s delay</span>
+						<span>30s</span>
+					</div>
+					<p class="text-xs text-muted-foreground">Simulate delayed transaction processing for testing status queries</p>
 				</div>
 
 				<!-- Custom Prefix -->

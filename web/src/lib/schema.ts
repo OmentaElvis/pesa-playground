@@ -12,7 +12,8 @@ export const newProjectSchema = z
 		initialWorkingBalance: z.number().min(1).optional(),
 		initialUtilityBalance: z.number().min(0).optional(),
 		simulationMode: z.enum(SimulationMode),
-		stkDelay: z.number().min(0)
+		stkDelay: z.number().min(0),
+		txnDelay: z.number().min(0)
 	})
 	.superRefine((data, ctx) => {
 		if (data.businessChoice == 'new') {

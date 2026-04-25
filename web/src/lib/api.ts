@@ -377,6 +377,7 @@ export interface ProjectData {
 	callback_url?: string;
 	simulation_mode: SimulationMode;
 	stk_delay: number;
+	txn_delay: number;
 	prefix?: string;
 }
 
@@ -391,6 +392,7 @@ export interface UpdateProjectData {
 	callback_url?: string;
 	simulation_mode?: SimulationMode;
 	stk_delay?: number;
+	txn_delay?: number;
 	prefix?: string;
 }
 
@@ -401,6 +403,7 @@ export interface Project {
 	callback_url?: string;
 	simulation_mode: SimulationMode;
 	stk_delay: number;
+	txn_delay: number;
 	prefix?: string;
 	created_at: string;
 }

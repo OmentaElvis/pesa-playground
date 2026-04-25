@@ -14,6 +14,8 @@ pub struct Identifiers {
     pub transaction_id: String,
     /// Pesa playground sandbox request id
     pub request_id: String,
+    /// If this request id is being tracked on the db
+    pub is_tracked: bool,
 }
 
 impl Default for Identifiers {
@@ -23,6 +25,7 @@ impl Default for Identifiers {
             transaction_id: Self::generate_transaction_id(),
             conversation_id: Self::generate_conversation_id(),
             originator_conversation_id: Self::generate_originator_conversation_id(),
+            is_tracked: false,
         }
     }
 }

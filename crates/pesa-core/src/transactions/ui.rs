@@ -398,7 +398,7 @@ async fn process_lipa<C: sea_orm::ConnectionTrait>(
     args: ProcessLipaArgs,
     ctx: AppContext,
 ) {
-    let ids = Identifiers::new();
+    let mut ids = Identifiers::new();
 
     if let Err(e) = ctx
         .request_lifecycle_manager
@@ -414,6 +414,8 @@ async fn process_lipa<C: sea_orm::ConnectionTrait>(
     {
         tracing::error!("Failed to create system request for c2b_lipa: {}", e);
     }
+
+    ids.is_tracked = true;
 
     let parts: Vec<&str> = args.user.name.split_whitespace().collect();
     let first_name;

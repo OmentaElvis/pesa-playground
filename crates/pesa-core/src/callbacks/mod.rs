@@ -228,6 +228,7 @@ mod tests {
             callback_url: Some("https://example.com/callback".to_string()),
             simulation_mode: crate::projects::SimulationMode::Realistic,
             stk_delay: 1000,
+            txn_delay: 0,
             prefix: Some("TEST".to_string()),
         };
         let project = Project::create(db, project_input).await.unwrap();

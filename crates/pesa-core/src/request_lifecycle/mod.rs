@@ -32,6 +32,7 @@ impl RequestType {
             paths::C2B_REGISTER_URL => RequestType::C2bRegisterUrl,
             paths::B2C_PAYMENT => RequestType::B2cPayment,
             paths::BALANCE_QUERY => RequestType::BalanceQuery,
+            paths::TRANSACTION_STATUS => RequestType::TransactionStatus,
             _ => RequestType::Other,
         }
     }
@@ -531,6 +532,7 @@ mod tests {
             callback_url: None,
             simulation_mode: SimulationMode::Realistic,
             stk_delay: 0,
+            txn_delay: 0,
             prefix: None,
         };
         let project = Project::create(&db.conn, project_input).await.unwrap();

@@ -360,6 +360,7 @@ mod tests {
             callback_url: None,
             simulation_mode: SimulationMode::Realistic,
             stk_delay: 0,
+            txn_delay: 0,
             prefix: None,
         };
         let project = Project::create(&db.conn, project_input).await.unwrap();

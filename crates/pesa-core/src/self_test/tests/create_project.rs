@@ -90,6 +90,7 @@ impl TestStep for InitProjectTest {
                 callback_url: None,
                 simulation_mode: projects::SimulationMode::Realistic,
                 stk_delay: 0,
+                txn_delay: 0,
                 prefix: None,
             },
         )

@@ -10,6 +10,7 @@ pub struct Model {
     pub callback_url: Option<String>,
     pub simulation_mode: String,
     pub stk_delay: u32,
+    pub txn_delay: u32,
     pub prefix: Option<String>,
     pub created_at: DateTimeUtc,
 }

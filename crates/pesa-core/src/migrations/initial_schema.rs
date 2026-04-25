@@ -28,6 +28,7 @@ enum Projects {
     CallbackUrl,
     SimulationMode,
     StkDelay,
+    TxnDelay,
     Prefix,
     CreatedAt,
 }
@@ -313,6 +314,7 @@ impl Migration {
             .col(ColumnDef::new(Projects::CallbackUrl).string().null())
             .col(ColumnDef::new(Projects::SimulationMode).string().not_null())
             .col(ColumnDef::new(Projects::StkDelay).integer().not_null())
+            .col(ColumnDef::new(Projects::TxnDelay).integer().not_null())
             .col(ColumnDef::new(Projects::Prefix).string().null())
             .col(
                 ColumnDef::new(Projects::CreatedAt)

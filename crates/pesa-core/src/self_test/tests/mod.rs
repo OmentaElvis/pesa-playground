@@ -15,6 +15,7 @@ pub mod c2b;
 pub mod create_project;
 pub mod send_money;
 pub mod stkpush;
+pub mod transaction_status_query;
 
 define_tests!(
     InitProject {
@@ -46,6 +47,11 @@ define_tests!(
         name: "balance_query",
         description: "Performs Balance Query tests",
         ctor: balance_query::BalanceQueryTest
+    },
+    TransactionStatusQuery {
+        name: "transaction_status_query",
+        description: "Performs Transaction Status Query tests",
+        ctor: transaction_status_query::TransactionStatusQueryTest
     },
 );
 

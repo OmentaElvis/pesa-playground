@@ -208,7 +208,10 @@ impl PpgAsyncRequest for B2C {
                 response_description: B2CResultCodes::Success.to_string(),
             },
             Self {
-                ids: ids.clone(),
+                ids: Identifiers {
+                    originator_conversation_id: req.originator_conversation_id.to_string(),
+                    ..ids.clone()
+                },
                 result_url: req.result_url,
                 amount: (amount * 100.0) as i64,
                 business,
@@ -226,6 +229,7 @@ impl PpgAsyncRequest for B2C {
         state: &crate::server::ApiState,
     ) -> Result<Self::CallbackPayload, Self::Error> {
         let db = &state.context.db;
+
         // check if we have enough funds
         if (self.utility_account.balance - self.amount) < 0 {
             return Ok(self.create_response(
@@ -238,7 +242,7 @@ impl PpgAsyncRequest for B2C {
             .context
             .transfer(TransferConfig {
                 identifiers: self.ids.clone(),
-                delay: Duration::ZERO,
+                delay: Duration::from_secs(self.project.txn_delay as u64),
                 source: Some(self.utility_account.account_id),
                 destination: self.user.account_id,
                 amount: self.amount,

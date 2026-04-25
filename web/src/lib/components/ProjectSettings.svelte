@@ -62,6 +62,9 @@
 			if (project.stk_delay !== originalData.stk_delay) {
 				updatePayload.stk_delay = project.stk_delay;
 			}
+			if (project.txn_delay !== originalData.txn_delay) {
+				updatePayload.txn_delay = project.txn_delay;
+			}
 			if (project.prefix !== originalData.prefix) {
 				updatePayload.prefix = project.prefix;
 			}

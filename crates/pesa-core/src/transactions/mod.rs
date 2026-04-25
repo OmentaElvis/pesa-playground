@@ -51,6 +51,11 @@ pub enum TransactionEngineError {
 
     #[error("Transaction not found")]
     TransactionNotFound,
+
+    #[error(
+        "Attempt to use untracked set of Ids. The ids were not saved to database so will likely cause FK issue if used."
+    )]
+    IdentifiersError(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

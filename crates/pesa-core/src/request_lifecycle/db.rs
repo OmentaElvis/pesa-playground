@@ -138,6 +138,7 @@ pub enum RequestType {
     BalanceQuery,
     C2bLipa,
     Oauth,
+    TransactionStatus,
     Other,
 }
 

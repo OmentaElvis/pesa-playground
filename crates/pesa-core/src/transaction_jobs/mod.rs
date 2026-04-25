@@ -67,6 +67,7 @@ impl TryFrom<Model> for TransactionJob {
                 conversation_id: value.conversation_id,
                 transaction_id: value.transaction_id,
                 request_id: value.request_id,
+                is_tracked: true,
             },
             status: value.status,
             process_after: value.process_after,
@@ -189,6 +190,7 @@ mod tests {
             conversation_id: "conv_456".to_string(),
             transaction_id: "txn_789".to_string(),
             request_id: "req_012".to_string(),
+            ..Default::default()
         };
 
         manager
@@ -217,6 +219,7 @@ mod tests {
             conversation_id: "conv_456".to_string(),
             transaction_id: "txn_789".to_string(),
             request_id,
+            ..Default::default()
         };
 
         let payload = JobPayload {
@@ -248,6 +251,7 @@ mod tests {
             conversation_id: "conv_456".to_string(),
             transaction_id: "txn_789".to_string(),
             request_id,
+            ..Default::default()
         };
 
         let payload = JobPayload {
@@ -292,6 +296,7 @@ mod tests {
             conversation_id: "conv_456".to_string(),
             transaction_id: "txn_789".to_string(),
             request_id,
+            ..Default::default()
         };
 
         let payload = JobPayload {

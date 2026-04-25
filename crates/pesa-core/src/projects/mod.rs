@@ -20,6 +20,7 @@ pub struct Project {
     pub callback_url: Option<String>,
     pub simulation_mode: SimulationMode,
     pub stk_delay: u32,
+    pub txn_delay: u32,
     pub prefix: Option<String>,
     pub created_at: DateTimeUtc,
 }
@@ -39,6 +40,7 @@ pub struct CreateProject {
     pub callback_url: Option<String>,
     pub simulation_mode: SimulationMode,
     pub stk_delay: u32,
+    pub txn_delay: u32,
     pub prefix: Option<String>,
 }
 
@@ -48,6 +50,7 @@ pub struct UpdateProject {
     pub callback_url: Option<String>,
     pub simulation_mode: Option<SimulationMode>,
     pub stk_delay: Option<u32>,
+    pub txn_delay: Option<u32>,
     pub prefix: Option<String>,
 }
 
@@ -66,6 +69,7 @@ pub struct ProjectDetails {
     pub simulation_mode: SimulationMode,
     pub business_id: u32,
     pub stk_delay: u32,
+    pub txn_delay: u32,
     pub prefix: Option<String>,
     pub created_at: DateTime<Utc>,
     pub consumer_key: String,
@@ -129,6 +133,7 @@ impl Project {
             prefix: Set(input.prefix),
             simulation_mode: Set(input.simulation_mode.to_string()),
             stk_delay: Set(input.stk_delay),
+            txn_delay: Set(input.txn_delay),
             created_at: Set(Utc::now().to_utc()),
             ..Default::default()
         };
@@ -149,6 +154,7 @@ impl Project {
             callback_url: project.callback_url,
             simulation_mode: input.simulation_mode,
             stk_delay: project.stk_delay,
+            txn_delay: project.txn_delay,
             prefix: project.prefix,
             created_at: project.created_at,
             consumer_key: key.consumer_key,
@@ -239,6 +245,7 @@ impl Project {
             name: project.name,
             callback_url: project.callback_url,
             stk_delay: project.stk_delay,
+            txn_delay: project.txn_delay,
             created_at: project.created_at,
             simulation_mode: project
                 .simulation_mode
@@ -278,6 +285,9 @@ impl Project {
         if let Some(stk_delay) = input.stk_delay {
             active_model.stk_delay = Set(stk_delay);
         }
+        if let Some(txn_delay) = input.txn_delay {
+            active_model.txn_delay = Set(txn_delay);
+        }
         if let Some(prefix) = input.prefix {
             active_model.prefix = Set(Some(prefix));
         }
@@ -296,6 +306,7 @@ impl Project {
                 .parse()
                 .unwrap_or(SimulationMode::Realistic),
             stk_delay: updated_project.stk_delay,
+            txn_delay: updated_project.txn_delay,
             prefix: updated_project.prefix,
             created_at: updated_project.created_at,
         }))
@@ -325,6 +336,7 @@ impl From<&db::Model> for Project {
                 .parse()
                 .unwrap_or(SimulationMode::Realistic),
             stk_delay: value.stk_delay,
+            txn_delay: value.txn_delay,
             prefix: value.prefix.clone(),
             created_at: value.created_at,
         }
@@ -354,6 +366,7 @@ mod tests {
             callback_url: Some("https://example.com/callback".to_string()),
             simulation_mode: SimulationMode::Realistic,
             stk_delay: 1000,
+            txn_delay: 0,
             prefix: Some("TEST".to_string()),
         }
     }
@@ -562,6 +575,7 @@ mod tests {
                 callback_url: None,
                 simulation_mode: mode.clone(),
                 stk_delay: 0,
+                txn_delay: 0,
                 prefix: None,
             };
             let project = Project::create(&db.conn, input).await.unwrap();
