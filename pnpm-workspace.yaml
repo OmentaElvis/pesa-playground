@@ -1,6 +1,9 @@
 packages:
   - web
 
+allowBuilds:
+  esbuild: true
+
 onlyBuiltDependencies:
   - esbuild
 

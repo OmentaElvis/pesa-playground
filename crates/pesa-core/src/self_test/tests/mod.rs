@@ -9,12 +9,13 @@ use crate::{
     server::api::auth::AuthResponse,
 };
 
-pub mod b2c;
 pub mod balance_query;
+pub mod b2c;
 pub mod c2b;
 pub mod create_project;
 pub mod send_money;
 pub mod stkpush;
+pub mod system_purge;
 pub mod transaction_status_query;
 
 define_tests!(
@@ -52,6 +53,11 @@ define_tests!(
         name: "transaction_status_query",
         description: "Performs Transaction Status Query tests",
         ctor: transaction_status_query::TransactionStatusQueryTest
+    },
+    SystemPurge {
+        name: "system_purge",
+        description: "Verifies system data purge functionality resets the database to a clean state",
+        ctor: system_purge::SystemPurgeTest
     },
 );
 
