@@ -598,7 +598,8 @@ export enum TransactionType {
 	ChargeSettlement = 'charge_settlement',
 	Disbursment = 'disbursment',
 	RevenueSweep = 'revenue_sweep',
-	TopupUtility = 'topup_utility'
+	TopupUtility = 'topup_utility',
+	Reversal = 'reversal'
 }
 
 export interface Transaction {

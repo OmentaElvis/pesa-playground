@@ -83,16 +83,31 @@ async fn process_single_transaction_job<C: ConnectionTrait>(
     let job_id = job.job_id;
     let result_sender = job.reply_sender;
 
-    let transaction_result = Ledger::transfer_with_id(
-        conn,
-        &job.identifiers.transaction_id,
-        job.source,
-        job.destination,
-        job.amount,
-        &job.txn_type,
-        job.notes.as_ref(),
-    )
-    .await;
+    let transaction_result = if job.txn_type == TransactionType::Reversal {
+        let original_txn_id = job
+            .notes
+            .as_ref()
+            .and_then(|n| match n {
+                TransactionNote::Reversal {
+                    original_transaction_id,
+                } => Some(original_transaction_id.clone()),
+                _ => None,
+            })
+            .unwrap_or(job.identifiers.transaction_id.clone());
+
+        Ledger::reverse(conn, &original_txn_id, &job.identifiers.transaction_id).await
+    } else {
+        Ledger::transfer_with_id(
+            conn,
+            &job.identifiers.transaction_id,
+            job.source,
+            job.destination,
+            job.amount,
+            &job.txn_type,
+            job.notes.as_ref(),
+        )
+        .await
+    };
 
     let status;
     let result_payload;

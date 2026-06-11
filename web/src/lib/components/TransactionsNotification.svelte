@@ -17,6 +17,8 @@
 	function getTransactionLogDescription(log: FullTransactionLog): string {
 		if (log.transaction_type === 'deposit') {
 			return 'Deposit';
+		} else if (log.transaction_type === 'reversal') {
+			return 'Reversal';
 		} else if (log.direction === 'Inflow') {
 			return 'Received';
 		} else if (log.direction === 'Outflow') {
@@ -36,6 +38,11 @@
 
 		if (log.transaction_type === 'deposit') {
 			return `Deposit of ${formattedAmount} to ${log.to_name}`;
+		} else if (log.transaction_type === 'reversal') {
+			if (log.direction === 'Inflow') {
+				return `${formattedAmount} reversed from ${log.from_name}`;
+			}
+			return `${formattedAmount} reversed to ${log.to_name}`;
 		} else if (log.direction === 'Inflow') {
 			return `${log.to_name} received ${formattedAmount} from ${log.from_name}`;
 		} else if (log.direction === 'Outflow') {

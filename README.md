@@ -182,9 +182,9 @@ This is a unified api that is used by Tax remitance, Business Paybill, Business 
 - [ ] Balance query
 
 #### Account Management & Queries
-- [ ] Reversal Request - simulate transaction reversals
-- [ ] Transaction Status - verify or track payment progress
-- [ ] Balance Inquiry - return current wallet or till balance
+- ✅ Reversal Request - simulate transaction reversals
+- ✅ Transaction Status - verify or track payment progress
+- ✅ Balance Inquiry - return current wallet or till balance
 
 #### Utility & Simulation
 - ✅ Configurable failure modes (timeout, insufficient funds, declined)

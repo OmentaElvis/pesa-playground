@@ -171,6 +171,30 @@
 								<b>{amount}</b>
 								withdrawn at {transaction.sender_name || 'Agent'} on {date} at {time}. New M-PESA
 								balance is {newBalance}. Transaction cost, {cost}
+							{:else if transaction.transaction_type === TransactionType.Reversal && direction === 'Inflow'}
+								<b>{transactionId}</b>
+								Confirmed.
+								<b>{amount}</b>
+								reversed from
+								<button
+									class="cursor-pointer hover:underline"
+									onclick={() => resolveAccountAndNavigate(transaction.sender_id || 0, goto)}
+								>
+									<b>{transaction.sender_name}</b>
+								</button>
+								on {date} at {time}. New M-PESA balance is {newBalance}.
+							{:else if transaction.transaction_type === TransactionType.Reversal && direction === 'Outflow'}
+								<b>{transactionId}</b>
+								Confirmed.
+								<b>{amount}</b>
+								reversed to
+								<button
+									class="cursor-pointer hover:underline"
+									onclick={() => resolveAccountAndNavigate(transaction.receiver_id, goto)}
+								>
+									<b>{transaction.receiver_name}</b>
+								</button>
+								on {date} at {time}. New M-PESA balance is {newBalance}. Transaction cost, {cost}
 							{:else}
 								<b>{transactionId}</b>
 								Confirmed.

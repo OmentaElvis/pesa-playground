@@ -197,7 +197,8 @@ pub async fn transfer(
 }
 
 pub async fn reverse(ctx: &AppContext, id: String) -> Result<Transaction> {
-    let (txn, events) = Ledger::reverse(&ctx.db, &id)
+    let reversal_id = Identifiers::generate_transaction_id();
+    let (txn, events) = Ledger::reverse(&ctx.db, &id, &reversal_id)
         .await
         .context("Transfer Error")?;
 

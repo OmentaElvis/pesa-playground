@@ -140,6 +140,7 @@ pub enum RequestType {
     Oauth,
     TransactionStatus,
     DynamicQr,
+    Reversal,
     Other,
 }
 

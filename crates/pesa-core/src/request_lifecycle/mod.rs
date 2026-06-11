@@ -34,6 +34,7 @@ impl RequestType {
             paths::BALANCE_QUERY => RequestType::BalanceQuery,
             paths::TRANSACTION_STATUS => RequestType::TransactionStatus,
             paths::DYNAMIC_QR => RequestType::DynamicQr,
+            paths::REVERSAL => RequestType::Reversal,
             _ => RequestType::Other,
         }
     }
@@ -835,6 +836,10 @@ mod tests {
             RequestType::from_path(paths::DYNAMIC_QR),
             RequestType::DynamicQr
         );
+        assert_eq!(
+            RequestType::from_path(paths::REVERSAL),
+            RequestType::Reversal
+        );
         assert_eq!(RequestType::from_path("/unknown/path"), RequestType::Other);
     }
 
@@ -847,6 +852,7 @@ mod tests {
         assert!(RequestType::C2bRegisterUrl.is_trackable());
         assert!(RequestType::C2bLipa.is_trackable());
         assert!(RequestType::DynamicQr.is_trackable());
+        assert!(RequestType::Reversal.is_trackable());
         assert!(!RequestType::Other.is_trackable());
     }
 

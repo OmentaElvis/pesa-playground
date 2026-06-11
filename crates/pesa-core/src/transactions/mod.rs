@@ -81,6 +81,9 @@ pub enum TransactionNote {
     Disbursment {
         kind: b2c::CommandID,
     },
+    Reversal {
+        original_transaction_id: String,
+    },
 }
 
 static GLOBAL_LEDGER_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
@@ -394,7 +397,8 @@ impl Ledger {
 
     pub async fn reverse<C>(
         conn: &C,
-        id: &str,
+        original_id: &str,
+        reversal_id: &str,
     ) -> Result<(Transaction, Vec<crate::events::DomainEvent>), TransactionEngineError>
     where
         C: ConnectionTrait,
@@ -402,7 +406,7 @@ impl Ledger {
         let _guard = GLOBAL_LEDGER_LOCK.lock().await;
         let mut events = Vec::new();
 
-        let transaction_model = db::Entity::find_by_id(id).one(conn).await?;
+        let transaction_model = db::Entity::find_by_id(original_id).one(conn).await?;
         if transaction_model.is_none() {
             return Err(TransactionEngineError::TransactionNotFound);
         }
@@ -413,66 +417,19 @@ impl Ledger {
         let dest_id = transaction.to;
         let amount = transaction.amount;
 
-        // look through the accounts and restore balances
-        if let Some(dest) = crate::accounts::db::Entity::find_by_id(dest_id)
+        // Check dest balance before making any changes
+        let dest_account = crate::accounts::db::Entity::find_by_id(dest_id)
             .one(conn)
             .await?
-        {
-            if dest.balance < amount {
-                // we are trying to reverse but target has insufficient funds to do so
-                // TODO implement correct real world logic for this scenario
-                return Err(TransactionEngineError::InsufficientFunds);
-            }
-            let balance = dest.balance - amount;
-            let mut dest_model: crate::accounts::db::ActiveModel = dest.into();
-            dest_model.balance = Set(balance);
-            dest_model.update(conn).await?;
+            .ok_or(TransactionEngineError::AccountNotFound(dest_id))?;
 
-            let (_log, event) = TransactionLog::create(
-                conn,
-                transaction.id.clone(),
-                dest_id,
-                Direction::Outflow,
-                balance,
-            )
-            .await?;
-            events.push(event);
-        } else {
-            return Err(TransactionEngineError::AccountNotFound(dest_id));
+        if dest_account.balance < amount {
+            return Err(TransactionEngineError::InsufficientFunds);
         }
 
-        // credit back the funds to source
-        if let Some(source_id) = source_id {
-            if let Some(source) = crate::accounts::db::Entity::find_by_id(source_id)
-                .one(conn)
-                .await?
-            {
-                let balance = source.balance + amount;
-                let mut source_model: crate::accounts::db::ActiveModel = source.into();
-                source_model.balance = Set(balance);
-                source_model.update(conn).await?;
-
-                let (_log, event) = TransactionLog::create(
-                    conn,
-                    transaction.id.clone(),
-                    source_id,
-                    Direction::Inflow,
-                    balance,
-                )
-                .await?;
-                events.push(event);
-            } else {
-                return Err(TransactionEngineError::AccountNotFound(source_id));
-            }
-        }
-
-        let mut txn: db::ActiveModel = transaction_model.into();
-        txn.status = Set(TransactionStatus::Reversed);
-        txn.updated_at = Set(Some(DateTimeUtc::UNIX_EPOCH));
-        txn.update(conn).await?;
-
+        // Insert the reversal transaction first so TransactionLog FK references it
         let txn = db::ActiveModel {
-            id: Set(Ledger::generate_receipt()),
+            id: Set(reversal_id.to_string()),
             to: Set(source_id.unwrap_or(dest_id)),
             from: Set(Some(dest_id)),
             amount: Set(amount),
@@ -484,6 +441,55 @@ impl Ledger {
             ..Default::default()
         };
         let txn: Transaction = txn.insert(conn).await?.into();
+
+        // Debit dest account
+        let dest_balance = dest_account.balance - amount;
+        {
+            let mut dest_model: crate::accounts::db::ActiveModel = dest_account.into();
+            dest_model.balance = Set(dest_balance);
+            dest_model.update(conn).await?;
+        }
+
+        let (_log, event) = TransactionLog::create(
+            conn,
+            reversal_id.to_string(),
+            dest_id,
+            Direction::Outflow,
+            dest_balance,
+        )
+        .await?;
+        events.push(event);
+
+        // Credit back the funds to source
+        if let Some(source_id) = source_id {
+            if let Some(source) = crate::accounts::db::Entity::find_by_id(source_id)
+                .one(conn)
+                .await?
+            {
+                let source_balance = source.balance + amount;
+                let mut source_model: crate::accounts::db::ActiveModel = source.into();
+                source_model.balance = Set(source_balance);
+                source_model.update(conn).await?;
+
+                let (_log, event) = TransactionLog::create(
+                    conn,
+                    reversal_id.to_string(),
+                    source_id,
+                    Direction::Inflow,
+                    source_balance,
+                )
+                .await?;
+                events.push(event);
+            } else {
+                return Err(TransactionEngineError::AccountNotFound(source_id));
+            }
+        }
+
+        // Mark original transaction as reversed
+        let mut txn_model: db::ActiveModel = transaction_model.into();
+        txn_model.status = Set(TransactionStatus::Reversed);
+        txn_model.updated_at = Set(Some(DateTimeUtc::UNIX_EPOCH));
+        txn_model.update(conn).await?;
 
         drop(_guard);
         Ok((txn, events))
@@ -618,7 +624,8 @@ mod tests {
             .unwrap()
             .unwrap();
 
-        let (rev_txn, _) = Ledger::reverse(&db.conn, &txn.id).await.unwrap();
+        let rev_id = Ledger::generate_receipt();
+        let (rev_txn, _) = Ledger::reverse(&db.conn, &txn.id, &rev_id).await.unwrap();
         assert_eq!(rev_txn.transaction_type, TransactionType::Reversal);
 
         let acc1_after = Account::get_account(&db.conn, acc1.id)

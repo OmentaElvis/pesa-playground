@@ -14,6 +14,7 @@ pub mod b2c;
 pub mod c2b;
 pub mod create_project;
 pub mod dynamic_qr;
+pub mod reversal;
 pub mod send_money;
 pub mod stkpush;
 pub mod system_purge;
@@ -59,6 +60,11 @@ define_tests!(
         name: "dynamic_qr",
         description: "Generates and validates Dynamic QR codes",
         ctor: dynamic_qr::DynamicQrTest
+    },
+    Reversal {
+        name: "reversal",
+        description: "Reverses a legitimate C2B Paybill transaction via the Reversal API, including error cases",
+        ctor: reversal::ReversalTest
     },
     SystemPurge {
         name: "system_purge",

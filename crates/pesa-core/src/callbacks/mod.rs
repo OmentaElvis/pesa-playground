@@ -20,6 +20,7 @@ pub enum CallbackType {
     B2cResult,
     C2bValidation,
     C2bConfirmation,
+    Reversal,
 }
 
 #[derive(
@@ -388,6 +389,10 @@ mod tests {
         assert_eq!(
             "c2b_confirmation".parse::<CallbackType>(),
             Ok(CallbackType::C2bConfirmation)
+        );
+        assert_eq!(
+            "reversal".parse::<CallbackType>(),
+            Ok(CallbackType::Reversal)
         );
     }
 
