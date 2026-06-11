@@ -33,6 +33,7 @@ impl RequestType {
             paths::B2C_PAYMENT => RequestType::B2cPayment,
             paths::BALANCE_QUERY => RequestType::BalanceQuery,
             paths::TRANSACTION_STATUS => RequestType::TransactionStatus,
+            paths::DYNAMIC_QR => RequestType::DynamicQr,
             _ => RequestType::Other,
         }
     }
@@ -830,6 +831,10 @@ mod tests {
             RequestType::from_path(C2B_REGISTER_URL),
             RequestType::C2bRegisterUrl
         );
+        assert_eq!(
+            RequestType::from_path(paths::DYNAMIC_QR),
+            RequestType::DynamicQr
+        );
         assert_eq!(RequestType::from_path("/unknown/path"), RequestType::Other);
     }
 
@@ -841,6 +846,7 @@ mod tests {
         assert!(RequestType::BalanceQuery.is_trackable());
         assert!(RequestType::C2bRegisterUrl.is_trackable());
         assert!(RequestType::C2bLipa.is_trackable());
+        assert!(RequestType::DynamicQr.is_trackable());
         assert!(!RequestType::Other.is_trackable());
     }
 

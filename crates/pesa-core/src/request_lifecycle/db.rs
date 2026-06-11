@@ -139,6 +139,7 @@ pub enum RequestType {
     C2bLipa,
     Oauth,
     TransactionStatus,
+    DynamicQr,
     Other,
 }
 

@@ -13,6 +13,7 @@ pub mod balance_query;
 pub mod b2c;
 pub mod c2b;
 pub mod create_project;
+pub mod dynamic_qr;
 pub mod send_money;
 pub mod stkpush;
 pub mod system_purge;
@@ -53,6 +54,11 @@ define_tests!(
         name: "transaction_status_query",
         description: "Performs Transaction Status Query tests",
         ctor: transaction_status_query::TransactionStatusQueryTest
+    },
+    DynamicQr {
+        name: "dynamic_qr",
+        description: "Generates and validates Dynamic QR codes",
+        ctor: dynamic_qr::DynamicQrTest
     },
     SystemPurge {
         name: "system_purge",

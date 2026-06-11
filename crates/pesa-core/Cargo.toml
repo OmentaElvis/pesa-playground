@@ -36,6 +36,8 @@ tempfile = "3.24.0"
 futures = "0.3.31"
 indoc = "2.0.7"
 semver = "1.0"
+qrcode = { version = "0.14", features = ["image"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
 
 [dev-dependencies]
 serial_test = "3.4.0"

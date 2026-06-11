@@ -171,6 +171,9 @@ This is a unified api that is used by Business To Pochi and Business To Customer
 - ✅ Transaction Status query
 - ✅ Balance query
 
+#### M-Pesa QR
+- ✅ **Dynamic QR Code** - Generate QR codes for M-Pesa payments
+
 #### Business to Business (B2B)
 This is a unified api that is used by Tax remitance, Business Paybill, Business Buy Goods and B2C Account Top Up
 

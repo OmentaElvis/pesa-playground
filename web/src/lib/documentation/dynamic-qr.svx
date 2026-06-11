@@ -1,0 +1,60 @@
+---
+title: 'Dynamic QR Code'
+order: 6
+summary: 'Learn how to generate a dynamic QR code for M-Pesa payments.'
+---
+
+# Dynamic QR Code
+
+The Dynamic QR Code API generates a QR code that customers can scan with their M-Pesa app to initiate a payment. Unlike STK Push, this is a fully synchronous API — the QR code image is returned immediately in the response as a base64-encoded PNG.
+
+## Request
+
+To generate a QR code, make a `POST` request to the following endpoint. This requires a valid access token obtained via the [Daraja Auth API](/info/daraja-auth).
+
+```http
+POST /mpesa/qrcode/v1/generate
+```
+
+### Request Body
+
+```json
+{
+  "MerchantName": "Test Merchant",
+  "RefNo": "INV-001",
+  "Amount": 100,
+  "TrxCode": "BG",
+  "CPI": "174379",
+  "Size": "300"
+}
+```
+
+- `MerchantName`: The display name for the merchant that will appear in the customer's app.
+- `RefNo`: Your own reference or invoice number for this transaction.
+- `Amount`: How much the customer should pay. Must be greater than `0`.
+- `TrxCode`: Identifies the kind of transaction being performed:
+  - `BG` — Buy Goods (pay a till)
+  - `WA` — Withdraw Cash
+  - `PB` — Paybill (pay a paybill number)
+  - `SM` — Send Money (send to a phone number)
+  - `SB` — Send to Business (pay a business number in MSISDN format)
+- `CPI`: The receiving party's identifier — a till number, paybill number, phone number, or agent till depending on the `TrxCode`.
+- `Size`: The pixel size for the QR code image (the output will be a square, e.g. `"300"` = 300×300 px).
+
+## Response
+
+A successful request returns HTTP `200` with the QR code as a base64-encoded PNG string.
+
+```json
+{
+  "ResponseCode": "AG_20240101_2f3a4b5c6d",
+  "RequestID": "a1b2-c3d4-e5f6-g7h8-i9j0k1l2m3n4",
+  "ResponseDescription": "QR Code Successfully Generated.",
+  "QRCode": "iVBORw0KGgoAAAANS..."
+}
+```
+
+- `ResponseCode`: A unique conversation ID generated for the request.
+- `RequestID`: A unique request identifier.
+- `ResponseDescription`: A human-readable description of the result.
+- `QRCode`: A base64-encoded PNG image of the QR code. Decode this string and display it as an image, or save it to disk as a `.png` file.

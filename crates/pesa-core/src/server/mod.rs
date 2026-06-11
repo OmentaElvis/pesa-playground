@@ -8,7 +8,8 @@ use crate::{
         access_token::AccessToken,
         api::{
             auth::INVALID_ACCESS_TOKEN, b2c::task::B2C, balance_query::task::BalanceQuery,
-            c2b::register::registerurl, stkpush::task::Stkpush,
+            c2b::register::registerurl,
+            dynamic_qr::generate_qr_code, stkpush::task::Stkpush,
             transaction_status::task::TransactionStatusQuery,
         },
         async_handler::handle_async_request,
@@ -233,6 +234,7 @@ pub fn create_router(context: AppContext, project_id: u32, log: bool) -> Router 
             paths::TRANSACTION_STATUS,
             post(handle_async_request::<TransactionStatusQuery>),
         )
+        .route(paths::DYNAMIC_QR, post(generate_qr_code))
         .route(paths::DEBUG_CONFIG, get(get_api_keys))
         .route(paths::DEBUG_USERS, get(get_users))
         .with_state(state.clone());
